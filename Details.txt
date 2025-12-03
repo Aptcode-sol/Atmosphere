@@ -1,0 +1,294 @@
+🌐 Atmosphere – Detailed Functional Specification
+
+Atmosphere is a startup–investor networking and social media platform, with dual user modes and role-based functionality.
+
+🧭 Main Navigation (Normal Mode)
+1️⃣ Home Page
+
+Displays all posts from startups, investors, and personal accounts
+
+Post interactions:
+
+Like
+
+Comment
+
+Share
+
+Follow creator
+
+2️⃣ Search Page
+
+Contains:
+
+Search bar
+
+Search across:
+
+Accounts
+
+Posts
+
+Hashtags (optional initial phase)
+
+Also shows:
+
+Recommended posts
+
+Trending accounts / startups / investors
+
+3️⃣ Notifications Page
+
+Notification types include:
+
+Comments
+
+Likes
+
+Follows
+
+Meeting invites / reminders
+
+Jobs updates (applications, team additions)
+
+Admin verification updates (KYC, portfolio approvals)
+
+4️⃣ Reels Page
+
+Short promotional videos from startups
+
+Focus on:
+
+Product demos
+
+Startup launches
+
+Founder pitches
+
+5️⃣ Profile Page
+
+Displays:
+
+Profile picture
+
+Username
+
+Full name
+
+Quick bio
+
+Email
+
+Account Type (Startup / Investor / Personal)
+
+Followers, Following count
+
+Posts / Reels
+
+Button: Setup Profile
+(Visible until complete)
+
+🧩 User Account Setup Flow
+
+All accounts go through setup immediately after sign-up.
+
+🔹 Common Step for ALL Accounts
+
+Mandatory fields:
+
+Profile Photo
+
+Username
+
+Full Name
+
+Quick Bio
+
+Email
+→ Email Verification via OTP required
+
+Account Type Selection:
+
+Startup
+
+Investor
+
+Personal
+
+🔷 Startup Account Setup — Additional Steps
+(b) Team Members Section
+
+Fields:
+
+Add multiple team members:
+
+Member Name
+
+Role (Founder / CTO / Team roles)
+
+(c) KYC Section (Implement Later Phase)
+
+Identity documents
+
+Admin verification required
+
+(d) Portfolio Section — Startup Business Profile
+1️⃣ Company Details
+
+Company Name
+
+About Company
+
+Location
+
+Company Type (Startup category)
+
+Established On (Date)
+
+Full Address
+
+2️⃣ Financial Profile
+Field	Options / Type
+Revenue Type	“Bootstrapped” OR “Capital Raised”
+If Capital Raised	Funding amount, stages (later)
+3️⃣ Previous Investments (if applicable)
+
+Fields stored for each investment:
+
+Company Full Name
+
+Company ID (unique identifier)
+
+Date of Investment
+
+Amount Invested
+
+Documents Upload (Any supporting files)
+
+⚠️ COMPLETE Portfolio + KYC is sent to Admin Dashboard for verification
+
+🔶 Investor Account Setup — Additional Fields
+
+About
+
+Location
+
+Investment Focus (industry sectors of interest)
+
+Interested Round (Seed, Pre-Seed, Series A, etc.)
+
+Stage (Early / Growth Stage)
+
+Investment Geography (Regions allowed)
+
+Check Size Range:
+
+Minimum amount
+
+Maximum amount
+
+🔹 Personal Account Setup — Additional Fields
+
+Personal details (future elaboration required)
+(ex: Skills, Background, Interests — will refine later)
+
+You mentioned two letters “c” — I preserved content separately.
+
+🔄 Mode Switch Feature (Center Switch in Navigation)
+
+Switches Normal Mode ➜ Professional Mode
+
+🧭 Main Navigation (Professional Mode)
+1️⃣ Hottest Startups This Week
+
+Common to all users
+
+Dynamic ranking based on:
+
+Followers growth
+
+Engagement
+
+Investor watchlist additions
+
+2️⃣ Stocks Section
+
+Investors can add stocks (startups they follow)
+
+This stock information is visible to all
+
+Represents high-interest companies
+
+3️⃣ Messaging Section
+
+Direct messaging (1:1)
+
+Group chats for:
+
+Startup teams
+
+Investor groups
+
+Event / community groups
+
+4️⃣ Jobs Section
+
+Contains 3 tabs:
+
+a. Grants Section
+
+List of grant opportunities for startups
+
+b. Events Section
+
+Startup events, hackathons
+
+Registration or “Interested” feature
+
+c. Team Section
+
+Purpose:
+
+Startups post job openings
+
+Personal accounts search and apply for jobs
+
+Personal accounts can also post job requirement for themselves (job seekers)
+
+Required Fields for Startup Job Posting
+
+Startup Name
+
+Role Title
+
+Sector
+
+Location (Remote/On-site/Hybrid)
+
+Employment Type (Full-time/Internship/etc.)
+
+Compensation
+
+Requirements (skills, qualifications)
+
+Custom Questions
+
+Show team members working in company
+
+Option to request admin verification for job postings (future)
+
+5️⃣ Meetings Section
+
+View All Meetings
+
+My Meetings (scheduled by or with user)
+
+Meeting types:
+
+Startup ↔ Investor (funding meetings)
+
+Startup ↔ Personal (interview)
+
+Investor ↔ Personal (mentorship/collaboration)
+
+Meeting Reminders + Notification Integration

@@ -1,0 +1,25 @@
+Atmosphere
+
+Main pages of the app are
+
+1. home contains all the posts
+2. search tab contains recommended posts and a search bar which searches across accounts posts and hastags(optional)
+3. Notifications page which will contain notifications of comments, likes, follows, meetings etc
+4. Reels tab contains reels of startups
+5. profile page contains details about the account, at the top - Setup profile (which would be different for startup, investor and personel account)
+   Setup process
+   a. Profile photo, username, full name, Quick bio, email (email verification should happen through otp) and account type this would be common for all the accounts
+   Then according to the account type next steps would change
+   b. For startups and then team members and their role. After that we would add kyc(Implement later)  And followed by Portfolio which contains company profile with company name, about company, location, company type, established on,full adddress then financial profile -> revenue type select bootstraped or capital raised these all would be sent to admin dashboard for verification after that kyc and then portfolio we will add their could add their previos investments it would contain company full name, company id, date of investment, amount invested, any doccs related.
+   c. for personel account related details
+   c. For investor about, location, investment focus, intrested round, stage, investment geography, check size min and max
+
+This is normal mode and in center there would be a swich which would shift pages
+1. First comes hotest startups this week which would be common for all 
+2. Then comes stocks which investors will add we would show here these are also common for all
+3. Messaging section personel and groups
+4. Jobs section which contains three tabs
+   a. Grants section
+   b. Events section
+   c. Team section -> where startups could post for a required role -> startup name, role title, sector, location, employment type, compensation, requirements and custom question and it also should present team memnbers -> and personel accounts can search for jobs or even they can post for jobs
+5. Meetings section -> all meetings and my meetings
