@@ -1,25 +1,27 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useContext } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 
-type Company = {
+type StartupCard = {
     id: string;
     name: string;
-    tagline: string;
-    brief: string;
-    logo: string;
-    revenueGenerating: boolean;
-    fundsRaised: string;
-    currentInvestors: string[];
-    lookingToDilute: boolean;
-    dilutionAmount?: string;
-    images: string[];
+    displayName: string;
+    verified: boolean;
+    profileImage: string;
+    description: string;
+    stage: string;
+    rounds: number;
+    age: number;
+    fundingRaised: number;
+    fundingNeeded: number;
+    stats: { likes: number; comments: number; crowns: number; shares: number };
 };
 
-const StartupPost = ({ company }: { company: Company }) => {
+const StartupPost = ({ company }: { company: StartupCard }) => {
     const [liked, setLiked] = useState(false);
-    const [likes, setLikes] = useState(349);
-    const { theme } = React.useContext(ThemeContext);
+    const [likes, setLikes] = useState(company.stats.likes);
+    const [saved, setSaved] = useState(false);
+    const { theme } = useContext(ThemeContext);
 
     const toggleLike = () => {
         setLiked((v) => {
@@ -28,75 +30,165 @@ const StartupPost = ({ company }: { company: Company }) => {
         });
     };
 
+    const totalFunding = company.fundingRaised + company.fundingNeeded;
+    const fundingPercent = totalFunding > 0 ? (company.fundingRaised / totalFunding) * 100 : 0;
+
+    const formatCurrency = (num: number) => {
+        if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+        if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`;
+        return `$${num}`;
+    };
+
     return (
         <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+            {/* Header with name and verified badge */}
             <View style={styles.header}>
-                <Image source={{ uri: company.logo }} style={styles.avatar} />
-                <View style={styles.headerMain}>
+                <View style={styles.headerLeft}>
                     <Text style={[styles.companyName, { color: theme.text }]}>{company.name}</Text>
-                    <Text style={[styles.subtle, { color: theme.placeholder }]}>Verified startup</Text>
+                    {company.verified && <Text style={styles.badge}>✓ Verified startup</Text>}
                 </View>
-                <TouchableOpacity style={[styles.followBtn, { backgroundColor: theme.primary }]} onPress={() => { }}>
-                    <Text style={styles.followBtnText}>Follow</Text>
+                <TouchableOpacity onPress={() => setSaved(!saved)}>
+                    <Text style={{ fontSize: 20 }}>{saved ? '🔖' : '📑'}</Text>
                 </TouchableOpacity>
             </View>
 
-            <Image source={{ uri: company.images[0] }} style={styles.mainImage} />
+            {/* Profile image */}
+            <Image source={{ uri: company.profileImage }} style={styles.mainImage} />
 
-            <View style={styles.actionsRow}>
-                <TouchableOpacity onPress={toggleLike} style={styles.actionBtn}>
-                    <Text style={[styles.heart, { color: liked ? 'red' : theme.placeholder }]}>❤</Text>
-                    <Text style={[styles.actionCount, { color: theme.text }]}>{likes}</Text>
+            {/* Stats row: likes, crowns, comments, shares */}
+            <View style={styles.statsRow}>
+                <TouchableOpacity style={styles.statItem} onPress={toggleLike}>
+                    <Text style={[styles.heart, { color: liked ? '#e74c3c' : theme.placeholder }]}>❤</Text>
+                    <Text style={[styles.statCount, { color: theme.text }]}>{likes}</Text>
                 </TouchableOpacity>
 
-                <View style={styles.spacer12} />
+                <View style={styles.statItem}>
+                    <Text style={[styles.statIcon, { color: theme.placeholder }]}>👑</Text>
+                    <Text style={[styles.statCount, { color: theme.text }]}>{company.stats.crowns}</Text>
+                </View>
 
-                <TouchableOpacity style={styles.actionBtn}>
-                    <Text style={[styles.icon, { color: theme.placeholder }]}>💬</Text>
-                    <Text style={[styles.actionCount, { color: theme.text }]}>32</Text>
-                </TouchableOpacity>
+                <View style={styles.statItem}>
+                    <Text style={[styles.statIcon, { color: theme.placeholder }]}>💬</Text>
+                    <Text style={[styles.statCount, { color: theme.text }]}>{company.stats.comments}</Text>
+                </View>
 
-                <View style={styles.flex1} />
-
-                <TouchableOpacity style={styles.actionBtn}>
-                    <Text style={[styles.icon, { color: theme.placeholder }]}>🔖</Text>
-                </TouchableOpacity>
+                <View style={styles.statItem}>
+                    <Text style={[styles.statIcon, { color: theme.placeholder }]}>📤</Text>
+                    <Text style={[styles.statCount, { color: theme.text }]}>{company.stats.shares}</Text>
+                </View>
             </View>
 
+            {/* Description */}
             <View style={styles.body}>
-                <Text style={[styles.brief, { color: theme.text }]} numberOfLines={2}>{company.brief}</Text>
+                <Text style={[styles.label, { color: theme.placeholder }]}>WHAT'S {company.name.toUpperCase()}</Text>
+                <Text style={[styles.description, { color: theme.text }]} numberOfLines={3}>{company.description}</Text>
             </View>
 
-            <View style={styles.infoRow}>
-                <View style={styles.infoBox}><Text style={{ color: theme.text }}>{company.revenueGenerating ? 'Rvnu' : 'Pre-rvnu'}</Text></View>
-                <View style={styles.infoBox}><Text style={{ color: theme.text }}>Rounds: 2</Text></View>
-                <View style={styles.infoBox}><Text style={{ color: theme.text }}>Age: 2 yr</Text></View>
+            {/* Stage */}
+            <View style={styles.stageSection}>
+                <Text style={[styles.stageLabel, { color: theme.text }]}>STAGE: {company.stage.toUpperCase()}</Text>
+            </View>
+
+            {/* Info boxes: Revenue, Rounds, Age */}
+            <View style={styles.infoBoxesRow}>
+                <View style={[styles.infoBox, { borderColor: theme.border }]}>
+                    <Text style={[styles.infoBoxLabel, { color: theme.placeholder }]}>Revenue</Text>
+                    <Text style={[styles.infoBoxValue, { color: theme.text }]}>generating</Text>
+                </View>
+                <View style={[styles.infoBox, { borderColor: theme.border }]}>
+                    <Text style={[styles.infoBoxLabel, { color: theme.placeholder }]}>Rounds</Text>
+                    <Text style={[styles.infoBoxValue, { color: theme.text }]}>: {company.rounds}</Text>
+                </View>
+                <View style={[styles.infoBox, { borderColor: theme.border }]}>
+                    <Text style={[styles.infoBoxLabel, { color: theme.placeholder }]}>Age</Text>
+                    <Text style={[styles.infoBoxValue, { color: theme.text }]}>{company.age} yr</Text>
+                </View>
+            </View>
+
+            {/* Funding progress bar */}
+            <View style={styles.fundingSection}>
+                <View style={styles.fundingBar}>
+                    <View
+                        style={[
+                            styles.fundingFilled,
+                            { width: `${fundingPercent}%`, backgroundColor: theme.primary }
+                        ]}
+                    />
+                </View>
+                <View style={styles.fundingLabels}>
+                    <Text style={[styles.fundingText, { color: theme.text }]}>{formatCurrency(company.fundingRaised)} Filled</Text>
+                    <Text style={[styles.fundingText, { color: theme.placeholder }]}>{formatCurrency(company.fundingNeeded)}</Text>
+                </View>
             </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    card: { borderWidth: 1, borderRadius: 8, paddingBottom: 12, marginVertical: 8, overflow: 'hidden' },
-    header: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-    avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
-    headerMain: { flex: 1 },
-    companyName: { fontWeight: '700' },
-    subtle: { fontSize: 12 },
-    followBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-    mainImage: { width: '100%', height: 200, backgroundColor: '#222' },
-    actionsRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8 },
-    actionBtn: { flexDirection: 'row', alignItems: 'center' },
-    actionCount: { marginLeft: 6 },
-    spacer12: { width: 12 },
-    flex1: { flex: 1 },
-    heart: { fontSize: 18 },
-    icon: { fontSize: 16 },
-    body: { paddingHorizontal: 12, paddingTop: 8 },
-    brief: { fontSize: 14 },
-    infoRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 8 },
-    infoBox: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, borderWidth: 1 },
-    followBtnText: { color: '#fff' },
+    card: {
+        borderWidth: 1,
+        borderRadius: 8,
+        marginVertical: 8,
+        overflow: 'hidden',
+        marginHorizontal: 12
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingTop: 12,
+        paddingBottom: 8
+    },
+    headerLeft: { flex: 1 },
+    companyName: { fontWeight: '700', fontSize: 16 },
+    badge: { fontSize: 11, color: '#27ae60', marginTop: 2 },
+    mainImage: { width: '100%', height: 240, backgroundColor: '#222' },
+    statsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingTop: 12,
+        gap: 16
+    },
+    statItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    statCount: { fontSize: 12, fontWeight: '600' },
+    heart: { fontSize: 16 },
+    statIcon: { fontSize: 14 },
+    body: { paddingHorizontal: 12, paddingTop: 12 },
+    label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5 },
+    description: { fontSize: 13, marginTop: 6, lineHeight: 18 },
+    stageSection: { paddingHorizontal: 12, paddingTop: 10 },
+    stageLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5 },
+    infoBoxesRow: {
+        flexDirection: 'row',
+        gap: 10,
+        paddingHorizontal: 12,
+        paddingTop: 12,
+        marginBottom: 12
+    },
+    infoBox: {
+        flex: 1,
+        borderWidth: 1,
+        borderRadius: 4,
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    infoBoxLabel: { fontSize: 10, fontWeight: '600' },
+    infoBoxValue: { fontSize: 12, fontWeight: '700', marginTop: 2 },
+    fundingSection: { paddingHorizontal: 12, paddingBottom: 12 },
+    fundingBar: {
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#e0e0e0',
+        overflow: 'hidden',
+        marginBottom: 6
+    },
+    fundingFilled: { height: '100%', borderRadius: 4 },
+    fundingLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+    fundingText: { fontSize: 11 }
 });
 
 export default StartupPost;

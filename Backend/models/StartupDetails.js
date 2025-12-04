@@ -20,6 +20,13 @@ const StartupDetailsSchema = new Schema(
             stages: [String],
         },
         previousInvestments: [PreviousInvestmentSchema],
+        verified: { type: Boolean, default: false },
+        profileImage: String,
+        stage: { type: String, enum: ['MVP Launched', 'Revenue Generating', 'Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C'], default: 'Seed' },
+        rounds: { type: Number, default: 0 },
+        age: { type: Number, default: 1 },
+        fundingRaised: { type: Number, default: 0 },
+        fundingNeeded: { type: Number, default: 0 },
         meta: { type: Schema.Types.Mixed },
     },
     { timestamps: true }

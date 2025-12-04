@@ -4,16 +4,26 @@
  * For Android emulator use: 10.0.2.2:4000 (default here)
  * For physical device use your machine LAN IP, e.g. http://192.168.1.12:4000
  */
-import { getBaseUrl } from './config';
+import { getBaseUrl, DEFAULT_BASE_URL } from './config';
 
-async function post(path: string, body: any) {
-    const BASE_URL = await getBaseUrl();
-    const res = await fetch(`${BASE_URL}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
+const DEFAULT_BASE = DEFAULT_BASE_URL;
 
+async function request(path: string, body: any = {}, options: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE' } = {}) {
+    const method = options.method || 'POST';
+    const base = await getBaseUrl().catch(() => DEFAULT_BASE);
+
+    let url = `${base}${path}`;
+
+    const fetchOptions: any = { method, headers: { 'Content-Type': 'application/json' } };
+
+    if (method === 'GET') {
+        const query = Object.keys(body || {}).map(k => `${encodeURIComponent(k)}=${encodeURIComponent((body as any)[k])}`).join('&');
+        if (query) url += (url.includes('?') ? '&' : '?') + query;
+    } else {
+        fetchOptions.body = JSON.stringify(body);
+    }
+
+    const res = await fetch(url, fetchOptions);
     const text = await res.text();
     let data: any = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = text; }
@@ -27,9 +37,17 @@ async function post(path: string, body: any) {
 }
 
 export async function login(email: string, password: string) {
-    return post('/api/auth/login', { email, password });
+    return request('/api/auth/login', { email, password });
 }
 
 export async function register({ email, username, password, displayName }: { email: string; username: string; password: string; displayName?: string }) {
-    return post('/api/auth/register', { email, username, password, displayName, accountType: 'personal' });
+    return request('/api/auth/register', { email, username, password, displayName, accountType: 'personal' });
+}
+
+
+export async function fetchStartupPosts() {
+    // The backend route is registered under `/api/startup-details`
+    const data = await request('/api/startup-details', {}, { method: 'GET' });
+    // The service returns { startups, count }
+    return data.startups ?? [];
 }

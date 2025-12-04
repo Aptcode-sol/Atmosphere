@@ -26,9 +26,36 @@ exports.updateStartup = async (req, res, next) => {
         if (!startupDetails) return res.status(404).json({ error: 'Startup details not found' });
         if (startupDetails.user.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Forbidden' });
 
-        const allowedFields = ['companyName', 'about', 'location', 'companyType', 'establishedOn', 'address', 'teamMembers', 'financialProfile', 'previousInvestments'];
+        const allowedFields = ['companyName', 'about', 'location', 'companyType', 'establishedOn', 'address', 'teamMembers', 'financialProfile', 'previousInvestments', 'verified', 'profileImage', 'stage', 'rounds', 'age', 'fundingRaised', 'fundingNeeded'];
         allowedFields.forEach(field => { if (req.body[field] !== undefined) startupDetails[field] = req.body[field]; });
         await startupDetails.save();
         res.json({ startupDetails });
+    } catch (err) { next(err); }
+};
+
+exports.listStartupCards = async (req, res, next) => {
+    try {
+        const { limit = 20, skip = 0 } = req.query;
+        const startups = await StartupDetails.find()
+            .populate('user', 'username displayName avatarUrl email')
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .skip(parseInt(skip));
+        const startupCards = startups.map(startup => ({
+            id: startup._id,
+            userId: startup.user._id,
+            name: startup.companyName,
+            displayName: startup.user.displayName,
+            verified: startup.verified,
+            profileImage: startup.profileImage,
+            description: startup.about,
+            stage: startup.stage,
+            rounds: startup.rounds,
+            age: startup.age,
+            fundingRaised: startup.fundingRaised,
+            fundingNeeded: startup.fundingNeeded,
+            stats: { likes: 0, comments: 0, crowns: 0, shares: 0 },
+        }));
+        res.json({ startups: startupCards, count: startupCards.length });
     } catch (err) { next(err); }
 };
