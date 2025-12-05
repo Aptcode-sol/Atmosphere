@@ -224,18 +224,19 @@ const SearchScreen = () => {
 
                     // Startups tab
                     if (activeTab === 'startups') {
+                        const displayName = item.name || item.displayName || item.username || item.companyName || 'Startup';
                         return (
                             <View style={[styles.feedItem, { borderBottomColor: theme.border }]}>
-                                <Text style={[styles.feedTitle, { color: theme.text }]}>
-                                    🏢 {item.name}
+                                <Text style={[styles.feedTitle, { color: theme.text }]}> 
+                                    🏢 {displayName}
                                 </Text>
                                 {item.description && (
-                                    <Text style={[styles.feedText, { color: theme.placeholder }]}>
+                                    <Text style={[styles.feedText, { color: theme.placeholder }]}> 
                                         {item.description}
                                     </Text>
                                 )}
                                 {item.tags && item.tags.length > 0 && (
-                                    <Text style={[styles.feedStats, { color: theme.primary }]}>
+                                    <Text style={[styles.feedStats, { color: theme.primary }]}> 
                                         {item.tags.join(', ')}
                                     </Text>
                                 )}
