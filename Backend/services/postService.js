@@ -21,6 +21,14 @@ exports.listPosts = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+exports.listMyPosts = async (req, res, next) => {
+    try {
+        const { limit = 50, skip = 0 } = req.query;
+        const posts = await Post.find({ author: req.user._id }).populate('author', 'username displayName avatarUrl verified').sort({ createdAt: -1 }).limit(parseInt(limit)).skip(parseInt(skip));
+        res.json({ posts, count: posts.length });
+    } catch (err) { next(err); }
+};
+
 exports.getPost = async (req, res, next) => {
     try {
         const post = await Post.findById(req.params.id).populate('author', 'username displayName avatarUrl verified');

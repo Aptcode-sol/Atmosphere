@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/', authMiddleware, postService.createPost);
 router.get('/', postService.listPosts);
+router.get('/mine', authMiddleware, postService.listMyPosts);
 router.get('/:id', postService.getPost);
 router.put('/:id', authMiddleware, postService.updatePost);
 router.delete('/:id', authMiddleware, postService.deletePost);

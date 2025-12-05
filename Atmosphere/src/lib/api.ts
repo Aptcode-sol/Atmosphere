@@ -66,3 +66,8 @@ export async function getProfile() {
 export async function updateProfile(payload: any) {
     return request('/api/profile', payload, { method: 'PUT' });
 }
+
+export async function fetchMyPosts() {
+    const data = await request('/api/posts/mine', {}, { method: 'GET' });
+    return data.posts ?? [];
+}
