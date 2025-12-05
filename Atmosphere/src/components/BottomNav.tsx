@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { NavigationContext, NavigationRouteContext } from "@react-navigation/native";
+import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 
 type AppMode = "left" | "right";
 
@@ -155,10 +156,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(10,10,10,0.92)",
+    backgroundColor: "#0A0A0A",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.06)",
-    height: 70,
+    borderTopColor: "#111",
+    height: BOTTOM_NAV_HEIGHT + 50,
     paddingVertical: 0,
   },
   row: {
@@ -166,13 +167,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-around",
     marginHorizontal: 12,
-    height: 72,
+    height: BOTTOM_NAV_HEIGHT + 40,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    height: 72,
+    height: BOTTOM_NAV_HEIGHT + 20,
     borderRadius: 18,
     marginHorizontal: 4,
   },

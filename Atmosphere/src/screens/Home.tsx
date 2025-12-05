@@ -1,12 +1,28 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import { ThemeContext } from '../contexts/ThemeContext';
 import StartupPost from '../components/StartupPost';
 import { fetchStartupPosts } from '../lib/api';
 
+interface Post {
+    id: string;
+    name: string;
+    displayName: string;
+    verified: boolean;
+    profileImage: string;
+    description: string;
+    stage: string;
+    rounds: number;
+    age: number;
+    fundingRaised: number;
+    fundingNeeded: number;
+    stats: { likes: number; comments: number; crowns: number; shares: number };
+}
+
 const Home = () => {
     const { theme } = useContext(ThemeContext);
-    const [posts, setPosts] = useState([]);
+    const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -60,12 +76,17 @@ const Home = () => {
         }
 
         return (
-            <FlatList
-                data={posts}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                renderItem={({ item }) => <StartupPost post={item} />}
-            />
+            <>
+                <View style={[styles.header]}>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>Atmosphere</Text>
+                </View>
+                <FlatList
+                    data={posts}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={[styles.listContent, { paddingBottom: BOTTOM_NAV_HEIGHT + 50 }]}
+                    renderItem={({ item }) => <StartupPost post={item} />}
+                />
+            </>
         );
     };
     return (
@@ -77,8 +98,8 @@ const Home = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { height: 64, paddingHorizontal: 16, paddingTop: 12, justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#00000010' },
-    headerTitle: { fontSize: 20, fontWeight: '700' },
+    header: { height: 45, paddingHorizontal: 40, justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#00000010' },
+    headerTitle: { fontSize: 25, fontWeight: '700' },
     listContent: { padding: 0 },
     centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     loadingText: { marginTop: 12, fontSize: 14 },

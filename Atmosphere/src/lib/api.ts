@@ -5,6 +5,7 @@
  * For physical device use your machine LAN IP, e.g. http://192.168.1.12:4000
  */
 import { getBaseUrl, DEFAULT_BASE_URL } from './config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEFAULT_BASE = DEFAULT_BASE_URL;
 
@@ -14,7 +15,10 @@ async function request(path: string, body: any = {}, options: { method?: 'GET' |
 
     let url = `${base}${path}`;
 
-    const fetchOptions: any = { method, headers: { 'Content-Type': 'application/json' } };
+    const token = await AsyncStorage.getItem('token');
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const fetchOptions: any = { method, headers };
 
     if (method === 'GET') {
         const query = Object.keys(body || {}).map(k => `${encodeURIComponent(k)}=${encodeURIComponent((body as any)[k])}`).join('&');
@@ -52,4 +56,13 @@ export async function fetchStartupPosts() {
     const data = await request('/api/startup-details', {}, { method: 'GET' });
     // The service returns { startups, count }
     return data.startups ?? [];
+}
+
+export async function getProfile() {
+    const data = await request('/api/profile', {}, { method: 'GET' });
+    return data;
+}
+
+export async function updateProfile(payload: any) {
+    return request('/api/profile', payload, { method: 'PUT' });
 }

@@ -9,6 +9,7 @@ const styles = StyleSheet.create({
     logo: {
         fontFamily: 'Pacifico',
         color: '#f2f2f2',
+        // marginTop: '10%',
     },
 });
 

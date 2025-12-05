@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import Search from './Search';
 import Notifications from './Notifications';
@@ -8,27 +8,17 @@ import Reels from './Reels';
 import Profile from './Profile';
 import Home from './Home';
 import BottomNav from '../components/BottomNav';
+import TopStartups from './TopStartups';
+import TradingSection from './TradingSection';
+import Jobs from './Jobs';
+import Meetings from './Meetings';
 
-type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile';
+type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings';
 
-const navItems: { key: RouteKey; label: string; glyph: string }[] = [
-    { key: 'home', label: 'Home', glyph: '⌂' },
-    { key: 'search', label: 'Search', glyph: '🔍' },
-    { key: 'notifications', label: 'Notifications', glyph: '❤' },
-    { key: 'chats', label: 'Chats', glyph: '💬' },
-    { key: 'reels', label: 'Reels', glyph: '🎞' },
-    { key: 'profile', label: 'Profile', glyph: '●' },
-];
 
-const LandingPage = ({ onLogout }: { onLogout?: () => void }) => {
+const LandingPage = () => {
     const [route, setRoute] = useState<RouteKey>('home');
     const { theme } = useContext(ThemeContext);
-
-    const dynamicStyles = React.useMemo(() => ({
-        navItemActive: { backgroundColor: theme.primary },
-        glyphColor: { color: theme.placeholder },
-        glyphActiveColor: { color: '#fff' },
-    }), [theme]);
 
     const renderContent = () => {
         switch (route) {
@@ -44,6 +34,14 @@ const LandingPage = ({ onLogout }: { onLogout?: () => void }) => {
                 return <Reels />;
             case 'profile':
                 return <Profile />;
+            case 'topstartups':
+                return <TopStartups />;
+            case 'trade':
+                return <TradingSection />;
+            case 'jobs':
+                return <Jobs />;
+            case 'meetings':
+                return <Meetings />;
             default:
                 return null;
         }
@@ -57,6 +55,10 @@ const LandingPage = ({ onLogout }: { onLogout?: () => void }) => {
             Profile: 'profile',
             Notifications: 'notifications',
             Messages: 'chats',
+            Launch: 'topstartups',
+            Trade: 'trade',
+            Opportunities: 'jobs',
+            Meetings: 'meetings',
         };
         return map[routeName] || 'home';
     };
@@ -69,15 +71,19 @@ const LandingPage = ({ onLogout }: { onLogout?: () => void }) => {
             chats: 'Messages',
             reels: 'Reels',
             profile: 'Profile',
+            topstartups: 'Launch',
+            trade: 'Trade',
+            jobs: 'Opportunities',
+            meetings: 'Meetings',
         };
         return rev[r] || 'Home';
     };
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <View style={styles.header}>
+            {/* <View style={styles.header}>
                 <Text style={[styles.headerTitle, { color: theme.text }]}>Atmosphere</Text>
-            </View>
+            </View> */}
 
             {renderContent()}
 
@@ -87,7 +93,7 @@ const LandingPage = ({ onLogout }: { onLogout?: () => void }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, paddingBottom: 84 },
+    container: { flex: 1 },
     content: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
     header: { height: 64, paddingHorizontal: 16, paddingTop: 12, justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#00000010' },
     headerTitle: { fontSize: 20, fontWeight: '700' },

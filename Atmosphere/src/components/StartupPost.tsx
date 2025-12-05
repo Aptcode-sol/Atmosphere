@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 
 type StartupCard = {
@@ -19,13 +19,13 @@ type StartupCard = {
 
 const StartupPost = ({ post, company }: { post?: StartupCard; company?: StartupCard }) => {
     const companyData = post || company;
-    if (!companyData) return null;
-
-    const stats = companyData.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 };
+    const { theme } = useContext(ThemeContext);
     const [liked, setLiked] = useState(false);
+    const stats = companyData?.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 };
     const [likes, setLikes] = useState<number>(stats.likes || 0);
     const [saved, setSaved] = useState(false);
-    const { theme } = useContext(ThemeContext);
+
+    if (!companyData) return null;
 
     const toggleLike = () => {
         setLiked((v) => {

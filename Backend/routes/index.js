@@ -4,6 +4,7 @@ const router = express.Router();
 // Phase 1 routes
 router.use('/health', require('./health'));
 router.use('/auth', require('./auth'));
+router.use('/profile', require('./profile'));
 router.use('/users', require('./users'));
 router.use('/posts', require('./posts'));
 router.use('/comments', require('./comments'));
