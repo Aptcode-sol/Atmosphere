@@ -7,6 +7,8 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/', authMiddleware, postService.createPost);
 router.get('/', postService.listPosts);
 router.get('/mine', authMiddleware, postService.listMyPosts);
+// alias route for clarity: return posts authored by the authenticated user
+router.get('/me', authMiddleware, postService.listMyPosts);
 router.get('/:id', postService.getPost);
 router.put('/:id', authMiddleware, postService.updatePost);
 router.delete('/:id', authMiddleware, postService.deletePost);

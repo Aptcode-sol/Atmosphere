@@ -12,8 +12,9 @@ import TopStartups from './TopStartups';
 import TradingSection from './TradingSection';
 import Jobs from './Jobs';
 import Meetings from './Meetings';
+import SetupProfile from './SetupProfile';
 
-type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings';
+type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup';
 
 
 const LandingPage = () => {
@@ -33,7 +34,9 @@ const LandingPage = () => {
             case 'reels':
                 return <Reels />;
             case 'profile':
-                return <Profile />;
+                return <Profile onNavigate={(r: RouteKey) => setRoute(r)} />;
+            case 'setup':
+                return <SetupProfile onDone={() => setRoute('profile')} onClose={() => setRoute('profile')} />;
             case 'topstartups':
                 return <TopStartups />;
             case 'trade':
@@ -71,6 +74,7 @@ const LandingPage = () => {
             chats: 'Messages',
             reels: 'Reels',
             profile: 'Profile',
+            setup: 'Profile',
             topstartups: 'Launch',
             trade: 'Trade',
             jobs: 'Opportunities',

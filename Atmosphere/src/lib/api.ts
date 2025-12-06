@@ -46,8 +46,8 @@ export async function login(email: string, password: string) {
     return request('/api/auth/login', { email, password });
 }
 
-export async function register({ email, username, password, displayName }: { email: string; username: string; password: string; displayName?: string }) {
-    return request('/api/auth/register', { email, username, password, displayName, accountType: 'personal' });
+export async function register({ email, username, password, displayName, accountType = 'personal' }: { email: string; username: string; password: string; displayName?: string; accountType?: string }) {
+    return request('/api/auth/register', { email, username, password, displayName, accountType });
 }
 
 
@@ -68,6 +68,12 @@ export async function updateProfile(payload: any) {
 }
 
 export async function fetchMyPosts() {
-    const data = await request('/api/posts/mine', {}, { method: 'GET' });
+    // call the authenticated endpoint that returns only posts authored by current user
+    const data = await request('/api/posts/me', {}, { method: 'GET' });
     return data.posts ?? [];
+}
+
+export async function verifyEmail(code: string, email?: string) {
+    // email optional - if provided backend will accept unauthenticated verify for signup dev flow
+    return request('/api/auth/verify-email', { code, email }, { method: 'POST' });
 }

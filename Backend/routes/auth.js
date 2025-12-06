@@ -129,4 +129,59 @@ router.get('/me', async (req, res, next) => {
     }
 });
 
+// POST /api/auth/verify-email - Verify an email with a one-time code (dev stub)
+// This endpoint supports two modes:
+// 1) Authenticated: caller includes Bearer token, middleware attaches req.user and we update that user.
+// 2) Unauthenticated (signup flow): caller provides { email, code } and we locate the user by email and update.
+const authMiddleware = require('../middleware/authMiddleware');
+router.post('/verify-email', async (req, res, next) => {
+    try {
+        const { code, email } = req.body;
+        if (!code) return res.status(400).json({ error: 'Code is required' });
+
+        // Development stub: accept '1234' as the valid code
+        if (String(code) === '1234') {
+            // If auth header present, try to use middleware to populate req.user
+            let updated = false;
+            try {
+                const authHeader = req.headers.authorization;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    // try to verify token and find user
+                    // reuse authMiddleware logic by calling it manually
+                    // (note: middleware expects (req,res,next) so we call and wait)
+                    await new Promise((resolve, reject) => {
+                        authMiddleware(req, res, (err) => (err ? reject(err) : resolve(undefined)));
+                    });
+                }
+            } catch (e) {
+                // ignore middleware failures and fall back to email lookup
+            }
+
+            // If req.user is present from middleware, update that user
+            if (req.user && req.user._id) {
+                await User.findByIdAndUpdate(req.user._id, { otpVerified: true });
+                updated = true;
+            } else if (email) {
+                // fallback: locate user by email for signup flow (dev only)
+                try {
+                    const user = await User.findOne({ email: String(email).toLowerCase() });
+                    if (user) {
+                        await User.findByIdAndUpdate(user._id, { otpVerified: true });
+                        updated = true;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            if (updated) return res.json({ success: true, message: 'Email verified (dev stub)' });
+            return res.status(404).json({ success: false, error: 'User not found to verify' });
+        }
+
+        return res.status(400).json({ success: false, error: 'Invalid code' });
+    } catch (err) {
+        next(err);
+    }
+});
+
 module.exports = router;

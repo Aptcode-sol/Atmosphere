@@ -27,6 +27,7 @@ router.put('/', authMiddleware, async (req, res, next) => {
         const profile = await updateProfile(userId, req.body);
         res.json(profile);
     } catch (err) {
+        console.error('Error updating profile for user', req.user && req.user._id, err && err.message);
         next(err);
     }
 });
