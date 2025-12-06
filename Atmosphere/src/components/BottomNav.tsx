@@ -152,10 +152,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     backgroundColor: "#0A0A0A",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#111",

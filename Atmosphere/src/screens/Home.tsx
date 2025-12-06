@@ -3,7 +3,6 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-nativ
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import { ThemeContext } from '../contexts/ThemeContext';
 import StartupPost from '../components/StartupPost';
-import BottomNav from '../components/BottomNav';
 import Search from './Search';
 import Reels from './Reels';
 import Profile from './Profile';
@@ -112,7 +111,6 @@ const Home = () => {
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             {renderContent()}
-            <BottomNav onRouteChange={setActiveRoute} activeRoute={activeRoute} />
         </View>
     );
 };
