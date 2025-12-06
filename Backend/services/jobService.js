@@ -2,16 +2,22 @@ const { Job, Notification } = require('../models');
 
 exports.createJob = async (req, res, next) => {
     try {
-        const { title, company, description, location, type, sector, experienceLevel, salary, currency, skills } = req.body;
-
-        if (!title || !company || !description || !location || !type) {
+        const { title, sector, locationType, employmentType, compensation, requirements, customQuestions } = req.body;
+        if (!title || !requirements) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
-
-        const job = new Job({ postedBy: req.user._id, title, company, description, location, type, sector, experienceLevel, salary, currency, skills: skills || [] });
+        const job = new Job({
+            poster: req.user._id,
+            title,
+            sector,
+            locationType,
+            employmentType,
+            compensation,
+            requirements,
+            customQuestions: customQuestions || [],
+        });
         await job.save();
-        await job.populate('postedBy', 'username displayName avatarUrl verified');
-
+        await job.populate('poster', 'username displayName avatarUrl verified');
         res.status(201).json({ job });
     } catch (err) {
         next(err);
@@ -20,22 +26,21 @@ exports.createJob = async (req, res, next) => {
 
 exports.listJobs = async (req, res, next) => {
     try {
-        const { limit = 20, skip = 0, sector, location, type, experienceLevel, search, postedBy } = req.query;
-
-        const filter = { status: 'active' };
+        const { limit = 20, skip = 0, sector, locationType, employmentType, search, poster } = req.query;
+        const filter = {};
         if (sector) filter.sector = sector;
-        if (location) filter.location = { $regex: location, $options: 'i' };
-        if (type) filter.type = type;
-        if (experienceLevel) filter.experienceLevel = experienceLevel;
-        if (postedBy) filter.postedBy = postedBy;
-        if (search) filter.$or = [{ title: { $regex: search, $options: 'i' } }, { company: { $regex: search, $options: 'i' } }, { description: { $regex: search, $options: 'i' } }];
-
+        if (locationType) filter.locationType = { $regex: locationType, $options: 'i' };
+        if (employmentType) filter.employmentType = employmentType;
+        if (poster) filter.poster = poster;
+        if (search) filter.$or = [
+            { title: { $regex: search, $options: 'i' } },
+            { requirements: { $regex: search, $options: 'i' } }
+        ];
         const jobs = await Job.find(filter)
-            .populate('postedBy', 'username displayName avatarUrl verified')
+            .populate('poster', 'username displayName avatarUrl verified')
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip(parseInt(skip));
-
         const total = await Job.countDocuments(filter);
 
         res.json({ jobs, count: jobs.length, total });

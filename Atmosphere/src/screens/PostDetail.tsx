@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, TextInput } from 'react-native';
+import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, TextInput, SafeAreaView } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -206,14 +206,23 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   };
 
   if (loading) {
-    return <ActivityIndicator style={styles.flex1} color={theme.primary} />;
+    return (
+      <SafeAreaView style={[styles.flex1, { backgroundColor: theme.background }]}>
+        <ActivityIndicator style={styles.flex1} color={theme.primary} />
+      </SafeAreaView>
+    );
   }
   if (!post) {
-    return <View style={styles.center}><Text style={{ color: theme.text }}>Post not found.</Text></View>;
+    return (
+      <SafeAreaView style={[styles.flex1, { backgroundColor: theme.background }]}>
+        <View style={styles.center}><Text style={{ color: theme.text }}>Post not found.</Text></View>
+      </SafeAreaView>
+    );
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}> 
+    <SafeAreaView style={[styles.flex1, { backgroundColor: theme.background }]}>
+      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}> 
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => {
@@ -333,7 +342,8 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
           )}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

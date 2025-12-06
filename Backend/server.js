@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const { connect } = require('./index');
 const middleware = require('./middleware');
 const routes = require('./routes');
+const opportunitiesRouter = require('./routes/opportunities');
 
 const PORT = process.env.PORT || 4000;
 
@@ -16,6 +17,7 @@ async function start() {
     app.use(middleware.requestLogger);
 
     app.use('/api', routes);
+    app.use('/api/opportunities', opportunitiesRouter);
 
     app.use(middleware.notFound);
     app.use(middleware.errorHandler);

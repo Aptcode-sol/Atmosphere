@@ -1,4 +1,22 @@
 /**
+ * Fetch user role and store in AsyncStorage
+ */
+export async function fetchAndStoreUserRole() {
+    const data = await request('/api/profile', {}, { method: 'GET' });
+    let role = '';
+    if (Array.isArray(data?.user?.roles)) {
+        role = data.user.roles[0] || '';
+    } else if (Array.isArray(data?.roles)) {
+        role = data.roles[0] || '';
+    } else {
+        role = data?.user?.roles || data?.roles || '';
+    }
+    if (role) {
+        await AsyncStorage.setItem('role', role);
+    }
+    return role;
+}
+/**
  * Simple API client for auth endpoints.
  * Adjust BASE_URL if you run the backend on a different host or device.
  * For Android emulator use: 10.0.2.2:4000 (default here)

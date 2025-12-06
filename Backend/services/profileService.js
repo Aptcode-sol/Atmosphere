@@ -27,6 +27,7 @@ async function getProfile(userId) {
             bio: user.bio,
             avatarUrl: user.avatarUrl,
             accountType: user.accountType,
+            roles: user.roles,
             otpVerified: user.otpVerified,
             verified: user.verified,
             profileSetupComplete: user.profileSetupComplete,

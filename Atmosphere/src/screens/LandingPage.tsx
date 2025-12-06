@@ -105,7 +105,7 @@ const LandingPage = () => {
 
             {renderContent()}
 
-            <BottomNav activeRoute={mapRouteToBottom(route)} onRouteChange={(r) => setRoute(mapBottomToRoute(r))} />
+            {!selectedPostId && <BottomNav activeRoute={mapRouteToBottom(route)} onRouteChange={(r) => setRoute(mapBottomToRoute(r))} />}
         </View>
     );
 };

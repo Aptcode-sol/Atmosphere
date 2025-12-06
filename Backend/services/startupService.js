@@ -43,9 +43,9 @@ exports.listStartupCards = async (req, res, next) => {
             .skip(parseInt(skip));
         const startupCards = startups.map(startup => ({
             id: startup._id,
-            userId: startup.user._id,
+            userId: startup.user ? startup.user._id : null,
             name: startup.companyName,
-            displayName: startup.user.displayName,
+            displayName: startup.user ? startup.user.displayName : '',
             verified: startup.verified,
             profileImage: startup.profileImage,
             description: startup.about,

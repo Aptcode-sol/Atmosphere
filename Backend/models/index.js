@@ -17,4 +17,6 @@ module.exports = {
     Asset: require('./Asset'),
     Portfolio: require('./Portfolio'),
     AuditLog: require('./AuditLog'),
+    Grant: require('./Grant'),
+    Event: require('./Event'),
 };
