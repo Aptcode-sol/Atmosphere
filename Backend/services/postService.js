@@ -9,6 +9,7 @@ exports.sharePost = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 const { Post } = require('../models');
+const Like = require('../models/Like');
 
 exports.createPost = async (req, res, next) => {
     try {
@@ -43,7 +44,11 @@ exports.getPost = async (req, res, next) => {
     try {
         const post = await Post.findById(req.params.id).populate('author', 'username displayName avatarUrl verified');
         if (!post) return res.status(404).json({ error: 'Post not found' });
-        res.json({ post });
+        let likedByUser = false;
+        if (req.user) {
+            likedByUser = !!(await Like.findOne({ post: post._id, user: req.user._id }));
+        }
+        res.json({ post: { ...post.toObject(), likedByUser } });
     } catch (err) { next(err); }
 };
 
@@ -70,7 +75,14 @@ exports.likePost = async (req, res, next) => {
     try {
         const post = await Post.findById(req.params.id);
         if (!post) return res.status(404).json({ error: 'Post not found' });
-        post.likesCount += 1; await post.save(); res.json({ likesCount: post.likesCount });
+        // Prevent duplicate likes
+        const existing = await Like.findOne({ post: post._id, user: req.user._id });
+        if (!existing) {
+            await Like.create({ post: post._id, user: req.user._id });
+            post.likesCount += 1;
+            await post.save();
+        }
+        res.json({ likesCount: post.likesCount });
     } catch (err) { next(err); }
 };
 
@@ -78,6 +90,11 @@ exports.unlikePost = async (req, res, next) => {
     try {
         const post = await Post.findById(req.params.id);
         if (!post) return res.status(404).json({ error: 'Post not found' });
-        post.likesCount = Math.max(0, post.likesCount - 1); await post.save(); res.json({ likesCount: post.likesCount });
+        const like = await Like.findOneAndDelete({ post: post._id, user: req.user._id });
+        if (like) {
+            post.likesCount = Math.max(0, post.likesCount - 1);
+            await post.save();
+        }
+        res.json({ likesCount: post.likesCount });
     } catch (err) { next(err); }
 };

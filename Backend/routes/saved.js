@@ -1,12 +1,37 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
-const savedService = require('../services/savedService');
+const { savePost, getSavedPostsByUser, deleteSaved } = require('../services/savedService');
 
-router.post('/', authMiddleware, savedService.saveItem);
-router.get('/', authMiddleware, savedService.getSavedItems);
-router.delete('/:id', authMiddleware, savedService.unsaveById);
-router.delete('/by-item/:itemType/:itemId', authMiddleware, savedService.unsaveByItem);
-router.get('/check/:itemType/:itemId', authMiddleware, savedService.checkSaved);
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const { postId } = req.body;
+    const userId = req.user.id;
+    const saved = await savePost(userId, postId);
+    res.status(201).json(saved);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const savedPosts = await getSavedPostsByUser(userId);
+    res.status(200).json(savedPosts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deleteSaved(id);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

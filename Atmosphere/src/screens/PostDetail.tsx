@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, TextInput } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
-import envConfig from '../../env.json';
+import { getBaseUrl, DEFAULT_BASE_URL } from '../lib/config';
 
-const API_BASE = `${envConfig.BACKEND_URL}/api`;
+
 
 
 type PostDetailProps = {
@@ -22,6 +22,8 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   const [likeLoading, setLikeLoading] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [shared, setShared] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -35,9 +37,18 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/posts/${postId}`);
-        setPost(res.data.post || res.data);
-        // Optionally, set liked state if user info is available
+        const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+        const token = await AsyncStorage.getItem('token');
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch(`${base}/api/posts/${postId}`, { headers });
+        const data = await res.json();
+        const postData = data.post || data;
+        setPost(postData);
+        // Set liked state if available from backend (e.g., postData.likedByUser)
+        if (typeof postData.likedByUser === 'boolean') {
+          setLiked(postData.likedByUser);
+        }
       } catch {
         setPost(null);
       }
@@ -47,33 +58,85 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   }, [postId]);
 
   useEffect(() => {
+    if (!showComments) return;
     const fetchComments = async () => {
       setCommentsLoading(true);
       try {
-        const res = await axios.get(`${API_BASE}/comments/${postId}/comments`);
-        setComments(res.data.comments || []);
+        const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+        const token = await AsyncStorage.getItem('token');
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch(`${base}/api/comments/${postId}/comments`, { headers });
+        const data = await res.json();
+        setComments(data.comments || []);
       } catch {
         setComments([]);
       }
       setCommentsLoading(false);
     };
     fetchComments();
+  }, [postId, showComments]);
+
+  useEffect(() => {
+    const checkSaved = async () => {
+      try {
+        const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+        const token = await AsyncStorage.getItem('token');
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch(`${base}/api/saved/check/post/${postId}`, { headers });
+        const data = await res.json();
+        setSaved(data.saved || false);
+      } catch {
+        setSaved(false);
+      }
+    };
+    checkSaved();
+  }, [postId]);
+
+  useEffect(() => {
+    const checkShared = async () => {
+      try {
+        const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+        const token = await AsyncStorage.getItem('token');
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const res = await fetch(`${base}/api/shares/check/${postId}`, { headers });
+        const data = await res.json();
+        setShared(data.shared || false);
+      } catch {
+        setShared(false);
+      }
+    };
+    checkShared();
   }, [postId]);
 
   const handleLike = async () => {
     if (likeLoading) return;
     setLikeLoading(true);
     try {
+      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+      const token = await AsyncStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      let updatedLiked = liked;
+      let updatedLikesCount = post.likesCount || 0;
       if (!liked) {
-        const res = await axios.post(`${API_BASE}/posts/${postId}/like`);
-        setPost((prev: any) => ({ ...prev, likesCount: res.data.likesCount }));
-        setLiked(true);
+        const res = await fetch(`${base}/api/posts/${postId}/like`, { method: 'POST', headers });
+        const data = await res.json();
+        updatedLiked = true;
+        updatedLikesCount = data.likesCount;
       } else {
-        const res = await axios.delete(`${API_BASE}/posts/${postId}/like`);
-        setPost((prev: any) => ({ ...prev, likesCount: res.data.likesCount }));
-        setLiked(false);
+        const res = await fetch(`${base}/api/posts/${postId}/like`, { method: 'DELETE', headers });
+        const data = await res.json();
+        updatedLiked = false;
+        updatedLikesCount = data.likesCount;
       }
-    } catch {}
+      setLiked(updatedLiked);
+      setPost((prev: any) => ({ ...prev, likesCount: updatedLikesCount }));
+    } catch {
+      // Optionally show error
+    }
     setLikeLoading(false);
   };
 
@@ -81,20 +144,63 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
     if (!commentText.trim() || commentSubmitting) return;
     setCommentSubmitting(true);
     try {
-      const res = await axios.post(`${API_BASE}/comments/${postId}/comments`, { text: commentText });
-      setComments([res.data.comment, ...comments]);
+      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+      const token = await AsyncStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`${base}/api/comments/${postId}/comments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: commentText })
+      });
+      const data = await res.json();
+      // Instantly show new comment at top
+      setComments((prev) => [data.comment, ...prev]);
       setPost((prev: any) => ({ ...prev, commentsCount: (prev.commentsCount || 0) + 1 }));
       setCommentText('');
-    } catch {}
+    } catch {
+      // Optionally show error
+    }
     setCommentSubmitting(false);
+  };
+
+  const handleSave = async () => {
+    try {
+      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+      const token = await AsyncStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      if (!saved) {
+        await fetch(`${base}/api/saved`, { method: 'POST', headers, body: JSON.stringify({ postId }) });
+        setSaved(true);
+      } else {
+        await fetch(`${base}/api/saved/${postId}`, { method: 'DELETE', headers });
+        setSaved(false);
+      }
+    } catch {
+      // Optionally handle error
+    }
   };
 
   const handleShare = async () => {
     if (shareLoading) return;
     setShareLoading(true);
     try {
-      const res = await axios.post(`${API_BASE}/posts/${postId}/share`);
-      setPost((prev: any) => ({ ...prev, sharesCount: res.data.sharesCount }));
+      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+      const token = await AsyncStorage.getItem('token');
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`${base}/api/shares`, { 
+        method: 'POST', 
+        headers,
+        body: JSON.stringify({ postId })
+      });
+      const data = await res.json();
+      if (data.sharesCount !== undefined) {
+        setPost((prev: any) => ({ ...prev, sharesCount: data.sharesCount }));
+        setShared(true);
+      }
     } catch {}
     setShareLoading(false);
   };
@@ -173,7 +279,9 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         <Text style={styles.actionCount}>{post.sharesCount || 0}</Text>
 
         <View style={styles.flex1} />
-        <TouchableOpacity style={styles.actionBtn}><MaterialCommunityIcons name="bookmark-outline" size={28} color={theme.text} /></TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={handleSave}>
+          <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={28} color={theme.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Content/Caption */}
