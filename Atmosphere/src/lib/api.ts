@@ -95,3 +95,7 @@ export async function verifyEmail(code: string, email?: string) {
     // email optional - if provided backend will accept unauthenticated verify for signup dev flow
     return request('/api/auth/verify-email', { code, email }, { method: 'POST' });
 }
+
+export async function saveStartupProfile(payload: any) {
+    return request('/api/startup/profile', payload, { method: 'POST' });
+}

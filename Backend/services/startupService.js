@@ -59,3 +59,24 @@ exports.listStartupCards = async (req, res, next) => {
         res.json({ startups: startupCards, count: startupCards.length });
     } catch (err) { next(err); }
 };
+
+exports.createOrUpdateStartup = async (req, res, next) => {
+    try {
+        const data = req.body;
+        // Map fundingRaised, fundingNeeded, investorName from payload if present
+        if (data.financialProfile) {
+            if (data.financialProfile.fundingAmount) data.fundingRaised = data.financialProfile.fundingAmount;
+            if (data.requiredCapital) data.fundingNeeded = data.requiredCapital;
+            if (data.financialProfile.investorName) data.investorName = data.financialProfile.investorName;
+        }
+        let startupDetails = await StartupDetails.findOne({ user: req.user._id });
+        if (startupDetails) {
+            Object.assign(startupDetails, data);
+            await startupDetails.save();
+        } else {
+            startupDetails = new StartupDetails({ ...data, user: req.user._id });
+            await startupDetails.save();
+        }
+        res.status(200).json({ startupDetails });
+    } catch (err) { next(err); }
+};

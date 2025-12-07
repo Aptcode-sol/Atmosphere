@@ -15,8 +15,11 @@ const StartupDetailsSchema = new Schema(
         address: String,
         teamMembers: [TeamMemberSchema],
         financialProfile: {
-            revenueType: { type: String, enum: ['Bootstrapped', 'Capital Raised'] },
+            revenueType: { type: String, enum: ['Pre-revenue', 'Revenue generating', 'Bootstrapped', 'Capital Raised'] },
+            fundingMethod: { type: String, enum: ['Bootstrapped', 'Capital Raised'] },
             fundingAmount: Number,
+            investorName: String,
+            investorDoc: String,
             stages: [String],
         },
         previousInvestments: [PreviousInvestmentSchema],
