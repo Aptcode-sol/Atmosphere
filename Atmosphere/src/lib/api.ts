@@ -70,9 +70,7 @@ export async function register({ email, username, password, displayName, account
 
 
 export async function fetchStartupPosts() {
-    // The backend route is registered under `/api/startup-details`
     const data = await request('/api/startup-details', {}, { method: 'GET' });
-    // The service returns { startups, count }
     return data.startups ?? [];
 }
 
@@ -98,4 +96,8 @@ export async function verifyEmail(code: string, email?: string) {
 
 export async function saveStartupProfile(payload: any) {
     return request('/api/startup/profile', payload, { method: 'POST' });
+}
+
+export async function getStartupProfile(userId: string) {
+    return request(`/api/startup/profile/${userId}`, {}, { method: 'GET' });
 }

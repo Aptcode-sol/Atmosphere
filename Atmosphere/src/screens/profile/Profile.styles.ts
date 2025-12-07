@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 
 export default StyleSheet.create({
-    container: { flex: 1 },
+    container: {}, // Remove flex: 1 to allow full scroll
     contentContainer: { flexGrow: 1, paddingBottom: 120 },
     topBar: { height: 64, paddingHorizontal: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
     iconButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
@@ -28,7 +28,7 @@ export default StyleSheet.create({
     backdrop: { position: 'absolute', left: 0, top: 0, bottom: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
     leftDrawer: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 300, padding: 16, borderRightWidth: 1 },
     drawerTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-    fullPage: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
+    fullPage: {},
     settingsHeader: { height: 56, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#111' },
     headerBack: { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
     settingsTitle: { fontSize: 18, fontWeight: '700' },

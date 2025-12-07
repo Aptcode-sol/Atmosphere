@@ -8,7 +8,7 @@ import InvestorSetup from './setup-steps/InvestorSetup';
 import PersonalSetup from './setup-steps/PersonalSetup';
 
 const makeLocalStyles = (theme: any) => StyleSheet.create({
-    fullPage: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 },
+    fullPage: { flex: 1 },
     header: { height: 84, paddingTop: 28, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
     headerLeft: { width: 48 },
     headerRight: { width: 48, alignItems: 'flex-end' },
@@ -175,7 +175,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
             </ScrollView>
 
             {roleStep && (
-                <View style={[localStyles.fullPage, { backgroundColor: theme.background }]}>
+                <View style={[localStyles.fullPage, { backgroundColor: theme.background, position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 10 }]}>
                     {roleStep === 'startup' && (
                         <StartupVerifyStep onBack={() => setRoleStep(null)} onDone={() => { setRoleStep(null); onDone(); if (onClose) onClose(); }} />
                     )}

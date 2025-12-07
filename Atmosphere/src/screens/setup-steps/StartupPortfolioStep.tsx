@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, Animated, ScrollView, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { updateProfile, saveStartupProfile } from '../../lib/api';
+import { updateProfile, saveStartupProfile, getProfile, getStartupProfile } from '../../lib/api';
 
 function CollapsibleSection({ title, open, onPress, children }: any) {
     const [contentHeight, setContentHeight] = useState(0);
@@ -57,6 +57,61 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
     const [investorDoc, setInvestorDoc] = useState('');
     const [roundType, setRoundType] = useState('');
     const [requiredCapital, setRequiredCapital] = useState('');
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const profile = await getProfile();
+                Alert.alert('Debug', `getProfile() response: ${JSON.stringify(profile)}`);
+                console.log('getProfile() response:', profile);
+                const userId = profile?.user?._id;
+                console.log('Fetched userId:', userId);
+                if (!userId) {
+                    Alert.alert('Debug', 'No userId found in profile');
+                    return;
+                }
+                try {
+                    const res = await getStartupProfile(userId);
+                    console.log('Fetched startup profile response:', res);
+                    const data = res?.startupDetails;
+                    if (data) {
+                        Alert.alert('Debug', `Fetched startup data: ${JSON.stringify(data)}`);
+                        setCompanyProfile(data.companyName || '');
+                        setAbout(data.about || '');
+                        setLocation(data.location || '');
+                        setCompanyType(data.companyType || '');
+                        setEstablishedOn(data.establishedOn ? String(data.establishedOn).slice(0, 10) : '');
+                        if (Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
+                            setTeamName(data.teamMembers[0].name || '');
+                            setTeamRole(data.teamMembers[0].role || '');
+                        }
+                        if (data.financialProfile) {
+                            setRevenueType(data.financialProfile.revenueType || 'Pre-revenue');
+                            setFundingMethod(data.financialProfile.fundingMethod || '');
+                            setRaisedAmount(data.financialProfile.fundingAmount ? String(data.financialProfile.fundingAmount) : '');
+                            setInvestorName(data.financialProfile.investorName || '');
+                            setInvestorDoc(data.financialProfile.investorDoc || '');
+                        }
+                        setRoundType(data.roundType || '');
+                        setRequiredCapital(data.requiredCapital ? String(data.requiredCapital) : '');
+                        setUploadName(data.documents || '');
+                    } else {
+                        Alert.alert('Debug', 'No startup data found for user');
+                    }
+                } catch (err) {
+                    if (err?.message && err.message.toLowerCase().includes('not found')) {
+                        Alert.alert('Info', 'No startup profile found yet. Please fill out your details.');
+                    } else {
+                        Alert.alert('Debug', `Error fetching startup profile: ${err?.message || err}`);
+                        console.log('Error fetching startup profile:', err);
+                    }
+                }
+            } catch (err) {
+                Alert.alert('Debug', `Error fetching user profile: ${err?.message || err}`);
+                console.log('Error fetching user profile:', err);
+            }
+        })();
+    }, []);
 
     const uploadDoc = async () => {
         setUploadName('sample-document.pdf');

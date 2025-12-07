@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions } from 'react-native';
 import styles from './Profile.styles';
 import { clearToken } from '../../lib/auth';
 
@@ -10,17 +10,38 @@ type Props = {
 };
 
 export default function SettingsOverlay({ src, theme, onClose }: Props) {
+    const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width)).current;
+    const width = Dimensions.get('window').width;
+
+    const handleClose = () => {
+        Animated.timing(slideAnim, {
+            toValue: -width,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(({ finished }) => {
+            if (finished) onClose();
+        });
+    };
+
+    useEffect(() => {
+        Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 200, // Faster animation
+            useNativeDriver: true,
+        }).start();
+    }, [slideAnim]);
+
     return (
-        <View style={[styles.fullPage, { backgroundColor: theme.background }]}>
+        <Animated.View style={[styles.fullPage, { backgroundColor: theme.background, transform: [{ translateX: slideAnim }] }]}>
             <View style={styles.settingsHeader}>
-                <TouchableOpacity onPress={onClose} style={styles.headerBack}>
+                <TouchableOpacity onPress={handleClose} style={styles.headerBack}>
                     <Text style={{ color: theme.text }}>{'←'}</Text>
                 </TouchableOpacity>
                 <Text style={[styles.settingsTitle, { color: theme.text }]}>Settings</Text>
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.settingsContent}>
+            <ScrollView contentContainerStyle={[styles.settingsContent, { paddingBottom: 48 }]}>
                 <Text style={[styles.sectionLabel, { color: theme.placeholder }]}>ACCOUNT INFORMATION</Text>
                 <View style={[styles.sectionCard, { borderColor: theme.border }]}>
                     <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
@@ -141,6 +162,6 @@ export default function SettingsOverlay({ src, theme, onClose }: Props) {
                 </TouchableOpacity>
                 <View style={{ height: 48 }} />
             </ScrollView>
-        </View>
+        </Animated.View>
     );
 }

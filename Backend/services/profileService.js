@@ -19,7 +19,7 @@ async function getProfile(userId) {
 
     return {
         user: {
-            id: user._id,
+            _id: user._id, // changed from id to _id for frontend compatibility
             email: user.email,
             username: user.username,
             fullName: user.fullName,

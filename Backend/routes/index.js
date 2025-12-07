@@ -27,6 +27,6 @@ router.use('/shares', require('./shares'));
 router.use('/grants', require('./grants'));
 router.use('/events', require('events'));
 router.use('/opportunities', require('./opportunities'));
-router.use('/opportunities', require('./startup'));
+router.use('/startup', require('./startup'));
 
 module.exports = router;

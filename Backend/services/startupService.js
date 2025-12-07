@@ -9,15 +9,26 @@ exports.createStartup = async (req, res, next) => {
         const startupDetails = new StartupDetails({ user: req.user._id, companyName, about, location, companyType, establishedOn, address, teamMembers: teamMembers || [], financialProfile, previousInvestments: previousInvestments || [] });
         await startupDetails.save();
         res.status(201).json({ startupDetails });
-    } catch (err) { next(err); }
+    } catch (err) {
+        console.log('Error in createStartup:', err);
+        next(err);
+    }
 };
 
 exports.getStartupByUser = async (req, res, next) => {
     try {
-        const startupDetails = await StartupDetails.findOne({ user: req.params.userId }).populate('user', 'username displayName avatarUrl');
+        const mongoose = require('mongoose');
+        const userId = req.params.userId;
+        const query = mongoose.Types.ObjectId.isValid(userId)
+            ? { $or: [{ user: userId }, { user: new mongoose.Types.ObjectId(userId) }] }
+            : { user: userId };
+        const startupDetails = await StartupDetails.findOne(query).populate('user', 'username displayName avatarUrl');
         if (!startupDetails) return res.status(404).json({ error: 'Startup details not found' });
         res.json({ startupDetails });
-    } catch (err) { next(err); }
+    } catch (err) {
+        console.log('Error in getStartupByUser:', err);
+        next(err);
+    }
 };
 
 exports.updateStartup = async (req, res, next) => {
@@ -30,7 +41,10 @@ exports.updateStartup = async (req, res, next) => {
         allowedFields.forEach(field => { if (req.body[field] !== undefined) startupDetails[field] = req.body[field]; });
         await startupDetails.save();
         res.json({ startupDetails });
-    } catch (err) { next(err); }
+    } catch (err) {
+        console.log('Error in updateStartup:', err);
+        next(err);
+    }
 };
 
 exports.listStartupCards = async (req, res, next) => {
@@ -57,11 +71,15 @@ exports.listStartupCards = async (req, res, next) => {
             stats: { likes: 0, comments: 0, crowns: 0, shares: 0 },
         }));
         res.json({ startups: startupCards, count: startupCards.length });
-    } catch (err) { next(err); }
+    } catch (err) {
+        console.log('Error in listStartupCards:', err);
+        next(err);
+    }
 };
 
 exports.createOrUpdateStartup = async (req, res, next) => {
     try {
+        console.log('createOrUpdateStartup called with req.user._id:', req.user && req.user._id, 'req.body:', req.body);
         const data = req.body;
         // Map fundingRaised, fundingNeeded, investorName from payload if present
         if (data.financialProfile) {
@@ -78,5 +96,8 @@ exports.createOrUpdateStartup = async (req, res, next) => {
             await startupDetails.save();
         }
         res.status(200).json({ startupDetails });
-    } catch (err) { next(err); }
+    } catch (err) {
+        console.log('Error in createOrUpdateStartup:', err);
+        next(err);
+    }
 };

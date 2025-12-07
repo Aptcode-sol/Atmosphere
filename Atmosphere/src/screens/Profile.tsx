@@ -147,47 +147,48 @@ const Profile = ({ onNavigate }: { onNavigate?: (route: RouteKey) => void }) => 
     // only open setup when user explicitly taps the pill
 
     return (
-        <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={[styles.contentContainer]}>
-            <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={() => { }} theme={theme} />
+        <View style={{ flex: 1 }}>
+            <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={[styles.contentContainer]}>
+                <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={() => { }} theme={theme} />
 
-            {/* Setup is opened via parent navigation (LandingPage route 'setup') */}
+                {/* Setup is opened via parent navigation (LandingPage route 'setup') */}
 
-            {loading ? (
-                <View style={styles.loadingWrap}>
-                    <ActivityIndicator size="large" color={theme.primary} />
-                </View>
-            ) : (
-                <>
-                    <View style={styles.profileHeader}>
-                        <View style={styles.avatarWrap}>
-                            <Image source={{ uri: src.logo }} style={styles.avatarLarge} />
-                        </View>
-                        <View style={styles.headerStats}>
-                            <View style={styles.statCol}>
-                                <Text style={[styles.statNum, { color: theme.text }]}>{0}</Text>
-                                <Text style={[styles.statLabel, { color: theme.placeholder }]}>posts</Text>
-                            </View>
-                            <View style={styles.statCol}>
-                                <Text style={[styles.statNum, { color: theme.text }]}>{src.stats?.followers ?? 0}</Text>
-                                <Text style={[styles.statLabel, { color: theme.placeholder }]}>followers</Text>
-                            </View>
-                            <View style={styles.statCol}>
-                                <Text style={[styles.statNum, { color: theme.text }]}>{0}</Text>
-                                <Text style={[styles.statLabel, { color: theme.placeholder }]}>following</Text>
-                            </View>
-                        </View>
+                {loading ? (
+                    <View style={styles.loadingWrap}>
+                        <ActivityIndicator size="large" color={theme.primary} />
                     </View>
+                ) : (
+                    <>
+                        <View style={styles.profileHeader}>
+                            <View style={styles.avatarWrap}>
+                                <Image source={{ uri: src.logo }} style={styles.avatarLarge} />
+                            </View>
+                            <View style={styles.headerStats}>
+                                <View style={styles.statCol}>
+                                    <Text style={[styles.statNum, { color: theme.text }]}>{0}</Text>
+                                    <Text style={[styles.statLabel, { color: theme.placeholder }]}>posts</Text>
+                                </View>
+                                <View style={styles.statCol}>
+                                    <Text style={[styles.statNum, { color: theme.text }]}>{src.stats?.followers ?? 0}</Text>
+                                    <Text style={[styles.statLabel, { color: theme.placeholder }]}>followers</Text>
+                                </View>
+                                <View style={styles.statCol}>
+                                    <Text style={[styles.statNum, { color: theme.text }]}>{0}</Text>
+                                    <Text style={[styles.statLabel, { color: theme.placeholder }]}>following</Text>
+                                </View>
+                            </View>
+                        </View>
 
-                    <TouchableOpacity style={[styles.setupPill, { borderColor: theme.border }]} onPress={() => onNavigate ? onNavigate('setup') : null}>
-                        <Text style={[styles.setupPillText, { color: theme.text }]}>Setup Profile ({src.onboardingStep || 0}/4)</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity style={[styles.setupPill, { borderColor: theme.border }]} onPress={() => onNavigate ? onNavigate('setup') : null}>
+                            <Text style={[styles.setupPillText, { color: theme.text }]}>Setup Profile ({src.onboardingStep || 0}/4)</Text>
+                        </TouchableOpacity>
 
-                    <ProfilePager posts={posts} postsLoading={postsLoading} theme={theme} />
-                </>
-            )}
-
+                        <ProfilePager posts={posts} postsLoading={postsLoading} theme={theme} />
+                    </>
+                )}
+            </ScrollView>
             {leftDrawerOpen && <SettingsOverlay src={src} theme={theme} onClose={() => setLeftDrawerOpen(false)} />}
-        </ScrollView>
+        </View>
     );
 };
 
