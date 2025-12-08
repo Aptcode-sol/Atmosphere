@@ -28,7 +28,7 @@ interface HomeProps {
     onChatSelect?: (chatId: string) => void;
 }
 
-const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
+const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect }) => {
     const { theme } = useContext(ThemeContext);
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -59,38 +59,38 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
                 console.log('No currentUserId available');
                 return;
             }
-            
+
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
-            
+
             if (!token) {
                 console.log('No token available');
                 return;
             }
-            
+
             const headers: any = { 'Content-Type': 'application/json' };
             headers.Authorization = `Bearer ${token}`;
-            
+
             const url = `${baseUrl}/api/chats`;
             console.log('Fetching unread count from:', url);
-            
+
             const response = await fetch(url, {
                 credentials: 'include',
                 headers,
             });
-            
+
             console.log('Unread count response status:', response.status);
-            
+
             if (response.ok) {
                 const data = await response.json();
                 const chats = data.chats || [];
-                
+
                 // Calculate total unread count
                 const totalUnread = chats.reduce((sum: number, chat: any) => {
                     const unreadForUser = chat.unreadCounts?.[currentUserId] || 0;
                     return sum + unreadForUser;
                 }, 0);
-                
+
                 console.log('Total unread count:', totalUnread);
                 setUnreadCount(totalUnread);
             } else {
@@ -173,8 +173,8 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
     };
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <TopNavbar 
-                title="Atmosphere" 
+            <TopNavbar
+                title="Atmosphere"
                 messagesCount={unreadCount}
                 onNotificationsPress={() => onNavigate?.('notifications')}
                 onChatsPress={() => onNavigate?.('chats')}

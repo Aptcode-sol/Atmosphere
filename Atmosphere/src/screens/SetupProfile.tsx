@@ -1,8 +1,8 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { updateProfile, getProfile, verifyEmail } from '../lib/api';
-import StartupSetup from './setup-steps/StartupSetup';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
 import InvestorSetup from './setup-steps/InvestorSetup';
 import PersonalSetup from './setup-steps/PersonalSetup';

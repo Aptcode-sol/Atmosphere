@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
+/* eslint-disable react-native/no-inline-styles */
 import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getProfile } from '../lib/api';

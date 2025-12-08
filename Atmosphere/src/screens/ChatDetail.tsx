@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -31,7 +32,7 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [chatDetails, setChatDetails] = useState<{ participants: User[] } | null>(null);
+    const [_chatDetails, _setChatDetails] = useState<{ participants: User[] } | null>(null);
 
     // Fetch current user ID
     useEffect(() => {
@@ -57,7 +58,7 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
                 const token = await AsyncStorage.getItem('token');
                 const headers: any = { 'Content-Type': 'application/json' };
                 if (token) headers.Authorization = `Bearer ${token}`;
-                
+
                 const response = await fetch(`${baseUrl}/api/messages/${chatId}`, {
                     headers,
                     credentials: 'include',
@@ -90,7 +91,7 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
             const token = await AsyncStorage.getItem('token');
             const headers: any = { 'Content-Type': 'application/json' };
             if (token) headers.Authorization = `Bearer ${token}`;
-            
+
             const response = await fetch(`${baseUrl}/api/messages/${chatId}`, {
                 method: 'POST',
                 headers,
@@ -120,7 +121,7 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
 
     const renderMessage = ({ item }: { item: Message }) => {
         const isMe = isMyMessage(item);
-        const timestamp = item.createdAt 
+        const timestamp = item.createdAt
             ? new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
             : '';
 
@@ -161,7 +162,7 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
 
     if (loading) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background }]}> 
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={onBackPress}>
                         <Text style={[styles.backButton, { color: theme.text }]}>← Back</Text>
@@ -177,7 +178,7 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
 
     if (error) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background }]}> 
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={onBackPress}>
                         <Text style={[styles.backButton, { color: theme.text }]}>← Back</Text>
@@ -191,7 +192,7 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={onBackPress}>
                     <Text style={[styles.backButton, { color: theme.text }]}>← Back</Text>
@@ -218,8 +219,8 @@ const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
                     placeholderTextColor={theme.placeholder}
                     multiline
                 />
-                <TouchableOpacity 
-                    onPress={handleSendMessage} 
+                <TouchableOpacity
+                    onPress={handleSendMessage}
                     style={[styles.sendButton, { backgroundColor: theme.primary }]}
                     disabled={!messageText.trim()}
                 >
@@ -238,40 +239,40 @@ const styles = StyleSheet.create({
     loadingText: { marginTop: 12, fontSize: 16 },
     errorText: { fontSize: 16, textAlign: 'center' },
     messageList: { padding: 12, flexGrow: 1, justifyContent: 'flex-end' },
-    
+
     // Message styling
     messageRow: { flexDirection: 'row', marginVertical: 8, alignItems: 'flex-end', gap: 8 },
     messageRowMe: { justifyContent: 'flex-end' },
     messageRowThem: { justifyContent: 'flex-start' },
-    
+
     senderAvatar: { width: 32, height: 32, borderRadius: 16 },
-    
+
     messageBubble: { maxWidth: '75%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
     myMessage: { backgroundColor: '#1FADFF' },
     theirMessage: { backgroundColor: '#3B3B3B' },
-    
+
     senderName: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
     messageContent: { flexDirection: 'column', gap: 4 },
     messageText: { color: '#fff', fontSize: 14, lineHeight: 20 },
     timestamp: { fontSize: 10, color: 'rgba(255,255,255,0.7)', alignSelf: 'flex-end' },
-    
-    inputContainer: { 
-        flexDirection: 'row', 
-        padding: 12, 
+
+    inputContainer: {
+        flexDirection: 'row',
+        padding: 12,
         borderTopWidth: 1,
         alignItems: 'flex-end',
         gap: 8
     },
-    input: { 
-        flex: 1, 
-        borderWidth: 1, 
-        borderRadius: 20, 
+    input: {
+        flex: 1,
+        borderWidth: 1,
+        borderRadius: 20,
         paddingHorizontal: 16,
         paddingVertical: 10,
         maxHeight: 100,
         fontSize: 14
     },
-    sendButton: { 
+    sendButton: {
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 20,

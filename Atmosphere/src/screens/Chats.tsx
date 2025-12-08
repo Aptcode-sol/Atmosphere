@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -70,22 +71,22 @@ const Chats = ({ onChatSelect }: ChatsProps) => {
         const other = item.participants?.find((p: any) => p._id !== currentUserId) || item.participants?.[0] || {};
         const unreadCount = item.unreadCounts?.[currentUserId!] || 0;
         const hasUnread = unreadCount > 0;
-        
+
         return (
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={[
-                    styles.chatItem, 
-                    { 
+                    styles.chatItem,
+                    {
                         backgroundColor: hasUnread ? theme.primary + '15' : theme.cardBackground,
-                        borderColor: hasUnread ? theme.primary : theme.border 
+                        borderColor: hasUnread ? theme.primary : theme.border
                     }
-                ]} 
+                ]}
                 onPress={() => handleChatPress(item._id)}
             >
                 <View style={styles.avatarContainer}>
-                    <Image 
-                        source={{ uri: other.avatarUrl || 'https://via.placeholder.com/50' }} 
-                        style={styles.avatar} 
+                    <Image
+                        source={{ uri: other.avatarUrl || 'https://via.placeholder.com/50' }}
+                        style={styles.avatar}
                     />
                     {hasUnread && (
                         <View style={[styles.unreadBadge, { backgroundColor: theme.primary }]}>
@@ -97,8 +98,8 @@ const Chats = ({ onChatSelect }: ChatsProps) => {
                 </View>
                 <View style={styles.chatInfo}>
                     <Text style={[
-                        styles.chatName, 
-                        { 
+                        styles.chatName,
+                        {
                             color: theme.text,
                             fontWeight: hasUnread ? '700' : '600'
                         }
@@ -119,7 +120,7 @@ const Chats = ({ onChatSelect }: ChatsProps) => {
 
     if (loading) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background }]}> 
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
                 <ActivityIndicator size="large" color={theme.text} />
                 <Text style={[styles.title, { color: theme.text }]}>Loading chats...</Text>
             </View>
@@ -128,14 +129,14 @@ const Chats = ({ onChatSelect }: ChatsProps) => {
 
     if (error) {
         return (
-            <View style={[styles.container, { backgroundColor: theme.background }]}> 
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
                 <Text style={[styles.title, { color: theme.text }]}>{error}</Text>
             </View>
         );
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <Text style={[styles.title, { color: theme.text }]}>Chats</Text>
             <FlatList
                 data={chats}
@@ -152,23 +153,23 @@ const styles = StyleSheet.create({
     container: { flex: 1, padding: 0 },
     title: { fontSize: 24, fontWeight: '700', marginBottom: 16, textAlign: 'left', paddingHorizontal: 16, paddingTop: 12 },
     list: { paddingBottom: 20 },
-    chatItem: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        padding: 12, 
+    chatItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
         marginHorizontal: 8,
         marginBottom: 1,
         borderRadius: 0,
         borderBottomWidth: 1
     },
     avatarContainer: { position: 'relative', marginRight: 12 },
-    avatar: { 
-        width: 56, 
-        height: 56, 
-        borderRadius: 28, 
+    avatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         backgroundColor: '#e5e5e5'
     },
-    unreadBadge: { 
+    unreadBadge: {
         position: 'absolute',
         top: -5,
         right: -5,
@@ -180,25 +181,25 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: '#fff'
     },
-    unreadBadgeText: { 
+    unreadBadgeText: {
         color: '#fff',
         fontSize: 11,
         fontWeight: '700',
         paddingHorizontal: 6
     },
     chatInfo: { flex: 1, justifyContent: 'center' },
-    chatName: { 
-        fontSize: 15, 
+    chatName: {
+        fontSize: 15,
         fontWeight: '600',
         marginBottom: 4
     },
-    lastMessage: { 
-        fontSize: 13, 
+    lastMessage: {
+        fontSize: 13,
         marginTop: 0,
         opacity: 0.7
     },
-    timestamp: { 
-        fontSize: 12, 
+    timestamp: {
+        fontSize: 12,
         marginLeft: 8
     },
     empty: { textAlign: 'center', marginTop: 40, fontSize: 16 },

@@ -23,7 +23,7 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   const [shareLoading, setShareLoading] = useState(false);
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [shared, setShared] = useState(false);
+  const [_shared, _setShared] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -103,9 +103,9 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         if (token) headers.Authorization = `Bearer ${token}`;
         const res = await fetch(`${base}/api/shares/check/${postId}`, { headers });
         const data = await res.json();
-        setShared(data.shared || false);
+        _setShared(data.shared || false);
       } catch {
-        setShared(false);
+        _setShared(false);
       }
     };
     checkShared();
@@ -191,17 +191,17 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
       const token = await AsyncStorage.getItem('token');
       const headers: any = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch(`${base}/api/shares`, { 
-        method: 'POST', 
+      const res = await fetch(`${base}/api/shares`, {
+        method: 'POST',
         headers,
         body: JSON.stringify({ postId })
       });
       const data = await res.json();
       if (data.sharesCount !== undefined) {
         setPost((prev: any) => ({ ...prev, sharesCount: data.sharesCount }));
-        setShared(true);
+        _setShared(true);
       }
-    } catch {}
+    } catch { }
     setShareLoading(false);
   };
 
@@ -222,126 +222,126 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
 
   return (
     <SafeAreaView style={[styles.flex1, { backgroundColor: theme.background }]}>
-      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}> 
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => {
-          if (navigation && navigation.goBack) navigation.goBack();
-          else if (onBackPress) onBackPress();
-        }}
-      >
-        <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
-      </TouchableOpacity>
+      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            if (navigation && navigation.goBack) navigation.goBack();
+            else if (onBackPress) onBackPress();
+          }}
+        >
+          <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
+        </TouchableOpacity>
 
-      {/* Author Row */}
-      {post.author && (
-        <View style={styles.authorRow}>
-          <Image source={{ uri: post.author.profileImage || 'https://via.placeholder.com/100x100.png?text=User' }} style={styles.authorAvatar} />
-          <View>
-            <Text style={[styles.authorName, { color: theme.text }]}>{post.author.displayName || post.author.username}</Text>
-            {post.createdAt && (
-              <Text style={[styles.timestamp, { color: theme.placeholder }]}>Posted {new Date(post.createdAt).toLocaleString()}</Text>
+        {/* Author Row */}
+        {post.author && (
+          <View style={styles.authorRow}>
+            <Image source={{ uri: post.author.profileImage || 'https://via.placeholder.com/100x100.png?text=User' }} style={styles.authorAvatar} />
+            <View>
+              <Text style={[styles.authorName, { color: theme.text }]}>{post.author.displayName || post.author.username}</Text>
+              {post.createdAt && (
+                <Text style={[styles.timestamp, { color: theme.placeholder }]}>Posted {new Date(post.createdAt).toLocaleString()}</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Image Slider */}
+        <FlatList
+          data={images}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(_, idx) => `img-${idx}`}
+          renderItem={({ item }) => (
+            <Image source={{ uri: item }} style={[styles.image, { width: windowWidth }, styles.imageFixedHeight]} resizeMode="cover" />
+          )}
+          onMomentumScrollEnd={e => {
+            const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+            setActiveImage(index);
+          }}
+        />
+        {/* Image indicators */}
+        {images.length > 1 && (
+          <View style={styles.dotsRow}>
+            {images.map((_, idx) => (
+              <View key={idx} style={[styles.dot, activeImage === idx && styles.dotActive]} />
+            ))}
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleLike} disabled={likeLoading}>
+            <MaterialCommunityIcons name={liked ? "heart" : "heart-outline"} size={28} color={liked ? 'red' : theme.text} />
+          </TouchableOpacity>
+          <Text style={styles.actionCount}>{post.likesCount || 0}</Text>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments((v) => !v)}>
+            <MaterialCommunityIcons name="comment-outline" size={28} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={styles.actionCount}>{post.commentsCount || 0}</Text>
+
+          <TouchableOpacity style={styles.actionBtn} onPress={handleShare} disabled={shareLoading}>
+            <MaterialCommunityIcons name="share-outline" size={28} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={styles.actionCount}>{post.sharesCount || 0}</Text>
+
+          <View style={styles.flex1} />
+          <TouchableOpacity style={styles.actionBtn} onPress={handleSave}>
+            <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={28} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Content/Caption */}
+        {post.content && <Text style={[styles.content, { color: theme.text }]}>{post.content}</Text>}
+
+        {/* Tags */}
+        {post.tags && post.tags.length > 0 && (
+          <View style={styles.tagsRow}>
+            {post.tags.map((tag: string, idx: number) => (
+              <Text key={idx} style={[styles.tag, { color: theme.primary }]}>#{tag} </Text>
+            ))}
+          </View>
+        )}
+
+        {/* Comments Section (toggle) */}
+        {showComments && (
+          <View style={styles.commentsSection}>
+            <Text style={[styles.commentsTitle, { color: theme.text }]}>Comments</Text>
+            <View style={styles.commentInputRow}>
+              <TextInput
+                style={[styles.commentInput, { color: theme.text, borderColor: theme.border }]}
+                placeholder="Add a comment..."
+                placeholderTextColor={theme.placeholder}
+                value={commentText}
+                onChangeText={setCommentText}
+                editable={!commentSubmitting}
+              />
+              <TouchableOpacity onPress={handleCommentSubmit} disabled={commentSubmitting || !commentText.trim()}>
+                <MaterialCommunityIcons name="send" size={24} color={theme.primary} />
+              </TouchableOpacity>
+            </View>
+            {commentsLoading ? (
+              <ActivityIndicator color={theme.primary} />
+            ) : (
+              comments.length === 0 ? (
+                <Text style={[{ color: theme.placeholder }, styles.margin8]}>No comments yet.</Text>
+              ) : (
+                comments.map((c, idx) => (
+                  <View key={c._id || idx} style={styles.commentRow}>
+                    <Image source={{ uri: c.author?.avatarUrl || 'https://via.placeholder.com/40x40.png?text=U' }} style={styles.commentAvatar} />
+                    <View style={styles.flex1}>
+                      <Text style={[styles.commentAuthor, { color: theme.text }]}>{c.author?.displayName || c.author?.username || 'User'}</Text>
+                      <Text style={[styles.commentText, { color: theme.text }]}>{c.text}</Text>
+                      <Text style={[styles.commentTimestamp, { color: theme.placeholder }]}>{new Date(c.createdAt).toLocaleString()}</Text>
+                    </View>
+                  </View>
+                ))
+              )
             )}
           </View>
-        </View>
-      )}
-
-      {/* Image Slider */}
-      <FlatList
-        data={images}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(_, idx) => `img-${idx}`}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item }} style={[styles.image, { width: windowWidth }, styles.imageFixedHeight]} resizeMode="cover" />
         )}
-        onMomentumScrollEnd={e => {
-          const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
-          setActiveImage(index);
-        }}
-      />
-      {/* Image indicators */}
-      {images.length > 1 && (
-        <View style={styles.dotsRow}>
-          {images.map((_, idx) => (
-            <View key={idx} style={[styles.dot, activeImage === idx && styles.dotActive]} />
-          ))}
-        </View>
-      )}
-
-      {/* Action Buttons */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={handleLike} disabled={likeLoading}>
-          <MaterialCommunityIcons name={liked ? "heart" : "heart-outline"} size={28} color={liked ? 'red' : theme.text} />
-        </TouchableOpacity>
-        <Text style={styles.actionCount}>{post.likesCount || 0}</Text>
-
-        <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments((v) => !v)}>
-          <MaterialCommunityIcons name="comment-outline" size={28} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={styles.actionCount}>{post.commentsCount || 0}</Text>
-
-        <TouchableOpacity style={styles.actionBtn} onPress={handleShare} disabled={shareLoading}>
-          <MaterialCommunityIcons name="share-outline" size={28} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={styles.actionCount}>{post.sharesCount || 0}</Text>
-
-        <View style={styles.flex1} />
-        <TouchableOpacity style={styles.actionBtn} onPress={handleSave}>
-          <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={28} color={theme.text} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Content/Caption */}
-      {post.content && <Text style={[styles.content, { color: theme.text }]}>{post.content}</Text>}
-
-      {/* Tags */}
-      {post.tags && post.tags.length > 0 && (
-        <View style={styles.tagsRow}>
-          {post.tags.map((tag: string, idx: number) => (
-            <Text key={idx} style={[styles.tag, { color: theme.primary }]}>#{tag} </Text>
-          ))}
-        </View>
-      )}
-
-      {/* Comments Section (toggle) */}
-      {showComments && (
-        <View style={styles.commentsSection}>
-          <Text style={[styles.commentsTitle, { color: theme.text }]}>Comments</Text>
-          <View style={styles.commentInputRow}>
-            <TextInput
-              style={[styles.commentInput, { color: theme.text, borderColor: theme.border }]}
-              placeholder="Add a comment..."
-              placeholderTextColor={theme.placeholder}
-              value={commentText}
-              onChangeText={setCommentText}
-              editable={!commentSubmitting}
-            />
-            <TouchableOpacity onPress={handleCommentSubmit} disabled={commentSubmitting || !commentText.trim()}>
-              <MaterialCommunityIcons name="send" size={24} color={theme.primary} />
-            </TouchableOpacity>
-          </View>
-          {commentsLoading ? (
-            <ActivityIndicator color={theme.primary} />
-          ) : (
-            comments.length === 0 ? (
-              <Text style={[{ color: theme.placeholder }, styles.margin8]}>No comments yet.</Text>
-            ) : (
-              comments.map((c, idx) => (
-                <View key={c._id || idx} style={styles.commentRow}>
-                  <Image source={{ uri: c.author?.avatarUrl || 'https://via.placeholder.com/40x40.png?text=U' }} style={styles.commentAvatar} />
-                  <View style={styles.flex1}>
-                    <Text style={[styles.commentAuthor, { color: theme.text }]}>{c.author?.displayName || c.author?.username || 'User'}</Text>
-                    <Text style={[styles.commentText, { color: theme.text }]}>{c.text}</Text>
-                    <Text style={[styles.commentTimestamp, { color: theme.placeholder }]}>{new Date(c.createdAt).toLocaleString()}</Text>
-                  </View>
-                </View>
-              ))
-            )
-          )}
-        </View>
-      )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   image: { width: '100%', height: 400, backgroundColor: '#e0e0e0' },
   content: { fontSize: 16, marginHorizontal: 16, marginBottom: 16 },
-  likes: { fontWeight: 'bold', marginHorizontal: 16, marginBottom: 8, fontSize: 15},
+  likes: { fontWeight: 'bold', marginHorizontal: 16, marginBottom: 8, fontSize: 15 },
   authorRow: { flexDirection: 'row', alignItems: 'center', padding: 12 },
   authorAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10, backgroundColor: '#ccc' },
   authorName: { fontWeight: 'bold', fontSize: 16 },

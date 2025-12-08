@@ -44,7 +44,7 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
         try {
             // call verify endpoint with email so backend can locate user in unauthenticated flow
             // dev stub accepts 1234
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+             
             const api = require('../lib/api');
             await api.verifyEmail(otp, email);
             Alert.alert('Verified', 'Email verified successfully');

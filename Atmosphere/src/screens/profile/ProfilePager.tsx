@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, Animated, FlatList, ActivityIndicator } from 'react-native';
 import styles from './Profile.styles';

@@ -6,6 +6,7 @@ import { getProfile } from '../../lib/api';
 
 export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
     const [showPortfolio, setShowPortfolio] = useState(false);
+        /* eslint-disable react-native/no-inline-styles */
     const [userRole, setUserRole] = useState<'startup' | 'investor' | 'personal' | null>(null);
 
     useEffect(() => {
