@@ -1,12 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import StartupPortfolioStep from './StartupPortfolioStep';
+import InvestorPortfolioStep from './InvestorPortfolioStep';
+import { getProfile } from '../../lib/api';
 
 export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
     const [showPortfolio, setShowPortfolio] = useState(false);
+    const [userRole, setUserRole] = useState<'startup' | 'investor' | 'personal' | null>(null);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const profile = await getProfile();
+                console.log(profile)
+                const acct = profile?.user?.roles[0] || (Array.isArray(profile?.user?.roles) && profile.user.roles.length > 0 ? profile.user.roles[0] : 'personal');
+                setUserRole(acct);
+            } catch {
+                setUserRole('personal');
+            }
+        })();
+    }, []);
 
     if (showPortfolio) {
-        return <StartupPortfolioStep onBack={() => setShowPortfolio(false)} onDone={onDone} />;
+        console.log(userRole)
+        if (userRole === 'investor') {
+            return <InvestorPortfolioStep onBack={() => setShowPortfolio(false)} onDone={onDone} />;
+        }
+        if (userRole === 'startup') {
+            return <StartupPortfolioStep onBack={() => setShowPortfolio(false)} onDone={onDone} />;
+        }
     }
 
     return (
@@ -31,12 +53,12 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => setShowPortfolio(true)} style={{ borderWidth: 1, borderColor: '#222', padding: 18, borderRadius: 16, marginBottom: 12, backgroundColor: '#070707' }}>
+                { userRole !== 'personel' &&<TouchableOpacity onPress={() => setShowPortfolio(true)} style={{ borderWidth: 1, borderColor: '#222', padding: 18, borderRadius: 16, marginBottom: 12, backgroundColor: '#070707' }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ color: '#fff', fontWeight: '600' }}>Portfolio</Text>
                         <Text style={{ color: '#fff' }}>›</Text>
                     </View>
-                </TouchableOpacity>
+                </TouchableOpacity>}
             </View>
 
             <View style={{ flex: 1 }} />
