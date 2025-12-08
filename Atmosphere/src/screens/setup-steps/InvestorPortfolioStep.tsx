@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Animated, Alert } from 'react-native';
-import { updateProfile } from '../../lib/api';
+import { updateProfile, getProfile } from '../../lib/api';
 import CustomCalendar from '../../components/CustomCalendar';
 
 function Collapsible({ title, open, onToggle, children }: any) {
@@ -45,38 +45,70 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
     const [openInterests, setOpenInterests] = useState(false);
     const [openHoldings, setOpenHoldings] = useState(false);
 
-    const [about, setAbout] = useState('');
-    const [location, setLocation] = useState('');
+    const [about, setAbout] = useState('qwd');
+    const [location, setLocation] = useState('ad');
 
     const [showFocusPicker, setShowFocusPicker] = useState(false);
-    const [selectedFocus, setSelectedFocus] = useState<string[]>([]);
+    const [selectedFocus, setSelectedFocus] = useState<string[]>(['AI']);
     const [showRoundPicker, setShowRoundPicker] = useState(false);
-    const [selectedRounds, setSelectedRounds] = useState<string[]>([]);
+    const [selectedRounds, setSelectedRounds] = useState<string[]>(['Pre-seed']);
     const [showStagePicker, setShowStagePicker] = useState(false);
-    const [selectedStages, setSelectedStages] = useState<string[]>([]);
-    const [geography, setGeography] = useState('');
-    const [minCheck, setMinCheck] = useState('');
-    const [maxCheck, setMaxCheck] = useState('');
+    const [selectedStages, setSelectedStages] = useState<string[]>(['Idea']);
+    const [geography, setGeography] = useState('dsa');
+    const [minCheck, setMinCheck] = useState('123');
+    const [maxCheck, setMaxCheck] = useState('12345');
 
     // Holdings state & add form
-    const [holdings, setHoldings] = useState<Array<{ name: string; date: string; amount: number }>>([
-        { name: 'TechCorp Inc.', date: 'Jan 15, 2024', amount: 50000 },
-        { name: 'GrowthVentures LLC', date: 'Dec 3, 2023', amount: 75000 },
-        { name: 'Innovation Labs', date: 'Nov 22, 2023', amount: 100000 },
-    ]);
+    const [holdings, setHoldings] = useState<Array<{ name: string; date: string; amount: number; companyId?: string }>>([]);
     const [addingHolding, setAddingHolding] = useState(false);
-    const [companyName, setCompanyName] = useState('');
-    const [companyId, setCompanyId] = useState('');
+    const [companyName, setCompanyName] = useState('ldnlk');
+    const [companyId, setCompanyId] = useState('123123');
     const [date, setDate] = useState('');
     const [dateValue, setDateValue] = useState<Date | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    const [amount, setAmount] = useState('');
+    const [amount, setAmount] = useState('123');
     const [docName, setDocName] = useState('');
 
     const resetForm = () => {
         setCompanyName(''); setCompanyId(''); setDate(''); setAmount(''); setDocName('');
     };
+
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const profile = await getProfile();
+                const details = profile?.details;
+                if (!mounted) return;
+                if (details) {
+                    setAbout(details.about || '');
+                    setLocation(details.location || '');
+                    setSelectedFocus(Array.isArray(details.investmentFocus) ? details.investmentFocus : (details.investmentFocus ? details.investmentFocus.split(',').map((s: string) => s.trim()) : []));
+                    setSelectedRounds(Array.isArray(details.interestedRounds) ? details.interestedRounds : (details.interestedRounds ? details.interestedRounds.split(',').map((s: string) => s.trim()) : []));
+                    setSelectedStages(Array.isArray(details.stage) ? details.stage : (details.stage ? details.stage.split(',').map((s: string) => s.trim()) : []));
+                    setGeography(Array.isArray(details.geography) ? details.geography.join(', ') : (details.geography || ''));
+                    if (details.checkSize) {
+                        setMinCheck(details.checkSize.min ? String(details.checkSize.min) : '');
+                        setMaxCheck(details.checkSize.max ? String(details.checkSize.max) : '');
+                    }
+                    // map previousInvestments to holdings
+                    if (Array.isArray(details.previousInvestments)) {
+                        const mapped = details.previousInvestments.map((pi: any) => ({
+                            name: pi.companyName || pi.name || '',
+                            companyId: pi.companyId,
+                            date: pi.date ? (new Date(pi.date)).toLocaleDateString() : '',
+                            amount: pi.amount || 0,
+                        }));
+                        setHoldings(mapped);
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not load profile for investor step', err && err.message);
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
 
     const handleVerifyHolding = () => {
         // basic validation
@@ -259,7 +291,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                                     );
                                 })}
                             </View>
-                            <TouchableOpacity onPress={() => { setInvestmentFocus(selectedFocus.join(', ')); setShowFocusPicker(false); }} style={localStyles.pickerDone}>
+                            <TouchableOpacity onPress={() => { setSelectedFocus(selectedFocus); setShowFocusPicker(false); }} style={localStyles.pickerDone}>
                                 <Text style={localStyles.pickerDoneText}>Done</Text>
                             </TouchableOpacity>
                         </View>
@@ -282,7 +314,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                                     );
                                 })}
                             </View>
-                            <TouchableOpacity onPress={() => { setInterestedRound(selectedRounds.join(', ')); setShowRoundPicker(false); }} style={localStyles.pickerDone}>
+                            <TouchableOpacity onPress={() => { setSelectedRounds(selectedRounds); setShowRoundPicker(false); }} style={localStyles.pickerDone}>
                                 <Text style={localStyles.pickerDoneText}>Done</Text>
                             </TouchableOpacity>
                         </View>
@@ -305,7 +337,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                                     );
                                 })}
                             </View>
-                            <TouchableOpacity onPress={() => { setStage(selectedStages.join(', ')); setShowStagePicker(false); }} style={localStyles.pickerDone}>
+                            <TouchableOpacity onPress={() => { setSelectedStages(selectedStages); setShowStagePicker(false); }} style={localStyles.pickerDone}>
                                 <Text style={localStyles.pickerDoneText}>Done</Text>
                             </TouchableOpacity>
                         </View>

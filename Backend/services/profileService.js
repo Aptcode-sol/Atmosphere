@@ -10,10 +10,12 @@ async function getProfile(userId) {
     if (!user) throw new Error('User not found');
 
     let roleDetails = null;
+    const isStartup = user.accountType === 'startup' || (Array.isArray(user.roles) && user.roles.includes('startup'));
+    const isInvestor = user.accountType === 'investor' || (Array.isArray(user.roles) && user.roles.includes('investor'));
 
-    if (user.accountType === 'startup') {
+    if (isStartup) {
         roleDetails = await StartupDetails.findOne({ user: userId });
-    } else if (user.accountType === 'investor') {
+    } else if (isInvestor) {
         roleDetails = await InvestorDetails.findOne({ user: userId });
     }
 
@@ -48,9 +50,18 @@ async function getProfile(userId) {
 async function updateProfile(userId, data) {
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
+    console.log('updateProfile: user.accountType =', user.accountType);
 
     // Update user fields
     const { userData, detailsData } = data;
+    console.log('profileService.updateProfile called for user', userId);
+    if (detailsData) {
+        try {
+            console.log('Incoming detailsData:', JSON.stringify(detailsData));
+        } catch (e) {
+            console.log('Incoming detailsData (non-serializable)');
+        }
+    }
 
     if (userData) {
         const allowedUserFields = ['username', 'email', 'fullName', 'displayName', 'bio', 'avatarUrl', 'otpVerified', 'profileSetupComplete', 'onboardingStep', 'links'];
@@ -64,23 +75,39 @@ async function updateProfile(userId, data) {
 
     // Update role-specific details
     let roleDetails = null;
+    const isStartup = user.accountType === 'startup' || (Array.isArray(user.roles) && user.roles.includes('startup'));
+    const isInvestor = user.accountType === 'investor' || (Array.isArray(user.roles) && user.roles.includes('investor'));
     if (detailsData) {
-        if (user.accountType === 'startup') {
-            roleDetails = await StartupDetails.findOneAndUpdate(
-                { user: userId },
-                detailsData,
-                { new: true, upsert: true }
-            );
-        } else if (user.accountType === 'investor') {
-            roleDetails = await InvestorDetails.findOneAndUpdate(
-                { user: userId },
-                detailsData,
-                { new: true, upsert: true }
-            );
+        if (isStartup) {
+            try {
+                roleDetails = await StartupDetails.findOneAndUpdate(
+                    { user: userId },
+                    { $set: detailsData, $setOnInsert: { user: userId } },
+                    { new: true, upsert: true }
+                );
+                try { console.log('Updated StartupDetails doc:', JSON.stringify(roleDetails)); } catch { console.log('Updated StartupDetails doc (non-serializable)'); }
+            } catch (dbErr) {
+                console.error('Error updating StartupDetails', dbErr && dbErr.message);
+                throw dbErr;
+            }
+        } else if (isInvestor) {
+            try {
+                roleDetails = await InvestorDetails.findOneAndUpdate(
+                    { user: userId },
+                    { $set: detailsData, $setOnInsert: { user: userId } },
+                    { new: true, upsert: true }
+                );
+                try { console.log('Updated InvestorDetails doc:', JSON.stringify(roleDetails)); } catch { console.log('Updated InvestorDetails doc (non-serializable)'); }
+            } catch (dbErr) {
+                console.error('Error updating InvestorDetails', dbErr && dbErr.message);
+                throw dbErr;
+            }
         }
     }
 
-    return getProfile(userId);
+    const profile = await getProfile(userId);
+    try { console.log('getProfile result details:', JSON.stringify(profile.details)); } catch { console.log('getProfile result details (non-serializable)'); }
+    return profile;
 }
 
 module.exports = {
