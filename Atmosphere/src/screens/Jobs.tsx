@@ -12,7 +12,7 @@ function OpportunityCard({ item, type, onExpand, expanded }) {
     const [showFullDesc, setShowFullDesc] = useState(false);
     const tags = [item.sector, item.employmentType, item.locationType, item.companyType].filter(Boolean);
     return (
-        <View style={[styles.card, { backgroundColor: theme.card }]}> 
+        <View style={[styles.card, { backgroundColor: theme.cardBackground }]}> 
             {/* Header */}
             <View style={styles.cardHeader}>
                 <View style={styles.logoBox}>

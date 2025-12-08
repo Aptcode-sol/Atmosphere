@@ -25,12 +25,17 @@ exports.createMeeting = async (req, res, next) => {
 exports.listMeetings = async (req, res, next) => {
     try {
         const { limit = 20, skip = 0, filter = 'upcoming', type } = req.query;
-        const query = { $or: [{ organizer: req.user._id }, { 'participants.userId': req.user._id }], status: { $ne: 'cancelled' } };
-        if (type) query.type = type;
         const now = new Date();
+
+        // Default: show public meetings (not cancelled). 'upcoming' and 'past' are global filters.
+        // Only when filter === 'my-meetings' return meetings where the user is organizer or a participant.
+        let query = { status: { $ne: 'cancelled' } };
+        if (type) query.type = type;
         if (filter === 'upcoming') query.scheduledAt = { $gte: now };
         else if (filter === 'past') query.scheduledAt = { $lt: now };
-        else if (filter === 'my-meetings') query.organizer = req.user._id;
+        else if (filter === 'my-meetings') {
+            query = { $or: [{ organizer: req.user._id }, { 'participants.userId': req.user._id }], status: { $ne: 'cancelled' } };
+        }
 
         const meetings = await Meeting.find(query)
             .populate('organizer', 'username displayName avatarUrl verified')
@@ -135,15 +140,28 @@ exports.addParticipant = async (req, res, next) => {
 
         const meeting = await Meeting.findById(id);
         if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
-        if (meeting.organizer.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Only organizer can add participants' });
+        // Allow organizer to add participants, or allow a user to add themselves (self-join)
+        const isOrganizer = meeting.organizer.toString() === req.user._id.toString();
+        const isSelf = userId.toString() === req.user._id.toString();
+        if (!isOrganizer && !isSelf) return res.status(403).json({ error: 'Only organizer can add participants' });
 
         const alreadyParticipant = meeting.participants.some(p => p.userId.toString() === userId);
         if (alreadyParticipant) return res.status(400).json({ error: 'User is already a participant' });
 
-        meeting.participants.push({ userId });
+        // If self-joining, mark as accepted and set joinedAt
+        const participantObj = { userId };
+        if (isSelf) {
+            participantObj.status = 'accepted';
+            participantObj.joinedAt = new Date();
+        }
+
+        meeting.participants.push(participantObj);
+        meeting.participantsCount = (meeting.participantsCount || 0) + 1;
         await meeting.save();
 
-        const notification = new Notification({ user: userId, actor: req.user._id, type: 'meeting_invite', payload: { meetingId: meeting._id, title: meeting.title, scheduledAt: meeting.scheduledAt } });
+        // Notify: if organizer added someone, notify that user; if user self-joined, notify organizer
+        const notifyUser = isSelf ? meeting.organizer : userId;
+        const notification = new Notification({ user: notifyUser, actor: req.user._id, type: isSelf ? 'meeting_joined' : 'meeting_invite', payload: { meetingId: meeting._id, title: meeting.title, scheduledAt: meeting.scheduledAt } });
         await notification.save();
 
         res.json({ message: 'Participant added successfully' });
