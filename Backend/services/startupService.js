@@ -34,6 +34,18 @@ exports.getStartupByUser = async (req, res, next) => {
     }
 };
 
+exports.getStartupById = async (req, res, next) => {
+    try {
+        const startupId = req.params.startupId;
+        const startupDetails = await StartupDetails.findById(startupId).populate('user', 'username displayName avatarUrl');
+        if (!startupDetails) return res.status(404).json({ error: 'Startup details not found' });
+        return res.json({ startupDetails, user: startupDetails.user, details: startupDetails });
+    } catch (err) {
+        console.log('Error in getStartupById:', err);
+        next(err);
+    }
+};
+
 exports.updateStartup = async (req, res, next) => {
     try {
         const startupDetails = await StartupDetails.findById(req.params.id);

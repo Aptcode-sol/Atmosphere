@@ -33,12 +33,11 @@ const mockData = (() => {
 
 const normalizeProfile = (profileData: any) => {
     if (!profileData) return null;
-
-    const { user, details } = profileData;
-
-    // For startups
-    if (user.roles[0] === 'startup' && details) {
-        console.log("details", details)
+    const { user, details } = profileData || {};
+    // If startup details are present prefer the startup view even if user.role/accountType is missing or mismatched
+    const hasStartupDetails = details && (details.companyName || details.profileImage || details.fundingRaised !== undefined);
+    const primaryRole = user && Array.isArray(user.roles) && user.roles.length ? user.roles[0] : user?.accountType;
+    if (hasStartupDetails && details) {
         return {
             name: details.companyName || user.displayName || user.username || 'Unknown',
             username: user.username ? `@${user.username}` : '',
@@ -61,7 +60,7 @@ const normalizeProfile = (profileData: any) => {
     }
 
     // For investors
-    if (user.roles[0] === 'investor' && details) {
+    if ((primaryRole === 'investor') && details) {
         return {
             name: user.displayName || user.username || 'Unknown',
             username: user.username ? `@${user.username}` : '',
@@ -82,7 +81,6 @@ const normalizeProfile = (profileData: any) => {
             onboardingStep: user.onboardingStep,
         };
     }
-
     // For personal accounts
     return {
         name: user.displayName || user.username || 'Unknown',
@@ -115,6 +113,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
     const [ownProfileId, setOwnProfileId] = useState<string | null>(null);
     const routeCtx: any = useContext(NavigationRouteContext) as any | undefined;
     const routeUserId = routeCtx?.params?.userId || null;
+    const routeStartupDetailsId = routeCtx?.params?.startupDetailsId || null;
     const viewingUserId = propUserId || routeUserId || null;
 
     useEffect(() => {
@@ -122,16 +121,55 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
         (async () => {
             try {
                 let profileData: any;
-                if (viewingUserId) {
+                if (routeStartupDetailsId) {
+                    console.log('Profile: loading startup by startupDetailsId', routeStartupDetailsId);
+                    profileData = await getStartupProfile(String(routeStartupDetailsId));
+                } else if (viewingUserId) {
+                    console.log('Profile: loading startup by viewingUserId', viewingUserId);
                     profileData = await getStartupProfile(String(viewingUserId));
                 } else {
+                    console.log('Profile: loading own profile');
                     profileData = await getProfile();
                 }
                 if (mounted) {
+                    console.log('Profile: route params', { routeUserId, routeStartupDetailsId, viewingUserId });
                     console.log(profileData)
+                    // Ensure profileData.user is a full object; sometimes backend returns only user id
+                    try {
+                        if (profileData && profileData.user && typeof profileData.user === 'string') {
+                            const api = await import('../lib/api');
+                            const fetched = await api.getUserByIdentifier(String(profileData.user));
+                            if (fetched) profileData.user = fetched;
+                        }
+                    } catch (e) { /* ignore */ }
                     const normalized = normalizeProfile(profileData);
-                    console.log('Profile: normalized data', normalized);
                     setData(normalized || mockData);
+                    // Ensure posts and follower counts are fetched when viewing another user's profile
+                    try {
+                        if (viewingUserId) {
+                            const api = await import('../lib/api');
+                            // fetch posts explicitly (prefer server endpoint)
+                            try {
+                                if (typeof api.getPostsByUser === 'function') {
+                                    const userPosts = await api.getPostsByUser(String(viewingUserId));
+                                    if (mounted) setPosts(userPosts || []);
+                                } else {
+                                    const myPosts = await api.fetchStartupPosts();
+                                    if (mounted) setPosts((myPosts || []).filter((p: any) => String(p.userId || p.user?._id || p.user?.id) === String(viewingUserId)));
+                                }
+                            } catch (e) { /* ignore for now */ }
+
+                            // fetch follower/following counts if not provided
+                            try {
+                                const f = await import('../lib/api');
+                                const [fCount, foCount] = await Promise.all([f.getFollowersCount(String(viewingUserId)), f.getFollowingCount(String(viewingUserId))]);
+                                if (mounted) {
+                                    setFollowersCount(Number(fCount || 0));
+                                    setFollowingCount(Number(foCount || 0));
+                                }
+                            } catch (e) { /* ignore */ }
+                        }
+                    } catch (e) { /* ignore */ }
                     // cache own profile id for subsequent requests to avoid refetch
                     if (!viewingUserId) {
                         const derived = profileData?.user?._id || profileData?.user?.id || null;

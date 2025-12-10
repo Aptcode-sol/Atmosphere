@@ -110,12 +110,20 @@ export async function saveStartupProfile(payload: any) {
 }
 
 export async function getStartupProfile(userId: string) {
-    const data = await request(`/api/startup/profile/${userId}`, {}, { method: 'GET' });
-    // backend returns { startupDetails } where startupDetails.user is populated
-    if (data && data.startupDetails) {
-        return { user: data.startupDetails.user, details: data.startupDetails };
+    try {
+        let data = await request(`/api/startup-details/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+        if (data && data.startupDetails) return { user: data.startupDetails.user, details: data.startupDetails };
+        if (data && data.user) return { user: data.user, details: data };
+        return data;
+    } catch (e) {
+        // Try by startup details id (fallback)
+        try {
+            const data2 = await request(`/api/startup-details/by-id/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+            if (data2 && data2.startupDetails) return { user: data2.startupDetails.user, details: data2.startupDetails };
+            if (data2 && data2.user) return { user: data2.user, details: data2 };
+            return data2;
+        } catch (e2) { throw e; }
     }
-    return data;
 }
 
 export async function getPostsByUser(userId: string) {
@@ -255,4 +263,11 @@ export async function addStartupComment(startupId: string, text: string, parent?
 export async function getStartupComments(startupId: string) {
     const data = await request(`/api/startup-comments/${encodeURIComponent(startupId)}/comments`, {}, { method: 'GET' });
     return data.comments || [];
+}
+
+export async function getUserByIdentifier(identifier: string) {
+    try {
+        const data = await request(`/api/users/${encodeURIComponent(identifier)}`, {}, { method: 'GET' });
+        return data?.user ? data.user : null;
+    } catch (e) { return null; }
 }

@@ -31,6 +31,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     const [liked, setLiked] = useState(Boolean((companyData as any).likedByCurrentUser));
     const [isInvestor, setIsInvestor] = useState(false);
     const [crowned, setCrowned] = useState(Boolean((companyData as any).crownedByCurrentUser));
+    const [crownLoading, setCrownLoading] = useState(false);
     const stats = companyData?.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 };
     const [likes, setLikes] = useState<number>(stats.likes || 0);
     const [crownsCount, setCrownsCount] = useState<number>(stats.crowns || 0);
@@ -91,12 +92,15 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     };
 
     const toggleCrown = async () => {
+        if (!isInvestor) { Alert.alert('Not allowed', 'Only investors can crown profiles'); return; }
+        if (crownLoading) return;
+        const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
+        const prev = crowned;
+        // optimistic update
+        setCrowned(!prev);
+        setCrownsCount(c => !prev ? c + 1 : Math.max(0, c - 1));
+        setCrownLoading(true);
         try {
-            if (!isInvestor) { Alert.alert('Not allowed', 'Only investors can crown profiles'); return; }
-            const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
-            // optimistic toggle
-            const prev = crowned;
-            setCrowned(!prev);
             let resp: any;
             if (!prev) {
                 resp = await crownStartup(id);
@@ -104,11 +108,14 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                 resp = await uncrownStartup(id);
             }
             // backend returns updated crowns count
-            const newCount = typeof resp?.crowns === 'number' ? resp.crowns : (companyData.stats?.crowns || 0);
+            const newCount = typeof resp?.crowns === 'number' ? resp.crowns : undefined;
             if (typeof newCount === 'number') setCrownsCount(newCount);
         } catch (err: any) {
-            setCrowned(prev => prev);
-            // silent failure — revert state
+            // revert optimistic
+            setCrowned(prev);
+            setCrownsCount(c => prev ? c + 1 : Math.max(0, c - 1));
+        } finally {
+            setCrownLoading(false);
         }
     };
 
@@ -139,14 +146,25 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
             <View style={styles.headerTop}>
                 <TouchableOpacity style={styles.headerLeftRow} activeOpacity={0.8} onPress={() => {
                     try {
-                        const rawTarget = (companyData as any).userId || (companyData as any).user || companyData.id;
-                        const targetId = rawTarget ? String(rawTarget) : null;
+                        const targetId = (companyData as any).userId || (companyData as any).user || null;
+                        const startupDetailsId = (companyData as any).startupDetailsId || (companyData as any).id || null;
+                        const resolvedUserId = targetId ? String(targetId) : null;
+                        const resolvedStartupId = startupDetailsId ? String(startupDetailsId) : null;
                         if (onOpenProfile && targetId) {
-                            onOpenProfile(targetId);
+                            const chosen = resolvedUserId || resolvedStartupId || '';
+                            console.debug('StartupPost: onOpenProfile chosen id', chosen, { resolvedUserId, resolvedStartupId, companyData });
+                            onOpenProfile(chosen);
                             return;
                         }
-                        if (targetId && navigation && typeof navigation.navigate === 'function') {
-                            navigation.navigate('Profile', { userId: targetId });
+                        if (navigation) {
+                            const params: any = { backToHome: true };
+                            if (resolvedUserId) params.userId = resolvedUserId;
+                            else if (resolvedStartupId) params.startupDetailsId = resolvedStartupId;
+                            if (typeof navigation.push === 'function') {
+                                navigation.push('Profile', params);
+                            } else if (typeof navigation.navigate === 'function') {
+                                navigation.navigate('Profile', params);
+                            }
                             return;
                         }
                         console.warn('StartupPost: no navigation available to open profile for', targetId);

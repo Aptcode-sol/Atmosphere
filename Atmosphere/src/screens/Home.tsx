@@ -80,7 +80,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 headers,
             });
 
-            console.log('Unread count response status:', response.status);
+            // console.log('Unread count response status:', response.status);
 
             if (response.ok) {
                 const data = await response.json();
@@ -113,10 +113,16 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
         const loadPosts = async () => {
             try {
                 const data = await fetchStartupPosts();
+                console.debug('[Home] fetched startup posts sample:', Array.isArray(data) ? data[0] : data);
                 // Normalize posts to expected shape
                 const normalized = (data || []).map((p: any) => ({
                     id: String(p.id || p._id || Math.random()),
-                    userId: String(p.userId || (p.user && (p.user._id || p.user.id)) || ''),
+                    userId: String(
+                        p.userId ||
+                        (p.user && (typeof p.user === 'string' ? p.user : (p.user._id || p.user.id))) ||
+                        ''
+                    ),
+                    startupDetailsId: String(p._id || p.startupDetailsId || ''),
                     name: String(p.name || p.companyName || 'Unknown'),
                     displayName: String(p.displayName || ''),
                     verified: Boolean(p.verified || false),
