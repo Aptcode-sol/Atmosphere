@@ -22,6 +22,7 @@ const LandingPage = () => {
     const [route, setRoute] = useState<RouteKey>('home');
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const { theme } = useContext(ThemeContext);
 
     const handlePostPress = (postId: string) => {
@@ -50,9 +51,12 @@ const LandingPage = () => {
             // @ts-ignore
             return <ChatDetail chatId={selectedChatId} onBackPress={handleBackFromChat} />;
         }
+        if (selectedProfileId) {
+            return <Profile onNavigate={(r: RouteKey) => setRoute(r)} userId={selectedProfileId} onClose={() => { setSelectedProfileId(null); setRoute('home'); }} />;
+        }
         switch (route) {
             case 'home':
-                return <Home onNavigate={(r) => setRoute(r)} onChatSelect={handleChatSelect} />;
+                return <Home onNavigate={(r) => setRoute(r)} onChatSelect={handleChatSelect} onOpenProfile={(id: string) => { setSelectedProfileId(id); setRoute('profile'); }} />;
             case 'search':
                 return <Search onPostPress={handlePostPress} />;
             case 'notifications':

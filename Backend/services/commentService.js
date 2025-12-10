@@ -10,12 +10,35 @@ exports.createComment = async (req, res, next) => {
         const post = await Post.findById(postId);
         if (!post) return res.status(404).json({ error: 'Post not found' });
 
+
         const comment = new Comment({ post: postId, author: req.user._id, text, parent: parent || null });
         await comment.save();
         await comment.populate('author', 'username displayName avatarUrl');
 
-        post.commentsCount += 1;
-        await post.save();
+        // Atomic increment commentsCount and meta.commentsCount on Post
+        try {
+            await Post.findOneAndUpdate(
+                { _id: postId },
+                [
+                    {
+                        $set: {
+                            commentsCount: { $add: [{ $ifNull: ['$commentsCount', 0] }, 1] },
+                            meta: {
+                                $let: {
+                                    vars: { current: { $ifNull: ['$meta', {}] } },
+                                    in: { $mergeObjects: ['$$current', { commentsCount: { $add: [{ $ifNull: ['$$current.commentsCount', 0] }, 1] } }] }
+                                }
+                            }
+                        }
+                    }
+                ]
+            );
+        } catch (e) {
+            post.commentsCount += 1;
+            post.meta = post.meta || {};
+            post.meta.commentsCount = (post.meta.commentsCount || 0) + 1;
+            await post.save();
+        }
 
         res.status(201).json({ comment });
     } catch (err) { next(err); }
@@ -64,7 +87,27 @@ exports.deleteComment = async (req, res, next) => {
 
         const postId = comment.post;
         await comment.deleteOne();
-        await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: -1 } });
+        try {
+            await Post.findOneAndUpdate(
+                { _id: postId },
+                [
+                    {
+                        $set: {
+                            commentsCount: { $max: [0, { $subtract: [{ $ifNull: ['$commentsCount', 0] }, 1] }] }
+                        }
+                    }
+                ],
+                { new: true }
+            );
+        } catch (e) {
+            // Fallback
+            await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: -1 } });
+            const p = await Post.findById(postId);
+            if (p && (p.commentsCount || 0) < 0) {
+                p.commentsCount = 0;
+                await p.save();
+            }
+        }
 
         res.json({ message: 'Comment deleted successfully' });
     } catch (err) { next(err); }

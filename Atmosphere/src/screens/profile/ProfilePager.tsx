@@ -1,7 +1,9 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Dimensions, Animated, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions, Animated, FlatList, ActivityIndicator, Image, TouchableWithoutFeedback, Modal, Pressable } from 'react-native';
+import { PLACEHOLDER } from '../../lib/localImages';
+import { getImageSource } from '../../lib/image';
 import styles from './Profile.styles';
-import PostCard from './PostCard';
 
 type Props = {
     posts: any[];
@@ -14,6 +16,8 @@ export default function ProfilePager({ posts, postsLoading, theme }: Props) {
     const scrollX = useRef(new Animated.Value(0)).current;
     const screenW = Dimensions.get('window').width;
     const [activeTab, setActiveTab] = useState<'posts' | 'expand' | 'trades'>('posts');
+    const [previewVisible, setPreviewVisible] = useState(false);
+    const [previewSource, setPreviewSource] = useState<any>(null);
 
     return (
         <>
@@ -57,14 +61,38 @@ export default function ProfilePager({ posts, postsLoading, theme }: Props) {
                     style={{ flex: 1 }}
                 >
                     <View style={[styles.pagerPage, { width: screenW }]}>
+                        {/* add spacing between Posts header and grid */}
+                        <View style={{ height: 12 }} />
                         {postsLoading ? (
                             <View style={styles.pagerEmpty}><ActivityIndicator size="small" color={theme.primary} /><Text style={[styles.emptyText, { color: theme.placeholder }]}>Loading posts...</Text></View>
                         ) : posts.length === 0 ? (
                             <View style={styles.pagerEmpty}><Text style={[styles.emptyTitle, { color: theme.text }]}>No posts yet</Text><Text style={[styles.emptyText, { color: theme.placeholder }]}>You haven't posted anything yet. Tap the + button to create your first post.</Text></View>
                         ) : (
-                            <FlatList data={posts} keyExtractor={(it) => String(it._id || it.id || Math.random())} renderItem={({ item }) => (
-                                <PostCard item={item} theme={theme} />
-                            )} />
+                            <>
+                                <FlatList
+                                    data={posts}
+                                    keyExtractor={(it) => String(it._id || it.id || Math.random())}
+                                    numColumns={3}
+                                    columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 12 }}
+                                    renderItem={({ item }) => {
+                                        // prefer media array objects with url/src
+                                        const mediaFirst = Array.isArray(item.media) && item.media.length > 0 ? item.media[0] : null;
+                                        const candidate = mediaFirst?.url || mediaFirst?.src || item.image || item.imageUrl || item.profileImage || item.photo || mediaFirst || null;
+                                        const source = getImageSource(candidate || (PLACEHOLDER || 'https://via.placeholder.com/300x300.png?text=Post'));
+                                        return (
+                                            <TouchableWithoutFeedback onPress={() => { setPreviewSource(source); setPreviewVisible(true); }}>
+                                                <Image source={source} style={styles.gridItem} onError={(e) => { console.warn('Profile grid image error', e.nativeEvent, candidate); }} />
+                                            </TouchableWithoutFeedback>
+                                        );
+                                    }}
+                                />
+                                {/* Image preview modal */}
+                                <Modal visible={previewVisible} transparent animationType="fade" onRequestClose={() => setPreviewVisible(false)}>
+                                    <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setPreviewVisible(false)}>
+                                        {previewSource ? <Image source={previewSource} style={{ width: '90%', height: '70%', resizeMode: 'contain' }} /> : null}
+                                    </Pressable>
+                                </Modal>
+                            </>
                         )}
                     </View>
 

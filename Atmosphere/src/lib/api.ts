@@ -36,6 +36,11 @@ async function request(path: string, body: any = {}, options: { method?: 'GET' |
     const token = await AsyncStorage.getItem('token');
     const headers: any = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
+    // Prevent cached conditional responses from returning 304 with empty body
+    if (method === 'GET') {
+        headers['Cache-Control'] = 'no-cache';
+        headers.Pragma = 'no-cache';
+    }
     const fetchOptions: any = { method, headers };
 
     if (method === 'GET') {
@@ -74,8 +79,19 @@ export async function fetchStartupPosts() {
     return data.startups ?? [];
 }
 
+export async function fetchHottestStartups(limit = 10) {
+    const data = await request('/api/startup-details/hottest', { limit }, { method: 'GET' });
+    return data.startups ?? [];
+}
+
 export async function getProfile() {
-    const data = await request('/api/profile', {}, { method: 'GET' });
+    let data = await request('/api/profile', {}, { method: 'GET' });
+    // If server returned 304 -> request() returns {}. Retry with cache-bust to get fresh profile.
+    if (data && Object.keys(data).length === 0) {
+        console.debug('[api] getProfile empty response, retrying with cache-bust');
+        data = await request('/api/profile', { _cb: Date.now() }, { method: 'GET' });
+        console.debug('[api] getProfile retry response:', data);
+    }
     return data;
 }
 
@@ -99,5 +115,177 @@ export async function saveStartupProfile(payload: any) {
 }
 
 export async function getStartupProfile(userId: string) {
-    return request(`/api/startup/profile/${userId}`, {}, { method: 'GET' });
+    try {
+        let data = await request(`/api/startup-details/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+        if (data && data.startupDetails) return { user: data.startupDetails.user, details: data.startupDetails };
+        if (data && data.user) return { user: data.user, details: data };
+        return data;
+    } catch (err) {
+        // Try by startup details id (fallback)
+        try {
+            const data2 = await request(`/api/startup-details/by-id/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+            if (data2 && data2.startupDetails) return { user: data2.startupDetails.user, details: data2.startupDetails };
+            if (data2 && data2.user) return { user: data2.user, details: data2 };
+            return data2;
+        } catch { throw err; }
+    }
+}
+
+export async function getPostsByUser(userId: string) {
+    // Preferred backend route: GET /api/posts?userId=<id>
+    try {
+        const data = await request('/api/posts', { userId }, { method: 'GET' });
+        return (data.posts ?? data) || [];
+    } catch {
+        // Fallback: try legacy route if present
+        try {
+            const data2 = await request(`/api/posts/user/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+            return (data2.posts ?? data2) || [];
+        } catch {
+            throw new Error('Failed to fetch posts for user');
+        }
+    }
+}
+
+export async function followUser(targetId: string) {
+    return request(`/api/follows/${encodeURIComponent(targetId)}`, {}, { method: 'POST' });
+}
+
+export async function unfollowUser(targetId: string) {
+    return request(`/api/follows/${encodeURIComponent(targetId)}`, {}, { method: 'DELETE' });
+}
+
+export async function checkFollowing(targetId: string) {
+    return request(`/api/follows/check/${encodeURIComponent(targetId)}`, {}, { method: 'GET' });
+}
+
+export async function getFollowStatus(targetId: string) {
+    // returns { isFollowing: boolean }
+    try {
+        const data = await request(`/api/follows/check/${encodeURIComponent(targetId)}`, {}, { method: 'GET' });
+        return { isFollowing: Boolean(data?.isFollowing || data?.following || false) };
+    } catch {
+        return { isFollowing: false };
+    }
+}
+
+export async function getFollowersCount(userId: string) {
+    let data = await request(`/api/follows/${encodeURIComponent(userId)}/followers`, {}, { method: 'GET' });
+    console.debug('[api] getFollowersCount initial response:', data);
+    // if backend returned 304 -> request() returns {}. Retry with cache-bust to ensure fresh counts
+    if (data && Object.keys(data).length === 0) {
+        console.debug('[api] getFollowersCount empty response, retrying with cache-bust');
+        data = await request(`/api/follows/${encodeURIComponent(userId)}/followers`, { _cb: Date.now() }, { method: 'GET' });
+        console.debug('[api] getFollowersCount retry response:', data);
+    }
+    return data?.count ?? (Array.isArray(data?.followers) ? data.followers.length : 0);
+}
+
+export async function getFollowingCount(userId: string) {
+    let data = await request(`/api/follows/${encodeURIComponent(userId)}/following`, {}, { method: 'GET' });
+    console.debug('[api] getFollowingCount initial response:', data);
+    if (data && Object.keys(data).length === 0) {
+        console.debug('[api] getFollowingCount empty response, retrying with cache-bust');
+        data = await request(`/api/follows/${encodeURIComponent(userId)}/following`, { _cb: Date.now() }, { method: 'GET' });
+        console.debug('[api] getFollowingCount retry response:', data);
+    }
+    return data?.count ?? (Array.isArray(data?.following) ? data.following.length : 0);
+}
+
+// Likes
+export async function likePost(postId: string) {
+    return request(`/api/likes/post/${encodeURIComponent(postId)}`, {}, { method: 'POST' });
+}
+
+export async function unlikePost(postId: string) {
+    return request(`/api/likes/post/${encodeURIComponent(postId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getPostLikes(postId: string) {
+    const data = await request(`/api/likes/post/${encodeURIComponent(postId)}`, {}, { method: 'GET' });
+    return data.likes || [];
+}
+
+// Comments
+export async function addComment(postId: string, text: string, parent?: string) {
+    return request(`/api/comments/${encodeURIComponent(postId)}/comments`, { text, parent }, { method: 'POST' });
+}
+
+export async function getComments(postId: string) {
+    const data = await request(`/api/comments/${encodeURIComponent(postId)}/comments`, {}, { method: 'GET' });
+    return data.comments || [];
+}
+
+export async function deleteComment(commentId: string) {
+    return request(`/api/comments/${encodeURIComponent(commentId)}`, {}, { method: 'DELETE' });
+}
+
+export async function deleteStartupComment(commentId: string) {
+    return request(`/api/startup-comments/comment/${encodeURIComponent(commentId)}`, {}, { method: 'DELETE' });
+}
+
+// Crowns
+export async function crownPost(postId: string) {
+    return request(`/api/crowns/post/${encodeURIComponent(postId)}`, {}, { method: 'POST' });
+}
+
+export async function uncrownPost(postId: string) {
+    return request(`/api/crowns/post/${encodeURIComponent(postId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getPostCrowns(postId: string) {
+    const data = await request(`/api/crowns/post/${encodeURIComponent(postId)}`, {}, { method: 'GET' });
+    return data.crowns || [];
+}
+
+// Startup likes (for startup-cards where the backend uses StartupDetails)
+export async function likeStartup(startupId: string) {
+    return request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}`, {}, { method: 'POST' });
+}
+
+export async function unlikeStartup(startupId: string) {
+    return request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getStartupLikes(startupId: string) {
+    const data = await request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}`, {}, { method: 'GET' });
+    return data.likes || [];
+}
+
+export async function isStartupLiked(startupId: string) {
+    try {
+        const data = await request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}/check`, {}, { method: 'GET' });
+        return Boolean(data?.liked);
+    } catch { return false; }
+}
+
+// Startup crowns
+export async function crownStartup(startupId: string) {
+    return request(`/api/startup-crowns/startup/${encodeURIComponent(startupId)}`, {}, { method: 'POST' });
+}
+
+export async function uncrownStartup(startupId: string) {
+    return request(`/api/startup-crowns/startup/${encodeURIComponent(startupId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getStartupCrowns(startupId: string) {
+    const data = await request(`/api/startup-crowns/startup/${encodeURIComponent(startupId)}`, {}, { method: 'GET' });
+    return data.crowns || [];
+}
+
+// Startup comments
+export async function addStartupComment(startupId: string, text: string, parent?: string) {
+    return request(`/api/startup-comments/${encodeURIComponent(startupId)}/comments`, { text, parent }, { method: 'POST' });
+}
+
+export async function getStartupComments(startupId: string) {
+    const data = await request(`/api/startup-comments/${encodeURIComponent(startupId)}/comments`, {}, { method: 'GET' });
+    return data.comments || [];
+}
+
+export async function getUserByIdentifier(identifier: string) {
+    try {
+        const data = await request(`/api/users/${encodeURIComponent(identifier)}`, {}, { method: 'GET' });
+        return data?.user ? data.user : null;
+    } catch { return null; }
 }

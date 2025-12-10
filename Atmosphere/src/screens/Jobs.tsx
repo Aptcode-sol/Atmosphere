@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -12,7 +13,7 @@ function OpportunityCard({ item, type, onExpand, expanded }) {
     const [showFullDesc, setShowFullDesc] = useState(false);
     const tags = [item.sector, item.employmentType, item.locationType, item.companyType].filter(Boolean);
     return (
-        <View style={[styles.card, { backgroundColor: theme.cardBackground }]}> 
+        <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
             {/* Header */}
             <View style={styles.cardHeader}>
                 <View style={styles.logoBox}>
@@ -120,7 +121,7 @@ const Jobs = () => {
                 setJobs(jobData.jobs || []);
                 setGrants(grantData);
                 setEvents(eventData);
-            } catch (e) {
+            } catch {
                 Alert.alert('Error', 'Failed to fetch opportunities');
             }
         };
@@ -229,7 +230,7 @@ const Jobs = () => {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}> 
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={styles.tabBar}>
                 {TABS.map(tab => (
                     <TouchableOpacity

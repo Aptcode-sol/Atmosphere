@@ -30,6 +30,7 @@ const StartupDetailsSchema = new Schema(
         age: { type: Number, default: 1 },
         fundingRaised: { type: Number, default: 0 },
         fundingNeeded: { type: Number, default: 0 },
+        likesCount: { type: Number, default: 0 },
         meta: { type: Schema.Types.Mixed },
     },
     { timestamps: true }

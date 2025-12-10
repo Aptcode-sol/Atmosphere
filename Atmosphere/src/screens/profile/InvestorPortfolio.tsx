@@ -1,6 +1,6 @@
 import React from 'react';
+/* eslint-disable react-native/no-inline-styles */
 import { View, Text, TouchableOpacity } from 'react-native';
-import styles from './Profile.styles';
 
 export default function InvestorPortfolio({ theme, onBack }: { theme: any; onBack: () => void }) {
     return (

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, Animated, ScrollView, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { updateProfile, saveStartupProfile, getProfile, getStartupProfile } from '../../lib/api';
+import { saveStartupProfile, getProfile, getStartupProfile } from '../../lib/api';
 
 function CollapsibleSection({ title, open, onPress, children }: any) {
     const [contentHeight, setContentHeight] = useState(0);

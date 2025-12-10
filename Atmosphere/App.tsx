@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar, useColorScheme, View } from 'react-native';
 import {
   SafeAreaProvider
@@ -20,6 +20,21 @@ import { TOP_PANEL_HEIGHT, BOTTOM_NAV_HEIGHT } from './src/lib/layout';
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
   const [route, setRoute] = useState<'signin' | 'signup' | 'home'>('signin');
+
+  useEffect(() => {
+    // On app start, check for existing token and user to persist login
+    (async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const token = await AsyncStorage.getItem('token');
+        if (token) {
+          setRoute('home');
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
 
   const viewStyle = {
     flex: 1,

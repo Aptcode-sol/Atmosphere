@@ -6,6 +6,7 @@ import { getProfile } from '../../lib/api';
 
 export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
     const [showPortfolio, setShowPortfolio] = useState(false);
+    /* eslint-disable react-native/no-inline-styles */
     const [userRole, setUserRole] = useState<'startup' | 'investor' | 'personal' | null>(null);
 
     useEffect(() => {
@@ -53,7 +54,7 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
                     </View>
                 </TouchableOpacity>
 
-                { userRole !== 'personel' &&<TouchableOpacity onPress={() => setShowPortfolio(true)} style={{ borderWidth: 1, borderColor: '#222', padding: 18, borderRadius: 16, marginBottom: 12, backgroundColor: '#070707' }}>
+                {userRole !== 'personel' && <TouchableOpacity onPress={() => setShowPortfolio(true)} style={{ borderWidth: 1, borderColor: '#222', padding: 18, borderRadius: 16, marginBottom: 12, backgroundColor: '#070707' }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ color: '#fff', fontWeight: '600' }}>Portfolio</Text>
                         <Text style={{ color: '#fff' }}>›</Text>

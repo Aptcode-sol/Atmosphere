@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions } from 'react-native';
 import styles from './Profile.styles';
@@ -150,7 +151,7 @@ export default function SettingsOverlay({ src, theme, onClose }: Props) {
                         onClose();
                         try {
                             // fallback: reload the JS bundle (works without navigation)
-                            // eslint-disable-next-line @typescript-eslint/no-var-requires
+
                             const { DevSettings } = require('react-native');
                             if (DevSettings && typeof DevSettings.reload === 'function') DevSettings.reload();
                         } catch {

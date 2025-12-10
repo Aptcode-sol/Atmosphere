@@ -26,9 +26,10 @@ interface Post {
 interface HomeProps {
     onNavigate?: (route: 'notifications' | 'chats') => void;
     onChatSelect?: (chatId: string) => void;
+    onOpenProfile?: (userId: string) => void;
 }
 
-const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
+const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, onOpenProfile }) => {
     const { theme } = useContext(ThemeContext);
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -59,38 +60,38 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
                 console.log('No currentUserId available');
                 return;
             }
-            
+
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
-            
+
             if (!token) {
                 console.log('No token available');
                 return;
             }
-            
+
             const headers: any = { 'Content-Type': 'application/json' };
             headers.Authorization = `Bearer ${token}`;
-            
+
             const url = `${baseUrl}/api/chats`;
             console.log('Fetching unread count from:', url);
-            
+
             const response = await fetch(url, {
                 credentials: 'include',
                 headers,
             });
-            
-            console.log('Unread count response status:', response.status);
-            
+
+            // console.log('Unread count response status:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
                 const chats = data.chats || [];
-                
+
                 // Calculate total unread count
                 const totalUnread = chats.reduce((sum: number, chat: any) => {
                     const unreadForUser = chat.unreadCounts?.[currentUserId] || 0;
                     return sum + unreadForUser;
                 }, 0);
-                
+
                 console.log('Total unread count:', totalUnread);
                 setUnreadCount(totalUnread);
             } else {
@@ -112,9 +113,16 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
         const loadPosts = async () => {
             try {
                 const data = await fetchStartupPosts();
+                console.debug('[Home] fetched startup posts sample:', Array.isArray(data) ? data[0] : data);
                 // Normalize posts to expected shape
                 const normalized = (data || []).map((p: any) => ({
                     id: String(p.id || p._id || Math.random()),
+                    userId: String(
+                        p.userId ||
+                        (p.user && (typeof p.user === 'string' ? p.user : (p.user._id || p.user.id))) ||
+                        ''
+                    ),
+                    startupDetailsId: String(p._id || p.startupDetailsId || ''),
                     name: String(p.name || p.companyName || 'Unknown'),
                     displayName: String(p.displayName || ''),
                     verified: Boolean(p.verified || false),
@@ -126,6 +134,10 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
                     fundingRaised: Number(p.fundingRaised || 0),
                     fundingNeeded: Number(p.fundingNeeded || 0),
                     stats: p.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 },
+                    // user-specific flags provided by enriched feed
+                    likedByCurrentUser: Boolean(p.likedByCurrentUser),
+                    crownedByCurrentUser: Boolean(p.crownedByCurrentUser),
+                    isFollowing: Boolean(p.isFollowing),
                 }));
                 setPosts(normalized);
             } catch (err) {
@@ -167,14 +179,14 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect }) => {
                 data={posts}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={[styles.listContent, { paddingBottom: BOTTOM_NAV_HEIGHT + 50 }]}
-                renderItem={({ item }) => <StartupPost post={item} />}
+                renderItem={({ item }) => <StartupPost post={item} currentUserId={currentUserId} onOpenProfile={onOpenProfile} />}
             />
         );
     };
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <TopNavbar 
-                title="Atmosphere" 
+            <TopNavbar
+                title="Atmosphere"
                 messagesCount={unreadCount}
                 onNotificationsPress={() => onNavigate?.('notifications')}
                 onChatsPress={() => onNavigate?.('chats')}

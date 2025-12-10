@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
 import axios from 'axios';
 import { ThemeContext } from '../contexts/ThemeContext';
+import { getImageSource } from '../lib/image';
 
 import envConfig from '../../env.json';
 const API_BASE = `${envConfig.BACKEND_URL}/api`;
@@ -55,18 +56,18 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
         setLoading(true);
         try {
             // Search for users, companies, and posts
-            const res = await axios.get(`${API_BASE}/search`, { 
-                params: { 
-                    q: text, 
-                    type: 'all', 
-                    limit: 50 
-                } 
+            const res = await axios.get(`${API_BASE}/search`, {
+                params: {
+                    q: text,
+                    type: 'all',
+                    limit: 50
+                }
             });
-            
+
             const users = res.data.results?.accounts || [];
             const companies = res.data.results?.companies || [];
             const posts = res.data.results?.posts || [];
-            
+
             // Classify users by their primary role at index 0 (roles[0])
             const startupsUsers = users.filter((u: any) => {
                 const role = (u.roles && u.roles[0]) ? String(u.roles[0]).toLowerCase() : '';
@@ -88,7 +89,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                 investors: investorsUsers,
                 personal: personalUsers
             });
-            
+
             setActiveTab('posts');
         } catch {
             // handle error
@@ -136,8 +137,8 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
             {/* Tabs */}
             {query.trim() && (
                 <View style={[styles.tabsContainer, { borderBottomColor: theme.border }]}>
-                    <ScrollView 
-                        horizontal 
+                    <ScrollView
+                        horizontal
                         showsHorizontalScrollIndicator={false}
                         scrollEventThrottle={16}
                     >
@@ -187,13 +188,14 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                     if (!query.trim() || (query.trim() && activeTab === 'posts')) {
                         const imgUri = item.media?.[0]?.url || item.image || item.thumbUrl || 'https://via.placeholder.com/400x400.png?text=Post';
                         return (
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 style={styles.gridItem}
                                 activeOpacity={0.9}
                                 onPress={() => onPostPress && (onPostPress(item._id || item.id))}
                             >
                                 <Image
-                                    source={{ uri: imgUri }}
+                                    source={getImageSource(imgUri)}
+                                    onError={(e) => { console.warn('Search image error', e.nativeEvent, imgUri); }}
                                     style={styles.gridImage}
                                     resizeMode="cover"
                                 />
@@ -212,16 +214,16 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                         const displayName = item.name || item.displayName || item.username || item.companyName || 'Startup';
                         return (
                             <View style={[styles.feedItem, { borderBottomColor: theme.border }]}>
-                                <Text style={[styles.feedTitle, { color: theme.text }]}> 
+                                <Text style={[styles.feedTitle, { color: theme.text }]}>
                                     🏢 {displayName}
                                 </Text>
                                 {item.description && (
-                                    <Text style={[styles.feedText, { color: theme.placeholder }]}> 
+                                    <Text style={[styles.feedText, { color: theme.placeholder }]}>
                                         {item.description}
                                     </Text>
                                 )}
                                 {item.tags && item.tags.length > 0 && (
-                                    <Text style={[styles.feedStats, { color: theme.primary }]}> 
+                                    <Text style={[styles.feedStats, { color: theme.primary }]}>
                                         {item.tags.join(', ')}
                                     </Text>
                                 )}
@@ -271,10 +273,10 @@ const styles = StyleSheet.create({
     searchBarContainer: { padding: 12, paddingTop: 8 },
     input: { borderWidth: 1, borderRadius: 24, padding: 12, fontSize: 16, paddingHorizontal: 16 },
     tabsContainer: { borderBottomWidth: 1, paddingHorizontal: 0 },
-    tab: { 
-        paddingHorizontal: 12, 
-        paddingVertical: 12, 
-        borderBottomWidth: 2, 
+    tab: {
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        borderBottomWidth: 2,
         borderBottomColor: 'transparent',
         minWidth: 80,
         alignItems: 'center',
@@ -285,17 +287,17 @@ const styles = StyleSheet.create({
     loader: { margin: 20 },
     // Grid styles for explore
     gridContent: { paddingHorizontal: 1 },
-    gridItem: { 
-        width: ITEM_SIZE, 
-        height: ITEM_SIZE, 
+    gridItem: {
+        width: ITEM_SIZE,
+        height: ITEM_SIZE,
         margin: 1,
         borderRadius: 4,
         overflow: 'hidden',
         backgroundColor: '#e0e0e0',
         position: 'relative'
     },
-    gridImage: { 
-        width: '100%', 
+    gridImage: {
+        width: '100%',
         height: '100%',
         backgroundColor: '#f0f0f0'
     },
