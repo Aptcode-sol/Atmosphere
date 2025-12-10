@@ -1,98 +1,148 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import { Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import * as api from '../lib/api';
+import { ThemeContext } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-const topStartups = [
-    { id: 1, name: 'Airbound Pvt. Ltd.', initials: 'AR', color: '#F59E0B', tagline: 'Revolutionizing last-mile delivery with drone technology', likes: 1200 },
-    { id: 2, name: 'Syko Analytics', initials: 'SY', color: '#9CA3AF', tagline: 'AI-powered customer behavior prediction platform', likes: 950 },
-    { id: 3, name: 'GreenWave Energy', initials: 'GW', color: '#FB923C', tagline: 'Sustainable energy solutions for urban infrastructure', likes: 870 },
-    { id: 4, name: 'MediConnect', initials: 'MC', color: '#3B82F6', tagline: 'Connecting patients with specialists through telemedicine', likes: 820 },
-    { id: 5, name: 'Stellar Dynamics', initials: 'SD', color: '#6366F1', tagline: 'Next-gen satellite communication systems', likes: 790 },
-    { id: 6, name: 'PayFlow Solutions', initials: 'PF', color: '#F59E0B', tagline: 'Digital payment infrastructure for emerging markets', likes: 760 },
-    { id: 7, name: 'FoodFlow', initials: 'FF', color: '#10B981', tagline: 'Smart logistics for food supply chains', likes: 740 },
-    { id: 8, name: 'CodeMentor AI', initials: 'CM', color: '#8B5CF6', tagline: 'AI-powered coding mentorship platform', likes: 720 },
-    { id: 9, name: 'NeuralHealth', initials: 'NH', color: '#EC4899', tagline: 'Neural network diagnostics for healthcare', likes: 700 },
-    { id: 10, name: 'LogiChain Systems', initials: 'LC', color: '#14B8A6', tagline: 'Blockchain-based supply chain transparency', likes: 680 },
-];
+type StartupCard = any;
 
 const HottestStartups = () => {
     const [filterDay, setFilterDay] = useState<'today' | '7days'>('today');
+    const [loading, setLoading] = useState(true);
+    const [topList, setTopList] = useState<StartupCard[]>([]);
+    const { theme } = useContext(ThemeContext);
 
     useEffect(() => {
-        // placeholder for any timer or data fetch
+        let mounted = true;
+        (async () => {
+            setLoading(true);
+            try {
+                const startups = await api.fetchHottestStartups(10);
+                if (mounted) setTopList(startups || []);
+            } catch (e) {
+                console.warn('HottestStartups: failed to fetch/startups', e);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        })();
+        return () => { mounted = false; };
     }, [filterDay]);
 
-    const renderPodium = () => (
-        <View style={styles.podiumWrap}>
-            {/* 2nd */}
-            <View style={styles.podiumItem}>
-                <View style={[styles.medal, { backgroundColor: topStartups[1].color }]}>
-                    <Text style={styles.medalText}>{topStartups[1].initials}</Text>
-                </View>
-                <View style={[styles.podiumBase, { backgroundColor: '#E5E7EB' }]}>
-                    <Text style={styles.podiumRank}>2</Text>
-                </View>
-                <View style={styles.podiumLabel}>
-                    <Text style={styles.podiumName} numberOfLines={1}>{topStartups[1].name}</Text>
-                    <Text style={styles.podiumTag} numberOfLines={1}>{topStartups[1].tagline}</Text>
-                    <View style={styles.likesRow}>
-                        <Icon name="heart" size={14} color="#F472B6" />
-                        <Text style={styles.likesText}>{topStartups[1].likes}</Text>
-                    </View>
-                </View>
-            </View>
+    async function safeGetStartupCrowns(id: string) {
+        try { if (!id) return 0; const c = await api.getStartupCrowns(String(id)); return Array.isArray(c) ? c.length : Number((c && (c.count || c.length)) || 0); } catch { return 0; }
+    }
+    async function safeGetStartupLikes(id: string) {
+        try { if (!id) return 0; const c = await api.getStartupLikes(String(id)); return Array.isArray(c) ? c.length : Number((c && (c.count || c.length)) || 0); } catch { return 0; }
+    }
+    async function safeGetStartupComments(id: string) {
+        try { if (!id) return 0; const c = await api.getStartupComments(String(id)); return Array.isArray(c) ? c.length : Number((c && (c.count || c.length)) || 0); } catch { return 0; }
+    }
 
-            {/* 1st */}
-            <View style={styles.podiumItemCenter}>
-                <View style={[styles.champion, { backgroundColor: topStartups[0].color }]}>
-                    <Text style={styles.championText}>{topStartups[0].initials}</Text>
-                </View>
-                <View style={[styles.podiumBaseCenter, { backgroundColor: '#FDE68A' }]}>
-                    <Text style={styles.podiumRankCenter}>1</Text>
-                </View>
-                <View style={styles.podiumLabelCenter}>
-                    <Text style={styles.championName} numberOfLines={1}>{topStartups[0].name}</Text>
-                    <Text style={styles.podiumTag} numberOfLines={1}>{topStartups[0].tagline}</Text>
-                    <View style={styles.likesRow}>
-                        <Icon name="heart" size={16} color="#F472B6" />
-                        <Text style={styles.likesText}>{topStartups[0].likes}</Text>
-                    </View>
-                </View>
-            </View>
+    const shortOf = (s: any) => s?.about || s?.tagline || s?.shortDescription || s?.description || s?.details?.about || s?.details?.tagline || s?.details?.shortDescription || '';
 
-            {/* 3rd */}
-            <View style={styles.podiumItem}>
-                <View style={[styles.medal, { backgroundColor: topStartups[2].color }]}>
-                    <Text style={styles.medalText}>{topStartups[2].initials}</Text>
+    const renderPodium = () => {
+        const first = topList[0] || null;
+        const second = topList[1] || null;
+        const third = topList[2] || null;
+        const initialsOf = (s: any) => s?.initials || (s?.name ? s.name.split(' ').map((p: string) => p.charAt(0)).slice(0, 2).join('').toUpperCase() : (s?.companyName ? s.companyName.charAt(0).toUpperCase() : ''));
+        const avatarOf = (s: any) => s?.logo || s?.profileImage || s?.details?.profileImage || s?.user?.avatarUrl || s?.image || null;
+        return (
+            <View style={styles.podiumWrap}>
+                {/* 2nd */}
+                <View style={[styles.podiumItem, styles.podiumSecond]}>
+                    <View style={[styles.medal, { backgroundColor: second?.color || '#9CA3AF', borderWidth: 3, borderColor: '#C0C0C0' }]}>
+                        {avatarOf(second) ? (
+                            <Image source={{ uri: avatarOf(second) }} style={styles.podiumImage} />
+                        ) : (
+                            <Text style={styles.medalText}>{initialsOf(second)}</Text>
+                        )}
+                    </View>
+                    <View style={[styles.podiumBase, { backgroundColor: '#E5E7EB' }]}>
+                        <Text style={styles.podiumRank}>2</Text>
+                    </View>
+                    <View style={styles.podiumLabel}>
+                        <Text style={[styles.podiumName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{second?.name ?? second?.companyName ?? second?.company?.name ?? '—'}</Text>
+                        <Text style={[styles.shortDesc, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(second)}</Text>
+                        <View style={styles.likesRow}>
+                            <Icon name="award" size={14} color="#F59E0B" />
+                            <Text style={styles.likesText}>{second?.weekCounts?.crowns ?? second?.stats?.crowns ?? 0}</Text>
+                            <Icon name="heart" size={14} color="#F472B6" />
+                            <Text style={styles.likesText}>{second?.weekCounts?.likes ?? second?.stats?.likes ?? 0}</Text>
+                        </View>
+                    </View>
                 </View>
-                <View style={[styles.podiumBase, { backgroundColor: '#FED7AA' }]}>
-                    <Text style={styles.podiumRank}>3</Text>
+
+                {/* 1st */}
+                <View style={styles.podiumItemCenter}>
+                    <View style={[styles.champion, { backgroundColor: first?.color || '#F59E0B', borderColor: '#FBBF24', borderWidth: 4 }]}>
+                        {avatarOf(first) ? (
+                            <Image source={{ uri: avatarOf(first) }} style={styles.championImage} />
+                        ) : (
+                            <Text style={styles.championText}>{initialsOf(first)}</Text>
+                        )}
+                    </View>
+                    <View style={[styles.podiumBaseCenter, { backgroundColor: '#FDE68A' }]}>
+                        <Text style={styles.podiumRankCenter}>1</Text>
+                    </View>
+                    <View style={styles.podiumLabelCenter}>
+                        <Text style={[styles.championName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{first?.name ?? first?.companyName ?? first?.company?.name ?? '—'}</Text>
+                        <Text style={[styles.shortDescCenter, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(first)}</Text>
+                        <View style={styles.likesRow}>
+                            <Icon name="award" size={16} color="#F59E0B" />
+                            <Text style={styles.likesText}>{first?.weekCounts?.crowns ?? first?.stats?.crowns ?? 0}</Text>
+                            <Icon name="heart" size={16} color="#F472B6" />
+                            <Text style={styles.likesText}>{first?.weekCounts?.likes ?? first?.stats?.likes ?? 0}</Text>
+                        </View>
+                    </View>
                 </View>
-                <View style={styles.podiumLabel}>
-                    <Text style={styles.podiumName} numberOfLines={1}>{topStartups[2].name}</Text>
-                    <Text style={styles.podiumTag} numberOfLines={1}>{topStartups[2].tagline}</Text>
-                    <View style={styles.likesRow}>
-                        <Icon name="heart" size={14} color="#F472B6" />
-                        <Text style={styles.likesText}>{topStartups[2].likes}</Text>
+
+                {/* 3rd */}
+                <View style={[styles.podiumItem, styles.podiumThird]}>
+                    <View style={[styles.medal, { backgroundColor: third?.color || '#FB923C', borderWidth: 3, borderColor: '#CD7F32' }]}>
+                        {avatarOf(third) ? (
+                            <Image source={{ uri: avatarOf(third) }} style={styles.podiumImage} />
+                        ) : (
+                            <Text style={styles.medalText}>{initialsOf(third)}</Text>
+                        )}
+                    </View>
+                    <View style={[styles.podiumBase, { backgroundColor: '#FED7AA' }]}>
+                        <Text style={styles.podiumRank}>3</Text>
+                    </View>
+                    <View style={styles.podiumLabel}>
+                        <Text style={[styles.podiumName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{third?.name ?? third?.companyName ?? third?.company?.name ?? '—'}</Text>
+                        <Text style={[styles.shortDesc, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(third)}</Text>
+                        <View style={styles.likesRow}>
+                            <Icon name="award" size={14} color="#F59E0B" />
+                            <Text style={styles.likesText}>{third?.weekCounts?.crowns ?? third?.stats?.crowns ?? 0}</Text>
+                            <Icon name="heart" size={14} color="#F472B6" />
+                            <Text style={styles.likesText}>{third?.weekCounts?.likes ?? third?.stats?.likes ?? 0}</Text>
+                        </View>
                     </View>
                 </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     const renderListItem = ({ item }: { item: any }) => (
         <View style={styles.listCard}>
             <View style={[styles.listAvatar, { backgroundColor: item.color }]}>
-                <Text style={styles.listInitials}>{item.initials}</Text>
+                {(item.logo || item.profileImage || item.details?.profileImage || item.user?.avatarUrl || item.image) ? (
+                    <Image source={{ uri: (item.logo || item.profileImage || item.details?.profileImage || item.user?.avatarUrl || item.image) }} style={styles.listImage} resizeMode="cover" />
+                ) : (
+                    <Text style={styles.listInitials}>{item.initials || (item.name ? item.name.charAt(0).toUpperCase() : (item.companyName ? item.companyName.charAt(0).toUpperCase() : '?'))}</Text>
+                )}
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.listName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.listTag} numberOfLines={1}>{item.tagline}</Text>
+                <Text style={[styles.listName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{item.name || item.companyName || item.company?.name || '—'}</Text>
+                <Text style={[styles.listTag, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(item)}</Text>
                 <View style={styles.likesRow}>
+                    <Icon name="award" size={14} color="#F59E0B" />
+                    <Text style={styles.likesText}>{item.weekCounts?.crowns ?? item.stats?.crowns ?? 0}</Text>
                     <Icon name="heart" size={14} color="#F472B6" />
-                    <Text style={styles.likesText}>{item.likes}</Text>
+                    <Text style={styles.likesText}>{item.weekCounts?.likes ?? item.stats?.likes ?? 0}</Text>
                 </View>
             </View>
             <TouchableOpacity style={styles.viewBtn} onPress={() => { /* navigate to profile */ }}>
@@ -101,20 +151,34 @@ const HottestStartups = () => {
         </View>
     );
 
+    // Use a single FlatList as the main scroll container to avoid nesting VirtualizedLists
+    if (loading) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme?.background || '#fff', justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#FB923C" />
+            </View>
+        );
+    }
+
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <View style={styles.headerCenter}>
-                <Text style={{ fontSize: 22 }}>🔥</Text>
-                <Text style={styles.heading}>Hottest Startups This Week</Text>
-                <Text style={styles.sub}>Discover the top 10 most liked companies in the past 7 days.</Text>
-            </View>
-
-            {renderPodium()}
-
-            <View style={styles.listWrap}>
-                <FlatList data={topStartups.slice(3)} keyExtractor={i => String(i.id)} renderItem={renderListItem} ItemSeparatorComponent={() => <View style={{ height: 12 }} />} />
-            </View>
-        </ScrollView>
+        <FlatList
+            data={topList.slice(3)}
+            keyExtractor={i => String(i._startupId || i.id || i._id)}
+            renderItem={renderListItem}
+            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+            contentContainerStyle={styles.content}
+            style={[styles.container, { backgroundColor: theme?.background || '#fff' }]}
+            ListHeaderComponent={() => (
+                <>
+                    <View style={styles.headerCenter}>
+                        <Text style={[styles.heading, { color: theme?.text }]}>🔥 Hottest Startups This Week</Text>
+                        <Text style={[styles.sub, { color: theme?.placeholder }]}>Discover the top 10 most liked companies in the past 7 days.</Text>
+                    </View>
+                    {renderPodium()}
+                    <View style={{ height: 12 }} />
+                </>
+            )}
+        />
     );
 };
 
@@ -127,12 +191,14 @@ const styles = StyleSheet.create({
     podiumWrap: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 18, marginVertical: 16 },
     podiumItem: { width: 100, alignItems: 'center' },
     podiumItemCenter: { width: 120, alignItems: 'center' },
+    podiumSecond: { transform: [{ translateY: 10 }] },
+    podiumThird: { transform: [{ translateY: 18 }] },
     medal: { width: 80, height: 80, borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.3, elevation: 6 },
     medalText: { color: '#fff', fontSize: 20, fontWeight: '800' },
-    champion: { width: 96, height: 96, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#FBBF24', shadowColor: '#000', shadowOpacity: 0.35, elevation: 8 },
+    champion: { width: 96, height: 96, borderRadius: 20, borderBottomLeftRadius: 25, borderBottomRightRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#FBBF24', shadowColor: '#000', shadowOpacity: 0.35, elevation: 8 },
     championText: { color: '#fff', fontSize: 26, fontWeight: '900' },
-    podiumBase: { width: 64, height: 32, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: -12 },
-    podiumBaseCenter: { width: 88, height: 40, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: -14 },
+    podiumBase: { width: 72, height: 32, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, alignItems: 'center', justifyContent: 'center', marginTop: -10 },
+    podiumBaseCenter: { width: 88, height: 40, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: -16 },
     podiumRank: { fontWeight: '700', color: '#374151' },
     podiumRankCenter: { fontWeight: '900', color: '#92400E', fontSize: 16 },
     podiumLabel: { alignItems: 'center', marginTop: 8 },
@@ -140,14 +206,19 @@ const styles = StyleSheet.create({
     podiumName: { color: '#fff', fontWeight: '700' },
     championName: { color: '#fff', fontWeight: '900', fontSize: 16 },
     podiumTag: { color: '#9CA3AF', fontSize: 12, maxWidth: 120 },
+    shortDesc: { color: '#9CA3AF', fontSize: 12, maxWidth: 120 },
+    shortDescCenter: { color: '#9CA3AF', fontSize: 12, maxWidth: 140, textAlign: 'center' },
     likesRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
     likesText: { color: '#F472B6', marginLeft: 6, fontSize: 12 },
     listWrap: { marginTop: 20 },
     listCard: { backgroundColor: '#0b1220', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center' },
-    listAvatar: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    listInitials: { color: '#fff', fontWeight: '800' },
-    listName: { color: '#fff', fontWeight: '700' },
-    listTag: { color: '#9CA3AF', fontSize: 12 },
+    listAvatar: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    listInitials: { color: '#fff', fontWeight: '800', textAlign: 'center' },
+    listImage: { width: 56, height: 56, borderRadius: 12, alignSelf: 'stretch' },
+    podiumImage: { width: 72, height: 72, borderRadius: 10 },
+    championImage: { width: 84, height: 84, borderRadius: 14 },
+    listName: { color: '#fff', fontWeight: '700', maxWidth: width - 160 },
+    listTag: { color: '#9CA3AF', fontSize: 12, maxWidth: width - 160 },
     viewBtn: { borderWidth: 1, borderColor: '#1f2937', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999 },
     viewBtnText: { color: '#fff', fontWeight: '700' }
 });

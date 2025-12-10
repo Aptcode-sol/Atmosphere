@@ -79,6 +79,11 @@ export async function fetchStartupPosts() {
     return data.startups ?? [];
 }
 
+export async function fetchHottestStartups(limit = 10) {
+    const data = await request('/api/startup-details/hottest', { limit }, { method: 'GET' });
+    return data.startups ?? [];
+}
+
 export async function getProfile() {
     let data = await request('/api/profile', {}, { method: 'GET' });
     // If server returned 304 -> request() returns {}. Retry with cache-bust to get fresh profile.
