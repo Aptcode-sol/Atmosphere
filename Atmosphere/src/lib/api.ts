@@ -127,13 +127,18 @@ export async function getStartupProfile(userId: string) {
 }
 
 export async function getPostsByUser(userId: string) {
-    // Preferred backend route: /api/posts/user/:userId
+    // Preferred backend route: GET /api/posts?userId=<id>
     try {
-        const data = await request(`/api/posts/user/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+        const data = await request('/api/posts', { userId }, { method: 'GET' });
         return (data.posts ?? data) || [];
-    } catch {
-        // If endpoint not available, bubble error to caller to decide fallback
-        throw new Error('Failed to fetch posts for user');
+    } catch (e) {
+        // Fallback: try legacy route if present
+        try {
+            const data2 = await request(`/api/posts/user/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+            return (data2.posts ?? data2) || [];
+        } catch {
+            throw new Error('Failed to fetch posts for user');
+        }
     }
 }
 
