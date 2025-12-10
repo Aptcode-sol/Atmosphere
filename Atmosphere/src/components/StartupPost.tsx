@@ -3,10 +3,12 @@ import React, { useState, useContext } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { NavigationContext } from '@react-navigation/native';
-import { followUser, unfollowUser, checkFollowing } from '../lib/api';
+import { followUser, unfollowUser, likePost, unlikePost, crownPost, uncrownPost, likeStartup, unlikeStartup } from '../lib/api';
 import { getImageSource } from '../lib/image';
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, TextInput } from 'react-native';
+import { addStartupComment, getStartupComments, crownStartup, uncrownStartup } from '../lib/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type StartupCard = {
     id: string;
@@ -26,26 +28,37 @@ type StartupCard = {
 const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: StartupCard; company?: StartupCard; currentUserId?: string | null; onOpenProfile?: (id: string) => void }) => {
     const companyData = post || company;
     useContext(ThemeContext); // keep theme context in case other components rely on it
-    const [liked, setLiked] = useState(false);
+    const [liked, setLiked] = useState(Boolean((companyData as any).likedByCurrentUser));
+    const [isInvestor, setIsInvestor] = useState(false);
+    const [crowned, setCrowned] = useState(Boolean((companyData as any).crownedByCurrentUser));
     const stats = companyData?.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 };
     const [likes, setLikes] = useState<number>(stats.likes || 0);
-    const [followed, setFollowed] = useState(false);
+    const [showCommentInput, setShowCommentInput] = useState(false);
+    const [commentText, setCommentText] = useState('');
+    const [followed, setFollowed] = useState(Boolean((companyData as any).isFollowing));
     const [followLoading, setFollowLoading] = useState(false);
 
     useEffect(() => {
         let mounted = true;
-        const init = async () => {
+        // follow and liked state are provided by the feed as flags (likedByCurrentUser, isFollowing)
+        // check stored role for investor privileges
+        (async () => {
             try {
-                const target = (companyData as any).userId || (companyData as any).user || null;
-                if (!target) return;
-                const res = await checkFollowing(String(target));
-                if (!mounted) return;
-                setFollowed(Boolean(res?.isFollowing));
-            } catch {
-                // ignore init errors
-            }
-        };
-        init();
+                const role = await AsyncStorage.getItem('role');
+                if (role === 'investor') { setIsInvestor(true); return; }
+                // fallback: check stored user object for roles array
+                const userJson = await AsyncStorage.getItem('user');
+                if (userJson) {
+                    try {
+                        const userObj = JSON.parse(userJson);
+                        if (Array.isArray(userObj.roles) && userObj.roles.includes('investor')) {
+                            setIsInvestor(true);
+                        }
+                    } catch { /* ignore parse errors */ }
+                }
+            } catch (e) { /* ignore */ }
+        })();
+        // no per-item checks — initial state comes from the feed
         return () => { mounted = false; };
     }, [companyData]);
 
@@ -53,11 +66,59 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
 
     if (!companyData) return null;
 
-    const toggleLike = () => {
-        setLiked((v) => {
-            setLikes((l) => (v ? l - 1 : l + 1));
-            return !v;
-        });
+    const toggleLike = async () => {
+        const prev = liked;
+        setLiked(!prev);
+        setLikes(l => prev ? Math.max(0, l - 1) : l + 1);
+        try {
+            // Determine if this is a startup card by structure (Home passes startups as `post` prop)
+            const isStartupCard = Boolean((companyData as any).fundingRaised || (companyData as any).fundingNeeded || (companyData as any).stage);
+            const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
+            if (isStartupCard) {
+                if (!prev) await likeStartup(id);
+                else await unlikeStartup(id);
+            } else {
+                if (!prev) await likePost(id);
+                else await unlikePost(id);
+            }
+        } catch (err) {
+            // revert optimistic
+            setLiked(prev);
+            setLikes(l => prev ? l + 1 : Math.max(0, l - 1));
+        }
+    };
+
+    const toggleCrown = async () => {
+        try {
+            if (!isInvestor) { Alert.alert('Not allowed', 'Only investors can crown profiles'); return; }
+            const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
+            // optimistic toggle
+            const prev = crowned;
+            setCrowned(!prev);
+            const resp: any = await crownStartup(id);
+            // backend returns updated crowns count
+            const newCount = typeof resp?.crowns === 'number' ? resp.crowns : (companyData.stats?.crowns || 0);
+            // update local stats display
+            if (typeof newCount === 'number') {
+                stats.crowns = newCount;
+            }
+            Alert.alert('Crowned', 'You crowned this profile');
+        } catch (err: any) {
+            setCrowned(prev => prev);
+            Alert.alert('Error', err?.message || 'Could not crown');
+        }
+    };
+
+    const submitStartupComment = async () => {
+        try {
+            const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
+            await addStartupComment(id, commentText);
+            setCommentText('');
+            setShowCommentInput(false);
+            Alert.alert('Comment added');
+        } catch (err: any) {
+            Alert.alert('Error', err?.message || 'Could not add comment');
+        }
     };
 
     const totalFunding = (companyData.fundingRaised || 0) + (companyData.fundingNeeded || 0);
@@ -111,9 +172,14 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                                     await unfollowUser(String(targetId));
                                 }
                             } catch (err: any) {
-                                // revert optimistic
-                                setFollowed(!newState);
-                                Alert.alert('Error', err?.message || 'Could not update follow status');
+                                // If server says already following, reconcile UI to true
+                                if (err && err.message && err.message.toLowerCase().includes('already following')) {
+                                    setFollowed(true);
+                                } else {
+                                    // revert optimistic
+                                    setFollowed(!newState);
+                                    Alert.alert('Error', err?.message || 'Could not update follow status');
+                                }
                             } finally {
                                 setFollowLoading(false);
                             }
@@ -126,6 +192,24 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                 )}
             </View>
 
+            {showCommentInput && (
+                <View style={{ paddingHorizontal: 12, paddingBottom: 12 }}>
+                    <TextInput
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        placeholder="Write a comment..."
+                        placeholderTextColor="#888"
+                        style={{ backgroundColor: '#111', color: '#fff', padding: 8, borderRadius: 6 }}
+                        multiline
+                    />
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <TouchableOpacity onPress={submitStartupComment} style={{ paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#1a73e8', borderRadius: 6 }}>
+                            <Text style={{ color: '#fff', fontWeight: '700' }}>Post</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+
             <View style={styles.imageWrap}>
                 <Image source={getImageSource(companyData.profileImage)} style={styles.mainImage} resizeMode="cover" onError={(e) => { console.warn('StartupPost main image error', e.nativeEvent, companyData.profileImage); }} />
             </View>
@@ -136,8 +220,20 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                         <Text style={[styles.heart, { color: liked ? '#e74c3c' : '#ddd' }]}>❤</Text>
                         <Text style={[styles.statCount, { color: '#ddd' }]}>{likes}</Text>
                     </TouchableOpacity>
-                    <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>👑</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.crowns}</Text></View>
-                    <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>💬</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.comments}</Text></View>
+                    <View style={styles.statItem}>
+                        <Text style={[styles.statIcon, { color: '#ddd' }]}>👑</Text>
+                        <Text style={[styles.statCount, { color: '#ddd' }]}>{stats.crowns}</Text>
+                        {isInvestor && (
+                            <TouchableOpacity onPress={toggleCrown} style={{ marginLeft: 8 }}>
+                                <Text style={{ color: '#ffd700', fontWeight: '700' }}>Crown</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>💬</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.comments}</Text>
+                        <TouchableOpacity onPress={() => setShowCommentInput(s => !s)} style={{ marginLeft: 8 }}>
+                            <Text style={{ color: '#fff', fontWeight: '700' }}>{showCommentInput ? 'Cancel' : 'Comment'}</Text>
+                        </TouchableOpacity>
+                    </View>
                     <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>📤</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.shares}</Text></View>
                 </View>
             </View>

@@ -15,7 +15,9 @@ exports.followUser = async (req, res, next) => {
 
         const follow = new Follow({ follower: req.user._id, following: targetId });
         await follow.save();
-        res.status(201).json({ message: 'Successfully followed user', follow });
+        // return updated followers count for the target user
+        const followersCount = await Follow.countDocuments({ following: targetId });
+        res.status(201).json({ message: 'Successfully followed user', follow, followersCount });
     } catch (err) {
         next(err);
     }
@@ -27,7 +29,9 @@ exports.unfollowUser = async (req, res, next) => {
         if (!targetId) return res.status(400).json({ error: 'Missing target user id' });
         const follow = await Follow.findOneAndDelete({ follower: req.user._id, following: targetId });
         if (!follow) return res.status(404).json({ error: 'Not following this user' });
-        res.json({ message: 'Successfully unfollowed user' });
+        // return updated followers count for the target user
+        const followersCount = await Follow.countDocuments({ following: targetId });
+        res.json({ message: 'Successfully unfollowed user', followersCount });
     } catch (err) {
         next(err);
     }

@@ -141,11 +141,107 @@ export async function getFollowStatus(targetId: string) {
 }
 
 export async function getFollowersCount(userId: string) {
-    const data = await request(`/api/follows/${encodeURIComponent(userId)}/followers`, {}, { method: 'GET' });
+    let data = await request(`/api/follows/${encodeURIComponent(userId)}/followers`, {}, { method: 'GET' });
+    console.debug('[api] getFollowersCount initial response:', data);
+    // if backend returned 304 -> request() returns {}. Retry with cache-bust to ensure fresh counts
+    if (data && Object.keys(data).length === 0) {
+        console.debug('[api] getFollowersCount empty response, retrying with cache-bust');
+        data = await request(`/api/follows/${encodeURIComponent(userId)}/followers`, { _cb: Date.now() }, { method: 'GET' });
+        console.debug('[api] getFollowersCount retry response:', data);
+    }
     return data?.count ?? (Array.isArray(data?.followers) ? data.followers.length : 0);
 }
 
 export async function getFollowingCount(userId: string) {
-    const data = await request(`/api/follows/${encodeURIComponent(userId)}/following`, {}, { method: 'GET' });
+    let data = await request(`/api/follows/${encodeURIComponent(userId)}/following`, {}, { method: 'GET' });
+    console.debug('[api] getFollowingCount initial response:', data);
+    if (data && Object.keys(data).length === 0) {
+        console.debug('[api] getFollowingCount empty response, retrying with cache-bust');
+        data = await request(`/api/follows/${encodeURIComponent(userId)}/following`, { _cb: Date.now() }, { method: 'GET' });
+        console.debug('[api] getFollowingCount retry response:', data);
+    }
     return data?.count ?? (Array.isArray(data?.following) ? data.following.length : 0);
+}
+
+// Likes
+export async function likePost(postId: string) {
+    return request(`/api/likes/post/${encodeURIComponent(postId)}`, {}, { method: 'POST' });
+}
+
+export async function unlikePost(postId: string) {
+    return request(`/api/likes/post/${encodeURIComponent(postId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getPostLikes(postId: string) {
+    const data = await request(`/api/likes/post/${encodeURIComponent(postId)}`, {}, { method: 'GET' });
+    return data.likes || [];
+}
+
+// Comments
+export async function addComment(postId: string, text: string, parent?: string) {
+    return request(`/api/comments/${encodeURIComponent(postId)}/comments`, { text, parent }, { method: 'POST' });
+}
+
+export async function getComments(postId: string) {
+    const data = await request(`/api/comments/${encodeURIComponent(postId)}/comments`, {}, { method: 'GET' });
+    return data.comments || [];
+}
+
+// Crowns
+export async function crownPost(postId: string) {
+    return request(`/api/crowns/post/${encodeURIComponent(postId)}`, {}, { method: 'POST' });
+}
+
+export async function uncrownPost(postId: string) {
+    return request(`/api/crowns/post/${encodeURIComponent(postId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getPostCrowns(postId: string) {
+    const data = await request(`/api/crowns/post/${encodeURIComponent(postId)}`, {}, { method: 'GET' });
+    return data.crowns || [];
+}
+
+// Startup likes (for startup-cards where the backend uses StartupDetails)
+export async function likeStartup(startupId: string) {
+    return request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}`, {}, { method: 'POST' });
+}
+
+export async function unlikeStartup(startupId: string) {
+    return request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getStartupLikes(startupId: string) {
+    const data = await request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}`, {}, { method: 'GET' });
+    return data.likes || [];
+}
+
+export async function isStartupLiked(startupId: string) {
+    try {
+        const data = await request(`/api/startup-likes/startup/${encodeURIComponent(startupId)}/check`, {}, { method: 'GET' });
+        return Boolean(data?.liked);
+    } catch (e) { return false; }
+}
+
+// Startup crowns
+export async function crownStartup(startupId: string) {
+    return request(`/api/startup-crowns/startup/${encodeURIComponent(startupId)}`, {}, { method: 'POST' });
+}
+
+export async function uncrownStartup(startupId: string) {
+    return request(`/api/startup-crowns/startup/${encodeURIComponent(startupId)}`, {}, { method: 'DELETE' });
+}
+
+export async function getStartupCrowns(startupId: string) {
+    const data = await request(`/api/startup-crowns/startup/${encodeURIComponent(startupId)}`, {}, { method: 'GET' });
+    return data.crowns || [];
+}
+
+// Startup comments
+export async function addStartupComment(startupId: string, text: string, parent?: string) {
+    return request(`/api/startup-comments/${encodeURIComponent(startupId)}/comments`, { text, parent }, { method: 'POST' });
+}
+
+export async function getStartupComments(startupId: string) {
+    const data = await request(`/api/startup-comments/${encodeURIComponent(startupId)}/comments`, {}, { method: 'GET' });
+    return data.comments || [];
 }

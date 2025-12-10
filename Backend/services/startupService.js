@@ -58,7 +58,8 @@ exports.listStartupCards = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip(parseInt(skip));
-        const startupCards = startups.map(startup => ({
+        // Prepare base card objects
+        const startupCardsBase = startups.map(startup => ({
             id: startup._id,
             userId: startup.user ? startup.user._id : null,
             name: startup.companyName,
@@ -71,9 +72,50 @@ exports.listStartupCards = async (req, res, next) => {
             age: startup.age,
             fundingRaised: startup.fundingRaised,
             fundingNeeded: startup.fundingNeeded,
-            stats: { likes: 0, comments: 0, crowns: 0, shares: 0 },
+            stats: {
+                likes: Number(startup.likesCount || (startup.meta && startup.meta.likes) || 0),
+                comments: Number((startup.meta && startup.meta.commentsCount) || 0),
+                crowns: Number((startup.meta && startup.meta.crowns) || 0),
+                shares: Number(startup.sharesCount || 0),
+            },
+            // defaults for user-specific flags
+            likedByCurrentUser: false,
+            crownedByCurrentUser: false,
+            isFollowing: false,
         }));
-        res.json({ startups: startupCards, count: startupCards.length });
+
+        // If there's an authenticated user, fetch batch flags in one go
+        if (req.user) {
+            const userId = req.user._id;
+            const startupIds = startups.map(s => s._id);
+            const StartupLike = require('../models/StartupLike');
+            const StartupCrown = require('../models/StartupCrown');
+            const Follow = require('../models/Follow');
+
+            // Build list of userIds for the startups (the 'following' targets)
+            const userIds = startups.map(s => (s.user ? s.user._id : null)).filter(Boolean);
+            const [likes, crowns, follows] = await Promise.all([
+                StartupLike.find({ startup: { $in: startupIds }, user: userId }).select('startup').lean(),
+                StartupCrown.find({ startup: { $in: startupIds }, user: userId }).select('startup').lean(),
+                // Follow documents have shape { follower, following }
+                Follow.find({ follower: userId, following: { $in: userIds } }).select('following').lean(),
+            ]);
+
+            const likedSet = new Set(likes.map(l => String(l.startup)));
+            const crownSet = new Set(crowns.map(c => String(c.startup)));
+            const followSet = new Set(follows.map(f => String(f.following)));
+
+            const enriched = startupCardsBase.map(card => ({
+                ...card,
+                likedByCurrentUser: likedSet.has(String(card.id)),
+                crownedByCurrentUser: crownSet.has(String(card.id)),
+                isFollowing: followSet.has(String(card.userId)),
+            }));
+
+            return res.json({ startups: enriched, count: enriched.length });
+        }
+
+        res.json({ startups: startupCardsBase, count: startupCardsBase.length });
     } catch (err) {
         console.log('Error in listStartupCards:', err);
         next(err);

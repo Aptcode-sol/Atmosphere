@@ -128,6 +128,10 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                     fundingRaised: Number(p.fundingRaised || 0),
                     fundingNeeded: Number(p.fundingNeeded || 0),
                     stats: p.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 },
+                    // user-specific flags provided by enriched feed
+                    likedByCurrentUser: Boolean(p.likedByCurrentUser),
+                    crownedByCurrentUser: Boolean(p.crownedByCurrentUser),
+                    isFollowing: Boolean(p.isFollowing),
                 }));
                 setPosts(normalized);
             } catch (err) {

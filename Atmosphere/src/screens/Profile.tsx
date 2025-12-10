@@ -103,6 +103,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
     const [data, setData] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
+    const [ownProfileId, setOwnProfileId] = useState<string | null>(null);
     const routeCtx: any = useContext(NavigationRouteContext) as any | undefined;
     const routeUserId = routeCtx?.params?.userId || null;
     const viewingUserId = propUserId || routeUserId || null;
@@ -120,6 +121,11 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
                 if (mounted) {
                     const normalized = normalizeProfile(profileData);
                     setData(normalized || mockData);
+                    // cache own profile id for subsequent requests to avoid refetch
+                    if (!viewingUserId) {
+                        const derived = profileData?.user?._id || profileData?.user?.id || null;
+                        if (derived) setOwnProfileId(String(derived));
+                    }
                 }
             } catch {
                 if (mounted) setData(mockData);
@@ -175,21 +181,11 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
         let mounted = true;
         (async () => {
             try {
-                const userId = viewingUserId || null;
-                // If viewing another user's profile and we have no id, skip
-                if (!userId) {
-                    // try to extract from the loaded data if available
-                    const profileRaw: any = await getProfile();
-                    const derived = profileRaw?.user?._id || profileRaw?.user?.id || null;
-                    if (!derived) return;
-                    const [fCount, foCount] = await Promise.all([getFollowersCount(String(derived)), getFollowingCount(String(derived))]);
-                    if (!mounted) return;
-                    setFollowersCount(Number(fCount || 0));
-                    setFollowingCount(Number(foCount || 0));
-                    return;
-                }
+                const userId = viewingUserId || ownProfileId || null;
+                if (!userId) return;
 
                 const [fCount, foCount] = await Promise.all([getFollowersCount(String(userId)), getFollowingCount(String(userId))]);
+                console.debug('Profile: followers/following raw', { fCount, foCount, userId });
                 if (!mounted) return;
                 setFollowersCount(Number(fCount || 0));
                 setFollowingCount(Number(foCount || 0));
@@ -279,9 +275,11 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
                                     try {
                                         const api = await import('../lib/api');
                                         if (newState) {
-                                            await api.followUser(String(viewingUserId));
+                                            const resp: any = await api.followUser(String(viewingUserId));
+                                            if (resp && typeof resp.followersCount === 'number') setFollowersCount(resp.followersCount);
                                         } else {
-                                            await api.unfollowUser(String(viewingUserId));
+                                            const resp: any = await api.unfollowUser(String(viewingUserId));
+                                            if (resp && typeof resp.followersCount === 'number') setFollowersCount(resp.followersCount);
                                         }
                                     } catch {
                                         setIsFollowing(!newState);

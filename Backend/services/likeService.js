@@ -17,7 +17,9 @@ exports.listLikesByUser = async (req, res, next) => {
 
 exports.likePost = async (req, res, next) => {
   try {
+    console.log('[likeService.likePost] called postId=', req.params.postId, 'user=', req.user && req.user._id);
     const post = await Post.findById(req.params.postId);
+    console.log('[likeService.likePost] post found=', !!post);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     const existing = await Like.findOne({ post: post._id, user: req.user._id });
     if (!existing) {
@@ -31,7 +33,9 @@ exports.likePost = async (req, res, next) => {
 
 exports.unlikePost = async (req, res, next) => {
   try {
+    console.log('[likeService.unlikePost] called postId=', req.params.postId, 'user=', req.user && req.user._id);
     const post = await Post.findById(req.params.postId);
+    console.log('[likeService.unlikePost] post found=', !!post);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     const like = await Like.findOneAndDelete({ post: post._id, user: req.user._id });
     if (like) {
