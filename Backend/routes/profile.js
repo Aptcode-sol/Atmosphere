@@ -11,6 +11,8 @@ router.get('/', authMiddleware, async (req, res, next) => {
     try {
         const userId = req.user._id;
         const profile = await getProfile(userId);
+        // Prevent intermediaries or clients from returning cached 304 responses
+        res.set('Cache-Control', 'no-store');
         res.json(profile);
     } catch (err) {
         next(err);

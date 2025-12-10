@@ -16,6 +16,16 @@ router.put('/verification/:id/approve', authMiddleware, adminOnly, adminService.
 router.put('/verification/:id/reject', authMiddleware, adminOnly, adminService.rejectVerification);
 router.get('/audit-logs', authMiddleware, adminOnly, adminService.getAuditLogs);
 router.get('/users', authMiddleware, adminOnly, adminService.getUsers);
+// Debug: inspect follow documents for a user (admin only)
+router.get('/follows/:userId', authMiddleware, adminOnly, async (req, res, next) => {
+    try {
+        const { Follow } = require('../models');
+        const userId = req.params.userId;
+        const followers = await Follow.find({ following: userId }).limit(200).lean();
+        const following = await Follow.find({ follower: userId }).limit(200).lean();
+        res.json({ followersCount: followers.length, followingCount: following.length, followers: followers.map(f => ({ _id: f._id, follower: f.follower, following: f.following, createdAt: f.createdAt })), following: following.map(f => ({ _id: f._id, follower: f.follower, following: f.following, createdAt: f.createdAt })) });
+    } catch (err) { next(err); }
+});
 // Mark profile setup complete for matching users (admin only)
 router.post('/users/mark-setup', authMiddleware, adminOnly, async (req, res, next) => {
     try {

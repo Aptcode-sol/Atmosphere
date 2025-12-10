@@ -43,7 +43,10 @@ exports.getFollowers = async (req, res, next) => {
         const { limit = 20, skip = 0 } = req.query;
         const follows = await Follow.find({ following: userId }).populate('follower', 'username displayName avatarUrl verified').sort({ createdAt: -1 }).limit(parseInt(limit)).skip(parseInt(skip));
         const followers = follows.map(f => f.follower);
-        res.json({ followers, count: followers.length });
+        // compute total count separately (not just page length)
+        const total = await Follow.countDocuments({ following: userId });
+        console.debug('[followService] getFollowers', { userId, returned: followers.length, total });
+        res.json({ followers, count: total });
     } catch (err) {
         next(err);
     }
@@ -55,7 +58,9 @@ exports.getFollowing = async (req, res, next) => {
         const { limit = 20, skip = 0 } = req.query;
         const follows = await Follow.find({ follower: userId }).populate('following', 'username displayName avatarUrl verified').sort({ createdAt: -1 }).limit(parseInt(limit)).skip(parseInt(skip));
         const following = follows.map(f => f.following);
-        res.json({ following, count: following.length });
+        const total = await Follow.countDocuments({ follower: userId });
+        console.debug('[followService] getFollowing', { userId, returned: following.length, total });
+        res.json({ following, count: total });
     } catch (err) {
         next(err);
     }

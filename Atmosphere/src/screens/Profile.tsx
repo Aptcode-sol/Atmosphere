@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 /* eslint-disable react-native/no-inline-styles */
 import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile, getFollowersCount, getFollowingCount, getStartupProfile } from '../lib/api';
 import { getImageSource } from '../lib/image';
 import ProfileHeader from './profile/ProfileHeader';
@@ -36,7 +37,8 @@ const normalizeProfile = (profileData: any) => {
     const { user, details } = profileData;
 
     // For startups
-    if (user?.accountType === 'startup' && details) {
+    if (user.roles[0] === 'startup' && details) {
+        console.log("details", details)
         return {
             name: details.companyName || user.displayName || user.username || 'Unknown',
             username: user.username ? `@${user.username}` : '',
@@ -48,7 +50,8 @@ const normalizeProfile = (profileData: any) => {
             industry: details.companyType || '',
             stage: details.stage || '',
             stats: {
-                followers: 0,
+                followers: user.followersCount || 0,
+                following: user.followingCount || 0,
                 teamSize: details.teamMembers?.length || 0,
                 fundingRaised: details.fundingRaised || details.financialProfile?.fundingAmount || 0
             },
@@ -58,7 +61,7 @@ const normalizeProfile = (profileData: any) => {
     }
 
     // For investors
-    if (user?.accountType === 'investor' && details) {
+    if (user.roles[0] === 'investor' && details) {
         return {
             name: user.displayName || user.username || 'Unknown',
             username: user.username ? `@${user.username}` : '',
@@ -70,7 +73,8 @@ const normalizeProfile = (profileData: any) => {
             industry: details.investmentFocus?.join(', ') || '',
             stage: details.stage || '',
             stats: {
-                followers: 0,
+                followers: user.followersCount || 0,
+                following: user.followingCount || 0,
                 teamSize: 0,
                 fundingRaised: 0
             },
@@ -90,7 +94,12 @@ const normalizeProfile = (profileData: any) => {
         founded: '',
         industry: '',
         stage: '',
-        stats: { followers: 0, teamSize: 0, fundingRaised: 0 },
+        stats: {
+            followers: user.followersCount || 0,
+            following: user.followingCount || 0,
+            teamSize: 0,
+            fundingRaised: 0
+        },
         profileSetupComplete: user.profileSetupComplete,
         onboardingStep: user.onboardingStep,
     };
@@ -119,7 +128,9 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
                     profileData = await getProfile();
                 }
                 if (mounted) {
+                    console.log(profileData)
                     const normalized = normalizeProfile(profileData);
+                    console.log('Profile: normalized data', normalized);
                     setData(normalized || mockData);
                     // cache own profile id for subsequent requests to avoid refetch
                     if (!viewingUserId) {
@@ -137,7 +148,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
         return () => {
             mounted = false;
         };
-    }, [viewingUserId]);
+    }, [viewingUserId, ownProfileId]);
 
     // format helpers removed (not used in mobile layout)
 
@@ -181,7 +192,32 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
         let mounted = true;
         (async () => {
             try {
-                const userId = viewingUserId || ownProfileId || null;
+                let userId = viewingUserId || ownProfileId || null;
+                // If normalized data already has follower counts (from server), use them
+                // and skip the separate follower/following API calls which can overwrite
+                // the correct server-provided value.
+                if (src && typeof src.stats?.followers === 'number') {
+                    if (mounted) {
+                        setFollowersCount(Number(src.stats.followers || 0));
+                        setFollowingCount(Number(src.stats?.following || 0));
+                    }
+                    return;
+                }
+                if (!userId) {
+                    try {
+                        const stored = await AsyncStorage.getItem('user');
+                        if (stored) {
+                            const u = JSON.parse(stored);
+                            const derived = u && (u._id || u.id);
+                            if (derived) {
+                                userId = String(derived);
+                                if (!ownProfileId) setOwnProfileId(userId);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Profile: failed to parse stored user', e);
+                    }
+                }
                 if (!userId) return;
 
                 const [fCount, foCount] = await Promise.all([getFollowersCount(String(userId)), getFollowingCount(String(userId))]);
@@ -197,7 +233,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
             }
         })();
         return () => { mounted = false; };
-    }, [viewingUserId]);
+    }, [viewingUserId, ownProfileId]);
 
     // fetch follow status when viewing another user's profile
     useEffect(() => {

@@ -33,6 +33,8 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     const [crowned, setCrowned] = useState(Boolean((companyData as any).crownedByCurrentUser));
     const stats = companyData?.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 };
     const [likes, setLikes] = useState<number>(stats.likes || 0);
+    const [crownsCount, setCrownsCount] = useState<number>(stats.crowns || 0);
+    const [commentsCount, setCommentsCount] = useState<number>(stats.comments || 0);
     const [showCommentInput, setShowCommentInput] = useState(false);
     const [commentText, setCommentText] = useState('');
     const [followed, setFollowed] = useState(Boolean((companyData as any).isFollowing));
@@ -95,17 +97,18 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
             // optimistic toggle
             const prev = crowned;
             setCrowned(!prev);
-            const resp: any = await crownStartup(id);
+            let resp: any;
+            if (!prev) {
+                resp = await crownStartup(id);
+            } else {
+                resp = await uncrownStartup(id);
+            }
             // backend returns updated crowns count
             const newCount = typeof resp?.crowns === 'number' ? resp.crowns : (companyData.stats?.crowns || 0);
-            // update local stats display
-            if (typeof newCount === 'number') {
-                stats.crowns = newCount;
-            }
-            Alert.alert('Crowned', 'You crowned this profile');
+            if (typeof newCount === 'number') setCrownsCount(newCount);
         } catch (err: any) {
             setCrowned(prev => prev);
-            Alert.alert('Error', err?.message || 'Could not crown');
+            // silent failure — revert state
         }
     };
 
@@ -115,6 +118,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
             await addStartupComment(id, commentText);
             setCommentText('');
             setShowCommentInput(false);
+            setCommentsCount(c => c + 1);
             Alert.alert('Comment added');
         } catch (err: any) {
             Alert.alert('Error', err?.message || 'Could not add comment');
@@ -221,17 +225,22 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                         <Text style={[styles.statCount, { color: '#ddd' }]}>{likes}</Text>
                     </TouchableOpacity>
                     <View style={styles.statItem}>
-                        <Text style={[styles.statIcon, { color: '#ddd' }]}>👑</Text>
-                        <Text style={[styles.statCount, { color: '#ddd' }]}>{stats.crowns}</Text>
-                        {isInvestor && (
-                            <TouchableOpacity onPress={toggleCrown} style={{ marginLeft: 8 }}>
-                                <Text style={{ color: '#ffd700', fontWeight: '700' }}>Crown</Text>
+                        {isInvestor ? (
+                            <TouchableOpacity onPress={toggleCrown} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Text style={[styles.statIcon, { color: '#ffd700' }]}>👑</Text>
+                                <Text style={[styles.statCount, { color: '#ddd' }]}>{crownsCount}</Text>
                             </TouchableOpacity>
+                        ) : (
+                            <>
+                                <Text style={[styles.statIcon, { color: '#ddd' }]}>👑</Text>
+                                <Text style={[styles.statCount, { color: '#ddd' }]}>{crownsCount}</Text>
+                            </>
                         )}
                     </View>
-                    <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>💬</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.comments}</Text>
-                        <TouchableOpacity onPress={() => setShowCommentInput(s => !s)} style={{ marginLeft: 8 }}>
-                            <Text style={{ color: '#fff', fontWeight: '700' }}>{showCommentInput ? 'Cancel' : 'Comment'}</Text>
+                    <View style={styles.statItem}>
+                        <TouchableOpacity onPress={() => setShowCommentInput(s => !s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={[styles.statIcon, { color: '#ddd' }]}>💬</Text>
+                            <Text style={[styles.statCount, { color: '#ddd' }]}>{commentsCount}</Text>
                         </TouchableOpacity>
                     </View>
                     <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>📤</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.shares}</Text></View>

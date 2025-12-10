@@ -36,6 +36,11 @@ async function request(path: string, body: any = {}, options: { method?: 'GET' |
     const token = await AsyncStorage.getItem('token');
     const headers: any = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
+    // Prevent cached conditional responses from returning 304 with empty body
+    if (method === 'GET') {
+        headers['Cache-Control'] = 'no-cache';
+        headers.Pragma = 'no-cache';
+    }
     const fetchOptions: any = { method, headers };
 
     if (method === 'GET') {
@@ -75,7 +80,13 @@ export async function fetchStartupPosts() {
 }
 
 export async function getProfile() {
-    const data = await request('/api/profile', {}, { method: 'GET' });
+    let data = await request('/api/profile', {}, { method: 'GET' });
+    // If server returned 304 -> request() returns {}. Retry with cache-bust to get fresh profile.
+    if (data && Object.keys(data).length === 0) {
+        console.debug('[api] getProfile empty response, retrying with cache-bust');
+        data = await request('/api/profile', { _cb: Date.now() }, { method: 'GET' });
+        console.debug('[api] getProfile retry response:', data);
+    }
     return data;
 }
 
