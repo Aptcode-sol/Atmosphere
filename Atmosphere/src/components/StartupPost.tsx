@@ -78,8 +78,13 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
             const isStartupCard = Boolean((companyData as any).fundingRaised || (companyData as any).fundingNeeded || (companyData as any).stage);
             const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
             if (isStartupCard) {
-                if (!prev) await likeStartup(id);
-                else await unlikeStartup(id);
+                if (!prev) {
+                    const resp: any = await likeStartup(id);
+                    if (resp && typeof resp.likes === 'number') setLikes(resp.likes);
+                } else {
+                    const resp: any = await unlikeStartup(id);
+                    if (resp && typeof resp.likes === 'number') setLikes(resp.likes);
+                }
             } else {
                 if (!prev) await likePost(id);
                 else await unlikePost(id);
@@ -204,7 +209,13 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
             </View>
 
             {/* Comments overlay is used instead of inline input */}
-            <CommentsOverlay startupId={String((companyData as any).id || (companyData as any).userId || (companyData as any).user)} visible={commentsOverlayVisible} onClose={() => setCommentsOverlayVisible(false)} onCommentAdded={() => setCommentsCount(c => c + 1)} />
+            <CommentsOverlay
+                startupId={String((companyData as any).id || (companyData as any).userId || (companyData as any).user)}
+                visible={commentsOverlayVisible}
+                onClose={() => setCommentsOverlayVisible(false)}
+                onCommentAdded={() => setCommentsCount(c => c + 1)}
+                onCommentDeleted={() => setCommentsCount(c => Math.max(0, c - 1))}
+            />
 
             <View style={styles.imageWrap}>
                 <Image source={getImageSource(companyData.profileImage)} style={styles.mainImage} resizeMode="cover" onError={(e) => { console.warn('StartupPost main image error', e.nativeEvent, companyData.profileImage); }} />

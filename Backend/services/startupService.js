@@ -85,7 +85,7 @@ exports.listStartupCards = async (req, res, next) => {
             fundingRaised: startup.fundingRaised,
             fundingNeeded: startup.fundingNeeded,
             stats: {
-                likes: Number(startup.likesCount || (startup.meta && startup.meta.likes) || 0),
+                likes: Number((startup.meta && typeof startup.meta.likes === 'number') ? startup.meta.likes : (startup.likesCount || 0)),
                 comments: Number((startup.meta && startup.meta.commentsCount) || 0),
                 crowns: Number((startup.meta && startup.meta.crowns) || 0),
                 shares: Number(startup.sharesCount || 0),

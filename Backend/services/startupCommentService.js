@@ -10,9 +10,30 @@ exports.createComment = async (req, res, next) => {
         const comment = new (require('../models/StartupComment'))({ startup: startupId, author: req.user._id, text, parent: parent || null });
         await comment.save();
         await comment.populate('author', 'username displayName avatarUrl');
-        startup.meta = startup.meta || {};
-        startup.meta.commentsCount = (startup.meta.commentsCount || 0) + 1;
-        await startup.save();
+        // Atomic increment meta.commentsCount using aggregation pipeline if supported
+        try {
+            await StartupDetails.findOneAndUpdate(
+                { _id: startupId },
+                [
+                    {
+                        $set: {
+                            meta: {
+                                $let: {
+                                    vars: { current: { $ifNull: ['$meta', {}] } },
+                                    in: {
+                                        $mergeObjects: ['$$current', { commentsCount: { $add: [{ $ifNull: ['$$current.commentsCount', 0] }, 1] } }]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            );
+        } catch (e) {
+            startup.meta = startup.meta || {};
+            startup.meta.commentsCount = (startup.meta.commentsCount || 0) + 1;
+            await startup.save();
+        }
         res.status(201).json({ comment });
     } catch (err) { next(err); }
 };
@@ -52,7 +73,45 @@ exports.deleteComment = async (req, res, next) => {
         if (comment.author.toString() !== req.user._id.toString()) return res.status(403).json({ error: 'Forbidden' });
         const startupId = comment.startup;
         await comment.deleteOne();
-        await StartupDetails.findByIdAndUpdate(startupId, { $inc: { 'meta.commentsCount': -1 } });
+        // Atomic decrement with clamp to zero using aggregation pipeline (MongoDB 4.2+)
+        try {
+            await StartupDetails.findOneAndUpdate(
+                { _id: startupId },
+                [
+                    {
+                        $set: {
+                            meta: {
+                                $let: {
+                                    vars: { current: { $ifNull: ['$meta', {}] } },
+                                    in: {
+                                        $mergeObjects: [
+                                            '$$current',
+                                            {
+                                                commentsCount: {
+                                                    $max: [0, { $subtract: [{ $ifNull: ['$$current.commentsCount', 0] }, 1] }]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ],
+                { new: true }
+            );
+        } catch (e) {
+            // Fallback: decrement then clamp
+            await StartupDetails.findByIdAndUpdate(startupId, { $inc: { 'meta.commentsCount': -1 } });
+            const sd = await StartupDetails.findById(startupId);
+            if (sd) {
+                sd.meta = sd.meta || {};
+                if ((sd.meta.commentsCount || 0) < 0) {
+                    sd.meta.commentsCount = 0;
+                    await sd.save();
+                }
+            }
+        }
         res.json({ message: 'Comment deleted successfully' });
     } catch (err) { next(err); }
 };

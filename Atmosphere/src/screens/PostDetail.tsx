@@ -126,12 +126,12 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         const res = await fetch(`${base}/api/posts/${postId}/like`, { method: 'POST', headers });
         const data = await res.json();
         updatedLiked = true;
-        updatedLikesCount = data.likesCount;
+        updatedLikesCount = data.likes ?? data.likesCount ?? updatedLikesCount;
       } else {
         const res = await fetch(`${base}/api/posts/${postId}/like`, { method: 'DELETE', headers });
         const data = await res.json();
         updatedLiked = false;
-        updatedLikesCount = data.likesCount;
+        updatedLikesCount = data.likes ?? data.likesCount ?? updatedLikesCount;
       }
       setLiked(updatedLiked);
       setPost((prev: any) => ({ ...prev, likesCount: updatedLikesCount }));

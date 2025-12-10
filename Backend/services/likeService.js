@@ -24,10 +24,34 @@ exports.likePost = async (req, res, next) => {
     const existing = await Like.findOne({ post: post._id, user: req.user._id });
     if (!existing) {
       await Like.create({ post: post._id, user: req.user._id });
-      post.likesCount += 1;
-      await post.save();
+      try {
+        const updated = await Post.findOneAndUpdate(
+          { _id: post._id },
+          [
+            {
+              $set: {
+                meta: {
+                  $let: {
+                    vars: { current: { $ifNull: ['$meta', {}] } },
+                    in: { $mergeObjects: ['$$current', { likes: { $add: [{ $ifNull: ['$$current.likes', 0] }, 1] } }] }
+                  }
+                },
+                likesCount: { $add: [{ $ifNull: ['$likesCount', 0] }, 1] }
+              }
+            }
+          ],
+          { new: true }
+        ).lean();
+        const likesVal = (updated && updated.meta && typeof updated.meta.likes === 'number') ? updated.meta.likes : (updated && updated.likesCount) || 0;
+        return res.json({ success: true, likes: likesVal });
+      } catch (e) {
+        post.meta = post.meta || {};
+        post.meta.likes = (post.meta.likes || 0) + 1;
+        if (typeof post.likesCount === 'number') post.likesCount = (post.likesCount || 0) + 1;
+        await post.save();
+      }
     }
-    res.json({ success: true });
+    return res.json({ success: true, likes: (post.meta && typeof post.meta.likes === 'number') ? post.meta.likes : (post.likesCount || 0) });
   } catch (err) { next(err); }
 };
 
@@ -39,9 +63,33 @@ exports.unlikePost = async (req, res, next) => {
     if (!post) return res.status(404).json({ error: 'Post not found' });
     const like = await Like.findOneAndDelete({ post: post._id, user: req.user._id });
     if (like) {
-      post.likesCount = Math.max(0, post.likesCount - 1);
-      await post.save();
+      try {
+        const updated = await Post.findOneAndUpdate(
+          { _id: post._id },
+          [
+            {
+              $set: {
+                meta: {
+                  $let: {
+                    vars: { current: { $ifNull: ['$meta', {}] } },
+                    in: { $mergeObjects: ['$$current', { likes: { $max: [0, { $subtract: [{ $ifNull: ['$$current.likes', 0] }, 1] }] } }] }
+                  }
+                },
+                likesCount: { $max: [0, { $subtract: [{ $ifNull: ['$likesCount', 0] }, 1] }] }
+              }
+            }
+          ],
+          { new: true }
+        ).lean();
+        const likesVal = (updated && updated.meta && typeof updated.meta.likes === 'number') ? updated.meta.likes : (updated && updated.likesCount) || 0;
+        return res.json({ success: true, likes: likesVal });
+      } catch (e) {
+        post.likesCount = Math.max(0, post.likesCount - 1);
+        post.meta = post.meta || {};
+        post.meta.likes = Math.max(0, (post.meta.likes || 0) - 1);
+        await post.save();
+      }
     }
-    res.json({ success: true });
+    return res.json({ success: true, likes: (post.meta && typeof post.meta.likes === 'number') ? post.meta.likes : (post.likesCount || 0) });
   } catch (err) { next(err); }
 };

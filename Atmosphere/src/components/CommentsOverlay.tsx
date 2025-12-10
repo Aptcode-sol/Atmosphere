@@ -10,7 +10,7 @@ type Comment = any;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.5);
 
-const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded }: { startupId: string; visible: boolean; onClose: () => void; onCommentAdded?: () => void }) => {
+const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommentDeleted }: { startupId: string; visible: boolean; onClose: () => void; onCommentAdded?: () => void; onCommentDeleted?: () => void }) => {
     const { theme } = useContext(ThemeContext);
     const anim = useRef(new Animated.Value(0)).current; // 0 hidden -> 1 visible
     const [comments, setComments] = useState<Comment[]>([]);
@@ -168,6 +168,7 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded }: { star
                                                                             }
                                                                             setComments(prev => prev.filter(c => String(c._id || c.id || c.createdAt) !== String(item._id || item.id || item.createdAt)));
                                                                             setShowDeleteFor(null);
+                                                                            if (typeof onCommentDeleted === 'function') onCommentDeleted();
                                                                         } catch (err) {
                                                                             console.warn('CommentsOverlay: failed to delete comment', err);
                                                                         } finally {
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     commentTimestamp: { marginTop: 4, fontSize: 11 },
     emptyWrap: { alignItems: 'center', justifyContent: 'center', padding: 20 },
     inputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-    inputSeparator: { height: 1, backgroundColor: '#333333', width: '100%', marginBottom: 8, marginLeft: -12, marginRight: -12 },
+    inputSeparator: { height: 1, backgroundColor: '#333333', alignSelf: 'stretch', marginBottom: 8, marginLeft: -12, marginRight: -12 },
     input: { flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8, maxHeight: 100 },
     sendBtn: { backgroundColor: '#1a73e8', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20 },
     sendText: { color: '#fff', fontWeight: '700' }
