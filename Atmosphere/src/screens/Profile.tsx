@@ -2,13 +2,14 @@ import React, { useState, useContext, useEffect } from 'react';
 /* eslint-disable react-native/no-inline-styles */
 import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { getProfile, getFollowersCount, getFollowingCount, getStartupProfile } from '../lib/api';
 import { getImageSource } from '../lib/image';
 import ProfileHeader from './profile/ProfileHeader';
 import ProfilePager from './profile/ProfilePager';
 import SettingsOverlay from './profile/SettingsOverlay';
 import styles from './profile/Profile.styles';
-import { NavigationRouteContext } from '@react-navigation/native';
+// navigation hooks are used in this file via useNavigation/useRoute
 
 const mockData = (() => {
     const userName = 'Airbound';
@@ -103,8 +104,9 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
     const [data, setData] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
-    const routeCtx: any = useContext(NavigationRouteContext) as any | undefined;
-    const routeUserId = routeCtx?.params?.userId || null;
+    const navigation: any = useNavigation();
+    const route: any = useRoute();
+    const routeUserId = route?.params?.userId || null;
     const viewingUserId = propUserId || routeUserId || null;
 
     useEffect(() => {
@@ -232,7 +234,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
     return (
         <View style={{ flex: 1 }}>
             <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={[styles.contentContainer]}>
-                <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={() => { }} onBack={onClose} theme={theme} />
+                <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={() => { }} onBack={onClose || (() => navigation.goBack())} theme={theme} />
 
                 {/* Setup is opened via parent navigation (LandingPage route 'setup') */}
 

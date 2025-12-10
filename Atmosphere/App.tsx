@@ -10,7 +10,7 @@ import { StatusBar, useColorScheme, View } from 'react-native';
 import {
   SafeAreaProvider
 } from 'react-native-safe-area-context';
-import LandingPage from './src/screens/LandingPage';
+import AppNavigator from './src/navigation/AppNavigator';
 import SignIn from './src/screens/SignIn';
 import SignUp from './src/screens/SignUp';
 import ThemeProvider from './src/contexts/ThemeContext';
@@ -54,7 +54,7 @@ function App() {
           {route === 'signup' && (
             <SignUp onSignedUp={() => setRoute('home')} onSignIn={() => setRoute('signin')} />
           )}
-          {route === 'home' && <LandingPage />}
+          {route === 'home' && <AppNavigator />}
         </View>
       </SafeAreaProvider>
     </ThemeProvider>

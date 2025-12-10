@@ -1,11 +1,10 @@
 import React, { useState, useContext } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import Search from './Search';
-import PostDetail from './PostDetail';
 import Notifications from './Notifications';
 import Chats from './Chats';
-import ChatDetail from './ChatDetail';
 import Reels from './Reels';
 import Profile from './Profile';
 import Home from './Home';
@@ -19,44 +18,19 @@ import SetupProfile from './SetupProfile';
 type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail';
 
 const LandingPage = () => {
-    const [route, setRoute] = useState<RouteKey>('home');
-    const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const navigation: any = useNavigation();
+
     const { theme } = useContext(ThemeContext);
+    const [route, setRoute] = useState<RouteKey>('home');
 
-    const handlePostPress = (postId: string) => {
-        setSelectedPostId(postId);
-    };
+    const handlePostPress = (postId: string) => navigation.navigate('PostDetail', { postId });
 
-    const handleBackFromPost = () => {
-        setSelectedPostId(null);
-    };
-
-    const handleChatSelect = (chatId: string) => {
-        setSelectedChatId(chatId);
-        setRoute('chatDetail');
-    };
-
-    const handleBackFromChat = () => {
-        setSelectedChatId(null);
-        setRoute('chats');
-    };
+    const handleChatSelect = (chatId: string) => navigation.navigate('ChatDetail', { chatId });
 
     const renderContent = () => {
-        if (selectedPostId) {
-            return <PostDetail route={{ params: { postId: selectedPostId } }} onBackPress={handleBackFromPost} />;
-        }
-        if (selectedChatId) {
-            // @ts-ignore
-            return <ChatDetail chatId={selectedChatId} onBackPress={handleBackFromChat} />;
-        }
-        if (selectedProfileId) {
-            return <Profile onNavigate={(r: RouteKey) => setRoute(r)} userId={selectedProfileId} onClose={() => { setSelectedProfileId(null); setRoute('home'); }} />;
-        }
         switch (route) {
             case 'home':
-                return <Home onNavigate={(r) => setRoute(r)} onChatSelect={handleChatSelect} onOpenProfile={(id: string) => { setSelectedProfileId(id); setRoute('profile'); }} />;
+                return <Home onNavigate={(r) => setRoute(r)} onChatSelect={handleChatSelect} onOpenProfile={(id: string) => { navigation.navigate('Profile', { userId: id }); }} />;
             case 'search':
                 return <Search onPostPress={handlePostPress} />;
             case 'notifications':
@@ -78,7 +52,7 @@ const LandingPage = () => {
             case 'meetings':
                 return <Meetings />;
             case 'chatDetail':
-                return selectedChatId ? <ChatDetail chatId={selectedChatId} onBackPress={handleBackFromChat} /> : null;
+                return null; // navigation handles chat detail route
             default:
                 return null;
         }
@@ -120,7 +94,7 @@ const LandingPage = () => {
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             {renderContent()}
-            {!selectedPostId && !selectedChatId && <BottomNav activeRoute={mapRouteToBottom(route)} onRouteChange={(r) => setRoute(mapBottomToRoute(r))} />}
+            <BottomNav activeRoute={mapRouteToBottom('home')} onRouteChange={(r) => navigation.navigate(mapBottomToRoute(r) as any)} />
         </View>
     );
 };
