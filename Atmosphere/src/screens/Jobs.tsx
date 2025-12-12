@@ -336,7 +336,7 @@ const Jobs = () => {
                 onEndReachedThreshold={0.5}
                 ListHeaderComponent={() => (
                     <View style={styles.listHeader}>
-                        <Text style={[styles.resultCount, { color: theme.text }]}>Total {type.toLowerCase()}s: {data.length}</Text>
+                        <Text style={[styles.resultCount, { color: '#fff' }]}>Total {type.toLowerCase()}s: {data.length}</Text>
                         <TouchableOpacity>
                             <Text style={{ fontSize: 14, color: theme.primary, fontWeight: 'bold' }}>Filter</Text>
                         </TouchableOpacity>
@@ -369,6 +369,8 @@ const Jobs = () => {
 
             {renderList()}
 
+            {/* Always show plus for now if role exists, or stick to logic but ensure zIndex */}
+            {/* Adding zIndex to style below */}
             {showPlus && (
                 <TouchableOpacity style={styles.floatingPlus} onPress={handlePlusPress}>
                     <Text style={styles.plusIcon}>＋</Text>
@@ -475,6 +477,7 @@ const styles = StyleSheet.create({
     floatingPlus: {
         position: 'absolute', right: 18, bottom: 24, backgroundColor: '#007bff', borderRadius: 28, width: 56, height: 56,
         alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4,
+        zIndex: 9999, // FIX: Ensure it sits above the list
     },
     plusIcon: { color: '#fff', fontSize: 32, fontWeight: 'bold', marginBottom: 2 },
 
