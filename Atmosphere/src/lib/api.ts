@@ -324,3 +324,18 @@ export async function fetchMyPortfolio() {
 export async function placeOrder(assetId: string, side: 'buy' | 'sell', quantity: number) {
     return request('/api/trade/order', { assetId, side, quantity }, { method: 'POST' });
 }
+
+// Investor APIs
+export async function fetchInvestors(params?: { limit?: number; skip?: number }) {
+    const data = await request('/api/investor-details', params || {}, { method: 'GET' });
+    return data.investors || [];
+}
+
+export async function getInvestorDetails(userId: string) {
+    try {
+        const data = await request(`/api/investor-details/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+        return data?.investorDetails || null;
+    } catch {
+        return null;
+    }
+}
