@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchMarkets, fetchInvestors, createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, incrementTradeViews } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -83,62 +84,137 @@ const Trading = () => {
     const [showSavedOnly, setShowSavedOnly] = useState(false);
     const [savedItems, setSavedItems] = useState<string[]>([]);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [allTrades, setAllTrades] = useState<ActiveTrade[]>([]);
+    // BUY TAB Pagination State
+    const [buyTrades, setBuyTrades] = useState<ActiveTrade[]>([]);
+    const [buySkip, setBuySkip] = useState(0);
+    const [buyHasMore, setBuyHasMore] = useState(true);
+    const [buyLoading, setBuyLoading] = useState(true);
+    const [buyRefreshing, setBuyRefreshing] = useState(false);
+    const [buyInitialLoadDone, setBuyInitialLoadDone] = useState(false);
     const [expandedBuyTradeId, setExpandedBuyTradeId] = useState<string | number | null>(null);
 
+    const BUY_LIMIT = 20;
+
+
+
+    // ... existing load active trades logic ...
+
+    // BUY TAB: Load Cache & Initial Fetch
     useEffect(() => {
+        let mounted = true;
         (async () => {
-            setLoading(true);
-            setError(null);
             try {
-                const m = await fetchMarkets();
-                setMarkets(Array.isArray(m) ? m : []);
-            } catch (e: any) {
-                console.warn('Failed to load markets', e);
-                setError(e?.message || 'Failed to load markets');
-            } finally {
-                setLoading(false);
-            }
+                // Load Cache
+                const cached = await AsyncStorage.getItem('ATMOSPHERE_TRADES_BUY_CACHE');
+                if (cached && mounted) {
+                    setBuyTrades(JSON.parse(cached));
+                    setBuyInitialLoadDone(true);
+                }
+            } catch { /* ignore */ }
+
+            // Allow fetch to proceed if no cache or after cache load
+            if (mounted) setBuyInitialLoadDone(true);
         })();
+        return () => { mounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Fetch Investors (Sell Tab)
     useEffect(() => {
-        (async () => {
-            setInvestorsLoading(true);
+        let mounted = true;
+        const loadInvestors = async () => {
             try {
-                const inv = await fetchInvestors({ limit: 50 });
-                setInvestors(Array.isArray(inv) ? inv : []);
-            } catch (e: any) {
+                const data = await fetchInvestors();
+                if (mounted) {
+                    setInvestors(data);
+                }
+            } catch (e) {
                 console.warn('Failed to load investors', e);
             } finally {
-                setInvestorsLoading(false);
+                if (mounted) setInvestorsLoading(false);
             }
-        })();
+        };
+        loadInvestors();
+        return () => { mounted = false; };
     }, []);
 
-    // Load active trades
+    // Fetch My Active Trades (Sell Tab)
     useEffect(() => {
-        (async () => {
+        let mounted = true;
+        const loadMyTrades = async () => {
             try {
                 const trades = await getMyTrades();
-                setActiveTrades(Array.isArray(trades) ? trades : []);
-            } catch (e: any) {
-                console.warn('Failed to load trades', e);
+                if (mounted) {
+                    setActiveTrades(trades);
+                }
+            } catch (e) {
+                console.warn('Failed to load my trades', e);
             }
-        })();
+        };
+        loadMyTrades();
+        return () => { mounted = false; };
     }, []);
 
-    // Load all trades for BUY tab
-    useEffect(() => {
-        (async () => {
-            try {
-                const trades = await getAllTrades();
-                setAllTrades(Array.isArray(trades) ? trades : []);
-            } catch (e: any) {
-                console.warn('Failed to load all trades', e);
+    // Fetch Buy Trades
+    const fetchBuyTrades = async (reset = false) => {
+        if (reset) {
+            setBuyLoading(true);
+            setBuySkip(0);
+        }
+
+        const currentSkip = reset ? 0 : buySkip;
+
+        try {
+            const filters: any = {};
+            if (searchValue) filters.q = searchValue;
+            if (selectedCategories.length > 0) filters.industries = selectedCategories.join(',');
+
+            const data = await getAllTrades(BUY_LIMIT, currentSkip, filters);
+
+            if (reset) {
+                setBuyTrades(data);
+                // Update Cache only on fresh load 
+                AsyncStorage.setItem('ATMOSPHERE_TRADES_BUY_CACHE', JSON.stringify(data)).catch(() => { });
+            } else {
+                setBuyTrades(prev => [...prev, ...data]);
             }
-        })();
-    }, []);
+
+            setBuyHasMore(data.length >= BUY_LIMIT);
+            setBuySkip(currentSkip + BUY_LIMIT);
+        } catch (e) {
+            console.warn('Failed to load buy trades', e);
+        } finally {
+            setBuyLoading(false);
+            setBuyRefreshing(false);
+        }
+    };
+
+    // Trigger fetch on initial load or filter change
+    useEffect(() => {
+        if (!buyInitialLoadDone) return;
+
+        // Debounce only if searching
+        if (searchValue) {
+            const timer = setTimeout(() => {
+                fetchBuyTrades(true);
+            }, 500);
+            return () => clearTimeout(timer);
+        } else {
+            fetchBuyTrades(true);
+        }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [buyInitialLoadDone, searchValue, selectedCategories]);
+
+    const handleLoadMoreBuy = () => {
+        if (!buyHasMore || buyLoading) return;
+        fetchBuyTrades(false);
+    };
+
+    const handleRefreshBuy = () => {
+        setBuyRefreshing(true);
+        fetchBuyTrades(true);
+    };
 
     const togglePortfolio = (cardKey: string) => {
         setExpandedPortfolios(prev => {
@@ -349,7 +425,7 @@ const Trading = () => {
         }
 
         // Calculate years ago for each investment
-        const getYearsAgo = (date?: Date) => {
+        const getYearsAgo = (date?: Date | string) => {
             if (!date) return '';
             const now = new Date();
             const investmentDate = new Date(date);
@@ -594,24 +670,11 @@ const Trading = () => {
     };
 
     const renderMarketsList = () => {
-        if (loading) {
-            return (
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <ActivityIndicator size="large" color="#1a73e8" />
-                </View>
-            );
-        }
+        // We use buyTrades for data
+        const data = buyTrades;
 
-        if (error) {
-            return (
-                <View style={{ padding: 20 }}>
-                    <Text style={{ color: '#fff' }}>Error: {error}</Text>
-                </View>
-            );
-        }
-
-        return (
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}>
+        const ListHeader = () => (
+            <>
                 {/* Category Filters - Only show when filter is open */}
                 {isFilterOpen && (
                     <View style={styles.categoriesContainer}>
@@ -634,31 +697,51 @@ const Trading = () => {
                         ))}
                     </View>
                 )}
-
                 {/* Suggested for you heading */}
                 <Text style={styles.suggestedHeading}>Suggested for you</Text>
+            </>
+        );
 
-                {/* Trade Cards */}
-                {allTrades.map((trade) => {
-                    const tradeId = trade._id || trade.id;
+        if (buyLoading && data.length === 0) {
+            return (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator size="large" color="#1a73e8" />
+                </View>
+            );
+        }
+
+        return (
+            <FlatList
+                data={data}
+
+                keyExtractor={(item) => String(item._id || item.id)}
+                contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
+                renderItem={({ item }) => {
+                    const tradeId = item._id || item.id;
                     if (!tradeId) return null;
                     const isExpanded = expandedBuyTradeId === tradeId;
                     const isSaved = savedItems.includes(String(tradeId));
 
                     return (
                         <TradeCard
-                            key={tradeId}
-                            trade={trade}
+                            trade={item}
                             isExpanded={isExpanded}
                             isSaved={isSaved}
-                            currentPhotoIndex={currentPhotoIndex[tradeId] || 0}
+                            currentPhotoIndex={currentPhotoIndex[String(tradeId)] || 0}
                             onToggleExpand={() => setExpandedBuyTradeId(isExpanded ? null : (tradeId as string | number))}
                             onToggleSave={() => toggleSaveItem(String(tradeId))}
                             onPhotoIndexChange={(index) => setCurrentPhotoIndex(prev => ({ ...prev, [tradeId]: index }))}
                         />
                     );
-                })}
-            </ScrollView>
+                }}
+                ListHeaderComponent={ListHeader}
+                onEndReached={handleLoadMoreBuy}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={() => buyLoading && data.length > 0 ? <ActivityIndicator size="small" color="#1a73e8" style={{ margin: 20 }} /> : null}
+                refreshControl={
+                    <RefreshControl refreshing={buyRefreshing} onRefresh={handleRefreshBuy} tintColor="#1a73e8" />
+                }
+            />
         );
     };
 
@@ -760,7 +843,7 @@ const Trading = () => {
             <Animated.ScrollView
                 horizontal
                 pagingEnabled
-                ref={r => (pagerRef.current = r)}
+                ref={r => { pagerRef.current = r; }}
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={(e) => {
                     const idx = Math.round(e.nativeEvent.contentOffset.x / screenW);

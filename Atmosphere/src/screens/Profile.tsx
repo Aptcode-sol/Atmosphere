@@ -116,25 +116,49 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     const routeStartupDetailsId = routeCtx?.params?.startupDetailsId || null;
     const viewingUserId = propUserId || routeUserId || null;
 
+    const getCacheKeys = (targetId: string | null) => {
+        const suffix = targetId ? targetId : 'ME';
+        return {
+            DATA: `ATMOSPHERE_PROFILE_DATA_${suffix}`,
+            POSTS: `ATMOSPHERE_PROFILE_POSTS_${suffix}`
+        };
+    };
+
     useEffect(() => {
         let mounted = true;
         (async () => {
+            // Determine ID for cache key purposes
+            const targetId = viewingUserId || routeUserId || (routeStartupDetailsId ? `SD_${routeStartupDetailsId}` : null);
+            const { DATA: CACHE_KEY } = getCacheKeys(targetId);
+
+            // 1. Try Load Cache
+            try {
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached && mounted) {
+                    const parsed = JSON.parse(cached);
+                    // We need to re-normalize cached data to ensure consistent structure
+                    // But if we cached the Normalized data, we can just use it. 
+                    // Let's assume we cache RAW data to keep logic consistent? 
+                    // Or cache NORMALIZED data for speed? Normalized is better for UI.
+                    // But wait, the below fetch logic normalizes ITSELF. 
+                    // Let's cache the NORMALIZED data.
+                    setData(parsed);
+                    setLoading(false);
+                }
+            } catch (e) { /* ignore */ }
+
             try {
                 let profileData: any;
                 if (routeStartupDetailsId) {
-                    console.log('Profile: loading startup by startupDetailsId', routeStartupDetailsId);
                     profileData = await getStartupProfile(String(routeStartupDetailsId));
                 } else if (viewingUserId) {
-                    console.log('Profile: loading startup by viewingUserId', viewingUserId);
                     profileData = await getStartupProfile(String(viewingUserId));
                 } else {
-                    console.log('Profile: loading own profile');
                     profileData = await getProfile();
                 }
+
                 if (mounted) {
-                    console.log('Profile: route params', { routeUserId, routeStartupDetailsId, viewingUserId });
-                    console.log(profileData)
-                    // Ensure profileData.user is a full object; sometimes backend returns only user id
+                    // Ensure profileData.user is a full object
                     try {
                         if (profileData && profileData.user && typeof profileData.user === 'string') {
                             const api = await import('../lib/api');
@@ -142,9 +166,15 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                             if (fetched) profileData.user = fetched;
                         }
                     } catch { /* ignore */ }
+
                     const normalized = normalizeProfile(profileData);
-                    setData(normalized || mockData);
-                    // Ensure posts and follower counts are fetched when viewing another user's profile
+                    const finalData = normalized || mockData;
+                    setData(finalData);
+
+                    // Save to Cache
+                    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(finalData)).catch(() => { });
+
+                    // Ensure posts/followers fetching logic (kept same as before)
                     try {
                         if (viewingUserId) {
                             const api = await import('../lib/api');
@@ -159,7 +189,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                                 }
                             } catch { /* ignore for now */ }
 
-                            // fetch follower/following counts if not provided
+                            // fetch follower/following counts
                             try {
                                 const f = await import('../lib/api');
                                 const [fCount, foCount] = await Promise.all([f.getFollowersCount(String(viewingUserId)), f.getFollowingCount(String(viewingUserId))]);
@@ -170,14 +200,14 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                             } catch { /* ignore */ }
                         }
                     } catch { /* ignore */ }
-                    // cache own profile id for subsequent requests to avoid refetch
+
                     if (!viewingUserId) {
                         const derived = profileData?.user?._id || profileData?.user?.id || null;
                         if (derived) setOwnProfileId(String(derived));
                     }
                 }
             } catch {
-                if (mounted) setData(mockData);
+                if (mounted && !data) setData(mockData); // Only fallback if no data
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -186,7 +216,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
         return () => {
             mounted = false;
         };
-    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId, src]);
+    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId]);
 
     // format helpers removed (not used in mobile layout)
 
@@ -201,8 +231,21 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     useEffect(() => {
         let mounted = true;
         (async () => {
+            const targetId = viewingUserId || routeUserId || null;
+            const { POSTS: CACHE_KEY } = getCacheKeys(targetId);
+
+            setPostsLoading(true);
+
+            // Try Cache
             try {
-                setPostsLoading(true);
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached && mounted) {
+                    setPosts(JSON.parse(cached));
+                    setPostsLoading(false);
+                }
+            } catch { }
+
+            try {
                 const api = await import('../lib/api');
                 let all: any[] = [];
                 if (viewingUserId) {
@@ -215,9 +258,12 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                 } else {
                     all = await api.fetchMyPosts();
                 }
-                if (mounted) setPosts((all || []));
+                if (mounted) {
+                    setPosts((all || []));
+                    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(all || [])).catch(() => { });
+                }
             } catch {
-                if (mounted) setPosts([]);
+                if (mounted && posts.length === 0) setPosts([]);
             } finally {
                 if (mounted) setPostsLoading(false);
             }

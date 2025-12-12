@@ -314,6 +314,23 @@ export async function getUserByIdentifier(identifier: string) {
     } catch { return null; }
 }
 
+export async function fetchExplorePosts(limit = 20, skip = 0) {
+    const data = await request('/api/posts', { limit, skip }, { method: 'GET' });
+    return data.posts ?? [];
+}
+
+export async function searchEntities(query: string, type = 'all', limit = 20, skip = 0) {
+    const data = await request('/api/search', { q: query, type, limit, skip }, { method: 'GET' });
+    return data.results ?? {};
+}
+
+export async function searchUsers(query: string, role?: string, limit = 20, skip = 0) {
+    const params: any = { q: query, limit, skip };
+    if (role) params.role = role;
+    const data = await request('/api/search/users', params, { method: 'GET' });
+    return data.users ?? [];
+}
+
 // Trade APIs
 export async function fetchMarkets() {
     const data = await request('/api/trade/markets', {}, { method: 'GET' });
@@ -339,8 +356,8 @@ export async function getMyTrades() {
     return data.trades || [];
 }
 
-export async function getAllTrades() {
-    const data = await request('/api/trade/trades', {}, { method: 'GET' });
+export async function getAllTrades(limit = 20, skip = 0, filters = {}) {
+    const data = await request('/api/trade/trades', { limit, skip, ...filters }, { method: 'GET' });
     return data.trades || [];
 }
 
@@ -373,4 +390,20 @@ export async function getInvestorDetails(userId: string) {
     } catch {
         return null;
     }
+}
+
+// Jobs, Grants, Events
+export async function fetchJobs(limit = 20, skip = 0) {
+    const data = await request('/api/jobs', { limit, skip }, { method: 'GET' });
+    return data.jobs || [];
+}
+
+export async function fetchGrants(limit = 20, skip = 0) {
+    const data = await request('/api/grants', { limit, skip }, { method: 'GET' });
+    return data || []; // backend returns array directly
+}
+
+export async function fetchEvents(limit = 20, skip = 0) {
+    const data = await request('/api/events', { limit, skip }, { method: 'GET' });
+    return data || []; // backend returns array directly
 }

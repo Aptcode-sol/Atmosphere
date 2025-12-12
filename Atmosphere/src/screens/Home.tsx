@@ -146,6 +146,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
         loadCache();
         // Then fetch fresh data
         loadPosts(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadPosts = async (isRefresh = false) => {

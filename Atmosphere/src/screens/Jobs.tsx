@@ -1,6 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchAndStoreUserRole } from '../lib/api';
@@ -69,164 +69,258 @@ function OpportunityCard({ item, type, onExpand, expanded }) {
 const Jobs = () => {
     const { theme } = useContext(ThemeContext) as any;
     const [activeTab, setActiveTab] = useState('Jobs');
-    const [jobs, setJobs] = useState([]);
-    const [grants, setGrants] = useState([]);
-    const [events, setEvents] = useState([]);
+    // State for each tab
+    const [jobs, setJobs] = useState<any[]>([]);
+    const [jobsSkip, setJobsSkip] = useState(0);
+    const [jobsHasMore, setJobsHasMore] = useState(true);
+    const [jobsLoading, setJobsLoading] = useState(true);
+
+    const [grants, setGrants] = useState<any[]>([]);
+    const [grantsSkip, setGrantsSkip] = useState(0);
+    const [grantsHasMore, setGrantsHasMore] = useState(true);
+    const [grantsLoading, setGrantsLoading] = useState(true);
+
+    const [events, setEvents] = useState<any[]>([]);
+    const [eventsSkip, setEventsSkip] = useState(0);
+    const [eventsHasMore, setEventsHasMore] = useState(true);
+    const [eventsLoading, setEventsLoading] = useState(true);
+
     const [expandedId, setExpandedId] = useState(null);
     const [userRole, setUserRole] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [form, setForm] = useState({
         // Jobs
-        title: '',
-        sector: '',
-        locationType: '',
-        employmentType: '',
-        compensation: '',
-        requirements: '',
+        title: '', sector: '', locationType: '', employmentType: '', compensation: '', requirements: '',
         // Grants
-        name: '',
-        organization: '',
-        location: '',
-        amount: '',
-        deadline: '',
-        type: '',
-        description: '',
-        url: '',
+        name: '', organization: '', location: '', amount: '', deadline: '', type: '', description: '', url: '',
         // Events
-        organizer: '',
-        date: '',
-        time: '',
+        organizer: '', date: '', time: '',
     });
-    const [loading, setLoading] = useState(false);
+    const [postLoading, setPostLoading] = useState(false);
+    const [initialLoadDone, setInitialLoadDone] = useState(false);
+    // Track if we have already fetched fresh data for these tabs to avoid constant refetching on tab switch
+    const [jobsRefreshed, setJobsRefreshed] = useState(false);
+    const [grantsRefreshed, setGrantsRefreshed] = useState(false);
+    const [eventsRefreshed, setEventsRefreshed] = useState(false);
 
+    const JOBS_LIMIT = 20;
+
+    // API Helpers import
+    const api = require('../lib/api');
+
+    // Initial Load & Caching
     useEffect(() => {
-        const fetchData = async () => {
+        let mounted = true;
+        (async () => {
             try {
-                const token = await AsyncStorage.getItem('token');
-                // Fetch and store role using api.ts helper
-                let role = await fetchAndStoreUserRole();
-                if (!role) {
-                    // fallback: try to get from AsyncStorage
-                    role = await AsyncStorage.getItem('role');
+                // Initialize cache and role in parallel
+                const loadCachePromise = Promise.all([
+                    AsyncStorage.getItem('ATMOSPHERE_JOBS_CACHE'),
+                    AsyncStorage.getItem('ATMOSPHERE_GRANTS_CACHE'),
+                    AsyncStorage.getItem('ATMOSPHERE_EVENTS_CACHE'),
+                ]);
+
+                // Try to fetch role, but don't block if it fails
+                const rolePromise = api.fetchAndStoreUserRole().catch(() => AsyncStorage.getItem('role'));
+
+                const [[cachedJobs, cachedGrants, cachedEvents], role] = await Promise.all([loadCachePromise, rolePromise]);
+
+                if (mounted) {
+                    if (role) setUserRole(role);
+                    if (cachedJobs) setJobs(JSON.parse(cachedJobs));
+                    if (cachedGrants) setGrants(JSON.parse(cachedGrants));
+                    if (cachedEvents) setEvents(JSON.parse(cachedEvents));
                 }
-                setUserRole(role || '');
-                console.log('User role:', role); // debug log
-                const baseUrl = await getBaseUrl();
-                const jobRes = await fetch(`${baseUrl}/api/jobs`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const grantRes = await fetch(`${baseUrl}/api/grants`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const eventRes = await fetch(`${baseUrl}/api/events`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const jobData = await jobRes.json();
-                const grantData = await grantRes.json();
-                const eventData = await eventRes.json();
-                setJobs(jobData.jobs || []);
-                setGrants(grantData);
-                setEvents(eventData);
-            } catch {
-                Alert.alert('Error', 'Failed to fetch opportunities');
+            } catch (e) {
+                console.warn('Initialization error', e);
+            } finally {
+                if (mounted) setInitialLoadDone(true); // Always allow standard fetch to proceed
             }
-        };
-        fetchData();
+        })();
+        return () => { mounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const renderTabContent = () => {
-        let data = [];
-        let type = '';
-        if (activeTab === 'Jobs') {
-            data = jobs;
-            type = 'Job';
-        } else if (activeTab === 'Grants') {
-            data = grants;
-            type = 'Grant';
-        } else if (activeTab === 'Events') {
-            data = events;
-            type = 'Event';
-        }
-        if (!data.length) {
-            return <Text style={styles.emptyText}>No {type.toLowerCase()}s found.</Text>;
-        }
-        return data.map((item) => (
-            <OpportunityCard
-                key={item._id || item.id}
-                item={item}
-                type={type}
-                expanded={expandedId === (item._id || item.id)}
-                onExpand={() => setExpandedId(expandedId === (item._id || item.id) ? null : (item._id || item.id))}
-            />
-        ));
+    // Fetch Lists
+    const loadJobs = async (skip = 0) => {
+        if (skip === 0) setJobsLoading(true);
+        try {
+            const data = await api.fetchJobs(JOBS_LIMIT, skip);
+            if (skip === 0) {
+                setJobs(data);
+                AsyncStorage.setItem('ATMOSPHERE_JOBS_CACHE', JSON.stringify(data)).catch(() => { });
+                setJobsRefreshed(true);
+            } else {
+                setJobs(prev => [...prev, ...data]);
+            }
+            setJobsHasMore(data.length >= JOBS_LIMIT);
+            setJobsSkip(skip + JOBS_LIMIT);
+        } catch (e) { console.warn('Jobs load fail', e); }
+        finally { setJobsLoading(false); }
     };
+
+    const loadGrants = async (skip = 0) => {
+        if (skip === 0) setGrantsLoading(true);
+        try {
+            const data = await api.fetchGrants(JOBS_LIMIT, skip);
+            if (skip === 0) {
+                setGrants(data);
+                AsyncStorage.setItem('ATMOSPHERE_GRANTS_CACHE', JSON.stringify(data)).catch(() => { });
+                setGrantsRefreshed(true);
+            } else {
+                setGrants(prev => [...prev, ...data]);
+            }
+            setGrantsHasMore(data.length >= JOBS_LIMIT);
+            setGrantsSkip(skip + JOBS_LIMIT);
+        } catch (e) { console.warn('Grants load fail', e); }
+        finally { setGrantsLoading(false); }
+    };
+
+    const loadEvents = async (skip = 0) => {
+        if (skip === 0) setEventsLoading(true);
+        try {
+            const data = await api.fetchEvents(JOBS_LIMIT, skip);
+            if (skip === 0) {
+                setEvents(data);
+                AsyncStorage.setItem('ATMOSPHERE_EVENTS_CACHE', JSON.stringify(data)).catch(() => { });
+                setEventsRefreshed(true);
+            } else {
+                setEvents(prev => [...prev, ...data]);
+            }
+            setEventsHasMore(data.length >= JOBS_LIMIT);
+            setEventsSkip(skip + JOBS_LIMIT);
+        } catch (e) { console.warn('Events load fail', e); }
+        finally { setEventsLoading(false); }
+    };
+
+    // Trigger initial fetches when cache check is done
+    // Trigger initial fetches based on active tab
+    useEffect(() => {
+        if (!initialLoadDone) return;
+
+        if (activeTab === 'Jobs' && !jobsRefreshed) {
+            loadJobs(0);
+        } else if (activeTab === 'Grants' && !grantsRefreshed) {
+            loadGrants(0);
+        } else if (activeTab === 'Events' && !eventsRefreshed) {
+            loadEvents(0);
+        }
+    }, [initialLoadDone, activeTab]);
 
     // Only show plus icon for startups and investors
     const showPlus = typeof userRole === 'string' && (userRole.toLowerCase() === 'startup' || userRole.toLowerCase() === 'investor');
 
-    const handlePlusPress = () => {
-        setModalVisible(true);
-    };
-
-    const handleFormChange = (key, value) => {
-        setForm(prev => ({ ...prev, [key]: value }));
-    };
+    const handlePlusPress = () => setModalVisible(true);
+    const handleFormChange = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
     const handleSubmit = async () => {
-        setLoading(true);
+        setPostLoading(true);
         try {
+            const token = await AsyncStorage.getItem('token');
+            const baseUrl = await getBaseUrl();
+
             let endpoint = '';
             let payload = {};
             if (activeTab === 'Jobs') {
                 endpoint = '/api/jobs';
                 payload = {
-                    title: form.title,
-                    sector: form.sector,
-                    locationType: form.locationType,
-                    employmentType: form.employmentType,
-                    compensation: form.compensation,
-                    requirements: form.requirements,
+                    title: form.title, sector: form.sector, locationType: form.locationType,
+                    employmentType: form.employmentType, compensation: form.compensation, requirements: form.requirements,
                 };
             } else if (activeTab === 'Grants') {
                 endpoint = '/api/grants';
                 payload = {
-                    name: form.name,
-                    organization: form.organization,
-                    sector: form.sector,
-                    location: form.location,
-                    amount: form.amount,
-                    deadline: form.deadline,
-                    type: form.type,
-                    description: form.description,
-                    url: form.url,
+                    name: form.name, organization: form.organization, sector: form.sector, location: form.location,
+                    amount: form.amount, deadline: form.deadline, type: form.type, description: form.description, url: form.url,
                 };
             } else if (activeTab === 'Events') {
                 endpoint = '/api/events';
                 payload = {
-                    name: form.name,
-                    organizer: form.organizer,
-                    location: form.location,
-                    date: form.date,
-                    time: form.time,
-                    description: form.description,
-                    url: form.url,
+                    name: form.name, organizer: form.organizer, location: form.location,
+                    date: form.date, time: form.time, description: form.description, url: form.url,
                 };
             }
-            const token = await AsyncStorage.getItem('token');
-            const baseUrl = await getBaseUrl();
+
             const res = await fetch(`${baseUrl}${endpoint}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(payload),
             });
             if (!res.ok) throw new Error('Failed to post');
+
             setModalVisible(false);
             setForm({
                 title: '', sector: '', locationType: '', employmentType: '', compensation: '', requirements: '',
                 name: '', organization: '', location: '', amount: '', deadline: '', type: '', description: '', url: '', organizer: '', date: '', time: '',
             });
             Alert.alert('Success', `${activeTab.slice(0, -1)} posted successfully!`);
+
+            // Refresh current tab
+            if (activeTab === 'Jobs') loadJobs(0);
+            else if (activeTab === 'Grants') loadGrants(0);
+            else if (activeTab === 'Events') loadEvents(0);
+
         } catch (e) {
             Alert.alert('Error', e.message || 'Failed to post');
         }
-        setLoading(false);
+        setPostLoading(false);
+    };
+
+    const loadMore = () => {
+        if (activeTab === 'Jobs') {
+            if (!jobsHasMore || jobsLoading) return;
+            loadJobs(jobsSkip);
+        } else if (activeTab === 'Grants') {
+            if (!grantsHasMore || grantsLoading) return;
+            loadGrants(grantsSkip);
+        } else if (activeTab === 'Events') {
+            if (!eventsHasMore || eventsLoading) return;
+            loadEvents(eventsSkip);
+        }
+    };
+
+    // Generic list renderer
+    const renderList = () => {
+        let data = [];
+        let type = '';
+        let loading = false;
+
+        if (activeTab === 'Jobs') { data = jobs; type = 'Job'; loading = jobsLoading && jobs.length === 0; }
+        else if (activeTab === 'Grants') { data = grants; type = 'Grant'; loading = grantsLoading && grants.length === 0; }
+        else if (activeTab === 'Events') { data = events; type = 'Event'; loading = eventsLoading && events.length === 0; }
+
+        if (loading && data.length === 0) {
+            return (
+                <View style={{ marginTop: 40, alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                </View>
+            );
+        }
+
+        return (
+            <FlatList
+                data={data}
+                keyExtractor={(item) => String(item._id || item.id)}
+                contentContainerStyle={{ paddingBottom: 80 }}
+                renderItem={({ item }) => (
+                    <OpportunityCard
+                        item={item}
+                        type={type}
+                        expanded={expandedId === (item._id || item.id)}
+                        onExpand={() => setExpandedId(expandedId === (item._id || item.id) ? null : (item._id || item.id))}
+                    />
+                )}
+                onEndReached={loadMore}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={() => {
+                    // Show spinner at bottom if loading more
+                    const isLoadingMore = (activeTab === 'Jobs' && jobsLoading) || (activeTab === 'Grants' && grantsLoading) || (activeTab === 'Events' && eventsLoading);
+                    if (isLoadingMore && data.length > 0) return <ActivityIndicator style={{ marginVertical: 20 }} color={theme.primary} />;
+                    if (data.length === 0) return <Text style={styles.emptyText}>No {type.toLowerCase()}s found.</Text>;
+                    return null;
+                }}
+            />
+        );
     };
 
     return (
@@ -242,9 +336,9 @@ const Jobs = () => {
                     </TouchableOpacity>
                 ))}
             </View>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {renderTabContent()}
-            </ScrollView>
+
+            {renderList()}
+
             {showPlus && (
                 <TouchableOpacity style={styles.floatingPlus} onPress={handlePlusPress}>
                     <Text style={styles.plusIcon}>＋</Text>
@@ -297,11 +391,11 @@ const Jobs = () => {
                             </>
                         )}
                         <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)} disabled={loading}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalVisible(false)} disabled={postLoading}>
                                 <Text style={styles.cancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
-                                <Text style={styles.submitText}>{loading ? 'Posting...' : 'Submit'}</Text>
+                            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={postLoading}>
+                                <Text style={styles.submitText}>{postLoading ? 'Posting...' : 'Submit'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

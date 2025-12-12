@@ -21,7 +21,11 @@ router.post('/', authMiddleware, async (req, res) => {
 // Get all grants
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const grants = await Grant.find();
+    const { limit = 20, skip = 0 } = req.query;
+    const grants = await Grant.find()
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip));
     res.json(grants);
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -4,6 +4,7 @@ import { Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -15,19 +16,38 @@ const HottestStartups = () => {
     const [topList, setTopList] = useState<StartupCard[]>([]);
     const { theme } = useContext(ThemeContext);
 
+    const CACHE_KEY = 'ATMOSPHERE_HOTTEST_STARTUPS_CACHE';
+
     useEffect(() => {
         let mounted = true;
-        (async () => {
+        const load = async () => {
             setLoading(true);
+
+            // Try cache first
+            try {
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached && mounted) {
+                    setTopList(JSON.parse(cached));
+                    setLoading(false); // Show content immediately
+                }
+            } catch (e) {
+                console.warn('HottestStartups: failed to load cache', e);
+            }
+
+            // Then fetch fresh
             try {
                 const startups = await api.fetchHottestStartups(10);
-                if (mounted) setTopList(startups || []);
+                if (mounted && startups) {
+                    setTopList(startups);
+                    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(startups)).catch(() => { });
+                }
             } catch (e) {
                 console.warn('HottestStartups: failed to fetch/startups', e);
             } finally {
                 if (mounted) setLoading(false);
             }
-        })();
+        };
+        load();
         return () => { mounted = false; };
     }, [filterDay]);
 

@@ -131,10 +131,32 @@ exports.getMyTrades = async (req, res, next) => {
 // Get all active trades (for BUY tab)
 exports.getAllTrades = async (req, res, next) => {
     try {
-        const trades = await Trade.find()
+        const { limit = 20, skip = 0, q, type, revenueStatus, industries } = req.query;
+        const filter = {};
+
+        // Search text
+        if (q) {
+            filter.$or = [
+                { companyName: { $regex: q, $options: 'i' } },
+                { description: { $regex: q, $options: 'i' } },
+                { companyType: { $regex: q, $options: 'i' } }
+            ];
+        }
+
+        // Apply filters
+        if (revenueStatus) filter.revenueStatus = revenueStatus;
+        if (industries) {
+            const industryList = industries.split(',');
+            if (industryList.length > 0) {
+                filter.selectedIndustries = { $in: industryList };
+            }
+        }
+
+        const trades = await Trade.find(filter)
             .populate('user', 'username displayName avatarUrl')
             .sort({ createdAt: -1 })
-            .limit(100)
+            .limit(parseInt(limit))
+            .skip(parseInt(skip))
             .lean();
 
         res.json({ trades });
