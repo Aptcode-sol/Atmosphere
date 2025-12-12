@@ -1,6 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Dimensions, Animated, FlatList, ActivityIndicator, Image, TouchableWithoutFeedback, Modal, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions, Animated, FlatList, ActivityIndicator, Image, TouchableWithoutFeedback } from 'react-native';
 import { PLACEHOLDER } from '../../lib/localImages';
 import { getImageSource } from '../../lib/image';
 import styles from './Profile.styles';
@@ -13,12 +13,10 @@ type Props = {
 };
 
 export default function ProfilePager({ posts, postsLoading, theme, onPostPress }: Props) {
-    const pagerRef = useRef<Animated.ScrollView | null>(null);
+    const pagerRef = useRef<any>(null);
     const scrollX = useRef(new Animated.Value(0)).current;
     const screenW = Dimensions.get('window').width;
     const [activeTab, setActiveTab] = useState<'posts' | 'expand' | 'trades'>('posts');
-    const [previewVisible, setPreviewVisible] = useState(false);
-    const [previewSource, setPreviewSource] = useState<any>(null);
 
     return (
         <>
@@ -48,7 +46,7 @@ export default function ProfilePager({ posts, postsLoading, theme, onPostPress }
                 <Animated.ScrollView
                     horizontal
                     pagingEnabled
-                    ref={r => (pagerRef.current = r)}
+                    ref={pagerRef as any}
                     showsHorizontalScrollIndicator={false}
                     onMomentumScrollEnd={(e) => {
                         const idx = Math.round(e.nativeEvent.contentOffset.x / screenW);
@@ -99,12 +97,7 @@ export default function ProfilePager({ posts, postsLoading, theme, onPostPress }
                                         );
                                     }}
                                 />
-                                {/* Image preview modal */}
-                                <Modal visible={previewVisible} transparent animationType="fade" onRequestClose={() => setPreviewVisible(false)}>
-                                    <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setPreviewVisible(false)}>
-                                        {previewSource ? <Image source={previewSource} style={{ width: '90%', height: '70%', resizeMode: 'contain' }} /> : null}
-                                    </Pressable>
-                                </Modal>
+                                {/* The original Modal was removed from here */}
                             </>
                         )}
                     </View>

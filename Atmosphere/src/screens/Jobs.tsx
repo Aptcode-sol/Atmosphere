@@ -1,16 +1,16 @@
-/* eslint-disable react-native/no-inline-styles */
-import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchAndStoreUserRole } from '../lib/api';
 import { getBaseUrl } from '../lib/config';
 
 const TABS = ['Jobs', 'Grants', 'Events'];
 
 function OpportunityCard({ item, type, onExpand, expanded }: { item: any, type: string, onExpand: () => void, expanded: boolean }) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { theme } = useContext(ThemeContext) as any;
     const [showFullDesc, setShowFullDesc] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const tags = [item.sector, item.employmentType, item.locationType, item.companyType].filter(Boolean);
 
     // The user explicitly requested a "dark theme app" experience matching a specific image.
@@ -124,6 +124,7 @@ const Jobs = () => {
     const [jobsRefreshed, setJobsRefreshed] = useState(false);
     const [grantsRefreshed, setGrantsRefreshed] = useState(false);
     const [eventsRefreshed, setEventsRefreshed] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     const JOBS_LIMIT = 20;
 
@@ -227,6 +228,7 @@ const Jobs = () => {
         } else if (activeTab === 'Events' && !eventsRefreshed) {
             loadEvents(0);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialLoadDone, activeTab]);
 
     // Only show plus icon for startups and investors
@@ -263,9 +265,9 @@ const Jobs = () => {
                 };
             }
 
-            const res = await fetch(`${baseUrl}${endpoint}`, {
+            const res = await fetch(`${baseUrl}${endpoint} `, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token} ` },
                 body: JSON.stringify(payload),
             });
             if (!res.ok) throw new Error('Failed to post');
@@ -311,8 +313,7 @@ const Jobs = () => {
         let data: any[] = [];
         let type = '';
         let loading = false;
-        let hasMore = false;
-        let skip = 0;
+
 
         if (tabName === 'Jobs') {
             data = jobs; type = 'Job'; loading = jobsLoading && jobs.length === 0;
@@ -329,6 +330,14 @@ const Jobs = () => {
             if (tabName === 'Jobs') { if (!jobsHasMore || jobsLoading) return; loadJobs(jobsSkip); }
             else if (tabName === 'Grants') { if (!grantsHasMore || grantsLoading) return; loadGrants(grantsSkip); }
             else if (tabName === 'Events') { if (!eventsHasMore || eventsLoading) return; loadEvents(eventsSkip); }
+        };
+
+        const onRefreshCurrent = async () => {
+            setRefreshing(true);
+            if (tabName === 'Jobs') await loadJobs(0);
+            else if (tabName === 'Grants') await loadGrants(0);
+            else if (tabName === 'Events') await loadEvents(0);
+            setRefreshing(false);
         };
 
         if (loading) {
@@ -355,6 +364,15 @@ const Jobs = () => {
                     )}
                     onEndReached={loadMoreCurrent}
                     onEndReachedThreshold={0.5}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefreshCurrent}
+                            tintColor={theme.primary}
+                            title="Release to refresh"
+                            titleColor={theme.text}
+                        />
+                    }
                     ListHeaderComponent={() => (
                         <View style={styles.listHeader}>
                             <Text style={[styles.resultCount, { color: '#fff' }]}>Total {type.toLowerCase()}s: {data.length}</Text>

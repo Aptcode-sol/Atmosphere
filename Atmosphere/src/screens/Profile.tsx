@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 /* eslint-disable react-native/no-inline-styles */
-import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile, getFollowersCount, getFollowingCount, getStartupProfile } from '../lib/api';
@@ -124,6 +124,10 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
         };
     };
 
+    const [refreshing, setRefreshing] = useState(false);
+    const [forceUpdate, setForceUpdate] = useState(0); // Trigger to re-run effects
+
+    // 1. Profile Data Effect
     useEffect(() => {
         let mounted = true;
         (async () => {
@@ -131,21 +135,17 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
             const targetId = viewingUserId || routeUserId || (routeStartupDetailsId ? `SD_${routeStartupDetailsId}` : null);
             const { DATA: CACHE_KEY } = getCacheKeys(targetId);
 
-            // 1. Try Load Cache
+            setLoading(true);
+
+            // 1. Try Load Cache (only if not refreshing forcefully, but here we just load)
             try {
                 const cached = await AsyncStorage.getItem(CACHE_KEY);
-                if (cached && mounted) {
+                if (cached && mounted && !refreshing) {
                     const parsed = JSON.parse(cached);
-                    // We need to re-normalize cached data to ensure consistent structure
-                    // But if we cached the Normalized data, we can just use it. 
-                    // Let's assume we cache RAW data to keep logic consistent? 
-                    // Or cache NORMALIZED data for speed? Normalized is better for UI.
-                    // But wait, the below fetch logic normalizes ITSELF. 
-                    // Let's cache the NORMALIZED data.
                     setData(parsed);
                     setLoading(false);
                 }
-            } catch (e) { /* ignore */ }
+            } catch { /* ignore */ }
 
             try {
                 let profileData: any;
@@ -174,33 +174,6 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     // Save to Cache
                     AsyncStorage.setItem(CACHE_KEY, JSON.stringify(finalData)).catch(() => { });
 
-                    // Ensure posts/followers fetching logic (kept same as before)
-                    try {
-                        if (viewingUserId) {
-                            const api = await import('../lib/api');
-                            // fetch posts explicitly (prefer server endpoint)
-                            try {
-                                if (typeof api.getPostsByUser === 'function') {
-                                    const userPosts = await api.getPostsByUser(String(viewingUserId));
-                                    if (mounted) setPosts(userPosts || []);
-                                } else {
-                                    const myPosts = await api.fetchStartupPosts();
-                                    if (mounted) setPosts((myPosts || []).filter((p: any) => String(p.userId || p.user?._id || p.user?.id) === String(viewingUserId)));
-                                }
-                            } catch { /* ignore for now */ }
-
-                            // fetch follower/following counts
-                            try {
-                                const f = await import('../lib/api');
-                                const [fCount, foCount] = await Promise.all([f.getFollowersCount(String(viewingUserId)), f.getFollowingCount(String(viewingUserId))]);
-                                if (mounted) {
-                                    setFollowersCount(Number(fCount || 0));
-                                    setFollowingCount(Number(foCount || 0));
-                                }
-                            } catch { /* ignore */ }
-                        }
-                    } catch { /* ignore */ }
-
                     if (!viewingUserId) {
                         const derived = profileData?.user?._id || profileData?.user?.id || null;
                         if (derived) setOwnProfileId(String(derived));
@@ -216,7 +189,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
         return () => {
             mounted = false;
         };
-    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId]);
+    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId, forceUpdate, data, refreshing]);
 
     // format helpers removed (not used in mobile layout)
 
@@ -228,6 +201,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
     const [followLoading, setFollowLoading] = useState(false);
 
+    // 2. Posts Effect
     useEffect(() => {
         let mounted = true;
         (async () => {
@@ -239,11 +213,11 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
             // Try Cache
             try {
                 const cached = await AsyncStorage.getItem(CACHE_KEY);
-                if (cached && mounted) {
+                if (cached && mounted && !refreshing) {
                     setPosts(JSON.parse(cached));
                     setPostsLoading(false);
                 }
-            } catch { }
+            } catch { /* ignore */ }
 
             try {
                 const api = await import('../lib/api');
@@ -269,7 +243,15 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
             }
         })();
         return () => { mounted = false; };
-    }, [viewingUserId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewingUserId, forceUpdate]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        setForceUpdate(prev => prev + 1);
+        // Wait a bit to simulate refresh since effects run asynchronously
+        setTimeout(() => setRefreshing(false), 1500);
+    };
 
     // fetch follower/following counts for the current logged in profile
     useEffect(() => {
@@ -347,7 +329,19 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
 
     return (
         <View style={{ flex: 1 }}>
-            <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={[styles.contentContainer]}>
+            <ScrollView
+                style={[styles.container, { backgroundColor: theme.background }]}
+                contentContainerStyle={[styles.contentContainer]}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={theme.primary}
+                        title="Release to Refresh"
+                        titleColor={theme.text}
+                    />
+                }
+            >
                 <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={onCreatePost} onBack={onClose} theme={theme} />
 
                 {/* Setup is opened via parent navigation (LandingPage route 'setup') */}

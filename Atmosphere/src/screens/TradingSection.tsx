@@ -1,18 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchMarkets, fetchInvestors, createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, incrementTradeViews } from '../lib/api';
+import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, fetchInvestors } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
 
 // Import modular files
-import { industryTags, categories, Investment, InvestorPortfolio } from './Trading/types';
+import { categories, Investment, InvestorPortfolio } from './Trading/types';
 import { styles } from './Trading/styles';
 import { TradingForm } from './Trading/components/TradingForm';
 import { TradeCard } from './Trading/components/TradeCard';
-import { FilterBar } from './Trading/components/FilterBar';
-import { getYearsAgo } from './Trading/utils';
+// import { FilterBar } from './Trading/components/FilterBar';
+// import { getYearsAgo } from './Trading/utils';
 
 const { width: screenW } = Dimensions.get('window');
 
@@ -44,12 +44,19 @@ interface ActiveTrade {
 }
 
 const Trading = () => {
-    const [markets, setMarkets] = useState<any[]>([]);
+    // Data State
+    const [refreshing, setRefreshing] = useState(false);
+
+    // UI State
+    const [activeTab, setActiveTab] = useState<'Data' | 'Buy' | 'Sell' | 'Leaderboard'>('Data');
+    const [searchValue, setSearchValue] = useState('');
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+    // Buy/Sell specific states
+    const [buyTrades, setBuyTrades] = useState<any[]>([]);
+    const [buyLoading, setBuyLoading] = useState(false);
     const [investors, setInvestors] = useState<InvestorPortfolio[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
     const [investorsLoading, setInvestorsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
     const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
     const pagerRef = useRef<any>(null);
     const scrollX = useRef(new Animated.Value(0)).current;
@@ -79,21 +86,71 @@ const Trading = () => {
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState<{ [key: string]: number }>({});
 
     // BUY tab state
-    const [searchValue, setSearchValue] = useState('');
-    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
     const [showSavedOnly, setShowSavedOnly] = useState(false);
     const [savedItems, setSavedItems] = useState<string[]>([]);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+
     // BUY TAB Pagination State
-    const [buyTrades, setBuyTrades] = useState<ActiveTrade[]>([]);
     const [buySkip, setBuySkip] = useState(0);
     const [buyHasMore, setBuyHasMore] = useState(true);
-    const [buyLoading, setBuyLoading] = useState(true);
-    const [buyRefreshing, setBuyRefreshing] = useState(false);
+
     const [buyInitialLoadDone, setBuyInitialLoadDone] = useState(false);
     const [expandedBuyTradeId, setExpandedBuyTradeId] = useState<string | number | null>(null);
 
     const BUY_LIMIT = 20;
+
+    // Fetch Buy Trades
+    const fetchBuyTrades = React.useCallback(async (reset = false) => {
+        if (reset) {
+            setBuyLoading(true);
+            setBuySkip(0);
+        }
+
+        const currentSkip = reset ? 0 : buySkip;
+
+        try {
+            const filters: any = {};
+            if (searchValue) filters.q = searchValue;
+            if (selectedCategories.length > 0) filters.industries = selectedCategories.join(',');
+
+            const data = await getAllTrades(BUY_LIMIT, currentSkip, filters);
+
+            if (reset) {
+                setBuyTrades(data);
+                // Update Cache only on fresh load 
+                AsyncStorage.setItem('ATMOSPHERE_TRADES_BUY_CACHE', JSON.stringify(data)).catch(() => { });
+            } else {
+                setBuyTrades(prev => [...prev, ...data]);
+            }
+
+            setBuyHasMore(data.length >= BUY_LIMIT);
+            setBuySkip(currentSkip + BUY_LIMIT);
+        } catch (e) {
+            console.warn('Failed to load buy trades', e);
+        } finally {
+            setBuyLoading(false);
+        }
+    }, [buySkip, searchValue, selectedCategories]);
+
+    // Refresh Logic (Merged)
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        try {
+            if (activeTab === 'Buy') {
+                await fetchBuyTrades(true);
+            } else {
+                // Refresh Sell Tab components
+                await Promise.all([
+                    getMyTrades().then(t => setActiveTrades(t)).catch(console.warn),
+                    fetchInvestors().then(i => setInvestors(i)).catch(console.warn)
+                ]);
+            }
+        } catch (e) {
+            console.warn('Refresh error', e);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [activeTab, fetchBuyTrades]);
 
 
 
@@ -155,39 +212,7 @@ const Trading = () => {
         return () => { mounted = false; };
     }, []);
 
-    // Fetch Buy Trades
-    const fetchBuyTrades = async (reset = false) => {
-        if (reset) {
-            setBuyLoading(true);
-            setBuySkip(0);
-        }
 
-        const currentSkip = reset ? 0 : buySkip;
-
-        try {
-            const filters: any = {};
-            if (searchValue) filters.q = searchValue;
-            if (selectedCategories.length > 0) filters.industries = selectedCategories.join(',');
-
-            const data = await getAllTrades(BUY_LIMIT, currentSkip, filters);
-
-            if (reset) {
-                setBuyTrades(data);
-                // Update Cache only on fresh load 
-                AsyncStorage.setItem('ATMOSPHERE_TRADES_BUY_CACHE', JSON.stringify(data)).catch(() => { });
-            } else {
-                setBuyTrades(prev => [...prev, ...data]);
-            }
-
-            setBuyHasMore(data.length >= BUY_LIMIT);
-            setBuySkip(currentSkip + BUY_LIMIT);
-        } catch (e) {
-            console.warn('Failed to load buy trades', e);
-        } finally {
-            setBuyLoading(false);
-            setBuyRefreshing(false);
-        }
-    };
 
     // Trigger fetch on initial load or filter change
     useEffect(() => {
@@ -211,11 +236,6 @@ const Trading = () => {
         fetchBuyTrades(false);
     };
 
-    const handleRefreshBuy = () => {
-        setBuyRefreshing(true);
-        fetchBuyTrades(true);
-    };
-
     const togglePortfolio = (cardKey: string) => {
         setExpandedPortfolios(prev => {
             const newSet = new Set(prev);
@@ -228,12 +248,7 @@ const Trading = () => {
         });
     };
 
-    const getYearsAgo = (date?: Date | string) => {
-        if (!date) return '';
-        const investmentDate = new Date(date);
-        const years = new Date().getFullYear() - investmentDate.getFullYear();
-        return years > 0 ? `${years} years ago` : 'This year';
-    };
+
 
     const toggleIndustry = (industry: string) => {
         setSelectedIndustries(prev =>
@@ -435,7 +450,19 @@ const Trading = () => {
         };
 
         return (
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}>
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#1a73e8"
+                        title="Release to refresh"
+                        titleColor="#888"
+                    />
+                }
+            >
                 <Text style={styles.portfolioHeader}>Portfolio</Text>
                 {allInvestments.map((item, index) => {
                     const cardKey = `${item.companyName}-${item.investorId}`;
@@ -739,7 +766,13 @@ const Trading = () => {
                 onEndReachedThreshold={0.5}
                 ListFooterComponent={() => buyLoading && data.length > 0 ? <ActivityIndicator size="small" color="#1a73e8" style={{ margin: 20 }} /> : null}
                 refreshControl={
-                    <RefreshControl refreshing={buyRefreshing} onRefresh={handleRefreshBuy} tintColor="#1a73e8" />
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#1a73e8"
+                        title="Release to refresh"
+                        titleColor="#888"
+                    />
                 }
             />
         );
@@ -754,22 +787,22 @@ const Trading = () => {
                     <TouchableOpacity
                         style={styles.tabItem}
                         onPress={() => {
-                            setActiveTab('buy');
+                            setActiveTab('Buy');
                             pagerRef.current?.scrollTo({ x: 0, animated: true });
                         }}
                     >
-                        <Text style={[styles.tabText, activeTab === 'buy' && styles.tabTextActive]}>
+                        <Text style={[styles.tabText, activeTab === 'Buy' && styles.tabTextActive]}>
                             BUY
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.tabItem}
                         onPress={() => {
-                            setActiveTab('sell');
+                            setActiveTab('Sell');
                             pagerRef.current?.scrollTo({ x: screenW, animated: true });
                         }}
                     >
-                        <Text style={[styles.tabText, activeTab === 'sell' && styles.tabTextActive]}>
+                        <Text style={[styles.tabText, activeTab === 'Sell' && styles.tabTextActive]}>
                             SELL
                         </Text>
                     </TouchableOpacity>
@@ -792,7 +825,7 @@ const Trading = () => {
                 </View>
 
                 {/* Show search/filters only on Buy tab */}
-                {activeTab === 'buy' && (
+                {activeTab === 'Buy' && (
                     <>
                         <View style={styles.searchRow}>
                             <View style={styles.searchBox}>

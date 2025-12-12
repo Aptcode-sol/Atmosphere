@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import TopNavbar from '../components/TopNavbar';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -44,6 +44,15 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
     // Pagination State
     const [backendSkip, setBackendSkip] = useState(0);
     const [initialLoadDone, setInitialLoadDone] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        // Force refresh from page 0
+        await loadPosts(true);
+        setRefreshing(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch current user
     useEffect(() => {
@@ -243,6 +252,15 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 onEndReachedThreshold={0.5}
                 ListFooterComponent={renderFooter}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={theme.primary}
+                        title="Release to refresh"
+                        titleColor={theme.text}
+                    />
+                }
             />
         );
     };

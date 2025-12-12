@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
-import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
+import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getImageSource } from '../lib/image';
@@ -35,9 +35,21 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
     const [searchHasMore, setSearchHasMore] = useState(true);
 
     const [initialLoadDone, setInitialLoadDone] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        if (query.trim()) {
+            await performSearch(query, activeTab, true);
+        } else {
+            await loadExplore(true);
+        }
+        setRefreshing(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query, activeTab]);
 
     // Debounce Search
-    const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+    const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Initial Load & Cache
     useEffect(() => {
@@ -56,6 +68,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
         };
         loadCache();
         loadExplore(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadExplore = async (reset = false) => {
@@ -175,7 +188,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
     const currentData = query.trim() ? searchResults : explorePosts;
     const isGrid = !query.trim() || activeTab === 'posts';
 
-    const renderItem = ({ item, index }: { item: any, index: number }) => {
+    const renderItem = ({ item, index: _index }: { item: any, index: number }) => {
         // Posts (Grid)
         if (isGrid) {
             const imgUri = item.media?.[0]?.url || item.image || item.thumbUrl || 'https://via.placeholder.com/400x400.png?text=Post';
@@ -265,7 +278,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                 key={isGrid ? 'grid' : 'list'}
                 data={currentData}
                 numColumns={isGrid ? 3 : 1}
-                keyExtractor={(item, idx) => (item._id || item.id || String(idx))}
+                keyExtractor={(item, _idx) => (item._id || item.id || String(_idx))}
                 renderItem={renderItem}
                 onEndReached={loadMore}
                 onEndReachedThreshold={0.5}
@@ -279,6 +292,15 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                             </Text>
                         </View>
                     ) : null
+                }
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={theme.primary}
+                        title="Release to refresh"
+                        titleColor={theme.text}
+                    />
                 }
             />
         </View>
