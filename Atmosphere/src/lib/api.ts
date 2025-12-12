@@ -116,6 +116,10 @@ export async function fetchMyPosts() {
     return data.posts ?? [];
 }
 
+export async function createPost(payload: { content: string; media?: { url: string; type: string }[]; tags?: string[] }) {
+    return request('/api/posts', payload, { method: 'POST' });
+}
+
 export async function verifyEmail(code: string, email?: string) {
     // email optional - if provided backend will accept unauthenticated verify for signup dev flow
     return request('/api/auth/verify-email', { code, email }, { method: 'POST' });

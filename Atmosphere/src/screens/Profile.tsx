@@ -105,7 +105,7 @@ const normalizeProfile = (profileData: any) => {
 
 type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup';
 
-const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (route: RouteKey) => void; userId?: string | null; onClose?: () => void }) => {
+const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPostPress }: { onNavigate?: (route: RouteKey) => void; userId?: string | null; onClose?: () => void; onCreatePost?: () => void; onPostPress?: (postId: string) => void }) => {
     const { theme } = useContext(ThemeContext);
     const [data, setData] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
@@ -302,7 +302,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
     return (
         <View style={{ flex: 1 }}>
             <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={[styles.contentContainer]}>
-                <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={() => { }} onBack={onClose} theme={theme} />
+                <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={onCreatePost} onBack={onClose} theme={theme} />
 
                 {/* Setup is opened via parent navigation (LandingPage route 'setup') */}
 
@@ -370,7 +370,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose }: { onNavigate?: (ro
                             </TouchableOpacity>
                         )}
 
-                        <ProfilePager posts={posts} postsLoading={postsLoading} theme={theme} />
+                        <ProfilePager posts={posts} postsLoading={postsLoading} theme={theme} onPostPress={onPostPress} />
                     </>
                 )}
             </ScrollView>

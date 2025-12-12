@@ -15,8 +15,9 @@ import TradingSection from './TradingSection';
 import Jobs from './Jobs';
 import Meetings from './Meetings';
 import SetupProfile from './SetupProfile';
+import CreatePost from './CreatePost';
 
-type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail';
+type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail' | 'createPost';
 
 const LandingPage = () => {
     const [route, setRoute] = useState<RouteKey>('home');
@@ -66,7 +67,7 @@ const LandingPage = () => {
             case 'reels':
                 return <Reels />;
             case 'profile':
-                return <Profile onNavigate={(r: RouteKey) => setRoute(r)} />;
+                return <Profile onNavigate={(r: RouteKey) => setRoute(r)} onCreatePost={() => setRoute('createPost')} onPostPress={handlePostPress} />;
             case 'setup':
                 return <SetupProfile onDone={() => setRoute('profile')} onClose={() => setRoute('profile')} />;
             case 'topstartups':
@@ -88,6 +89,8 @@ const LandingPage = () => {
                         }}
                     />
                 ) : null;
+            case 'createPost':
+                return <CreatePost onClose={() => setRoute('profile')} onSuccess={() => setRoute('profile')} />;
             default:
                 return null;
         }
@@ -122,6 +125,8 @@ const LandingPage = () => {
             trade: 'Trade',
             jobs: 'Opportunities',
             meetings: 'Meetings',
+            chatDetail: 'Messages',
+            createPost: 'Profile',
         };
         return rev[r] || 'Home';
     };

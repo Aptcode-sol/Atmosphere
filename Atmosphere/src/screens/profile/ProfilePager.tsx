@@ -9,9 +9,10 @@ type Props = {
     posts: any[];
     postsLoading: boolean;
     theme: any;
+    onPostPress?: (postId: string) => void;
 };
 
-export default function ProfilePager({ posts, postsLoading, theme }: Props) {
+export default function ProfilePager({ posts, postsLoading, theme, onPostPress }: Props) {
     const pagerRef = useRef<Animated.ScrollView | null>(null);
     const scrollX = useRef(new Animated.Value(0)).current;
     const screenW = Dimensions.get('window').width;
@@ -60,7 +61,7 @@ export default function ProfilePager({ posts, postsLoading, theme }: Props) {
                     scrollEventThrottle={16}
                     style={{ flex: 1 }}
                 >
-                    <View style={[styles.pagerPage, { width: screenW }]}>
+                    <View style={[styles.pagerPage, { width: screenW, alignItems: 'flex-start', justifyContent: 'flex-start' }]}>
                         {/* add spacing between Posts header and grid */}
                         <View style={{ height: 12 }} />
                         {postsLoading ? (
@@ -73,15 +74,27 @@ export default function ProfilePager({ posts, postsLoading, theme }: Props) {
                                     data={posts}
                                     keyExtractor={(it) => String(it._id || it.id || Math.random())}
                                     numColumns={3}
-                                    columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 12 }}
+                                    scrollEnabled={false}
+                                    contentContainerStyle={{ paddingHorizontal: 1 }}
+                                    columnWrapperStyle={{ gap: 2, marginBottom: 2 }}
                                     renderItem={({ item }) => {
                                         // prefer media array objects with url/src
                                         const mediaFirst = Array.isArray(item.media) && item.media.length > 0 ? item.media[0] : null;
                                         const candidate = mediaFirst?.url || mediaFirst?.src || item.image || item.imageUrl || item.profileImage || item.photo || mediaFirst || null;
                                         const source = getImageSource(candidate || (PLACEHOLDER || 'https://via.placeholder.com/300x300.png?text=Post'));
+                                        const itemWidth = (screenW - 6) / 3; // 3 columns with 2px gaps
+                                        const postId = item._id || item.id;
                                         return (
-                                            <TouchableWithoutFeedback onPress={() => { setPreviewSource(source); setPreviewVisible(true); }}>
-                                                <Image source={source} style={styles.gridItem} onError={(e) => { console.warn('Profile grid image error', e.nativeEvent, candidate); }} />
+                                            <TouchableWithoutFeedback onPress={() => { onPostPress?.(String(postId)); }}>
+                                                <Image
+                                                    source={source}
+                                                    style={{
+                                                        width: itemWidth,
+                                                        height: itemWidth,
+                                                        backgroundColor: '#222'
+                                                    }}
+                                                    onError={(e) => { console.warn('Profile grid image error', e.nativeEvent, candidate); }}
+                                                />
                                             </TouchableWithoutFeedback>
                                         );
                                     }}
