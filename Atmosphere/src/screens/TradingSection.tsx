@@ -1,47 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert } from 'react-native';
 import { fetchMarkets, fetchInvestors, createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, incrementTradeViews } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
 
+// Import modular files
+import { industryTags, categories, Investment, InvestorPortfolio } from './Trading/types';
+import { styles } from './Trading/styles';
+import { TradingForm } from './Trading/components/TradingForm';
+import { TradeCard } from './Trading/components/TradeCard';
+import { FilterBar } from './Trading/components/FilterBar';
+import { getYearsAgo } from './Trading/utils';
+
 const { width: screenW } = Dimensions.get('window');
 
-// Industry/Segment tags
-const industryTags = [
-    "AI", "ML", "Fintech", "HealthTech", "EV", "SaaS", "E-commerce", "EdTech", "AgriTech",
-    "Blockchain", "IoT", "CleanTech", "FoodTech", "PropTech", "InsurTech", "LegalTech",
-    "MarTech", "RetailTech", "TravelTech", "Logistics", "Cybersecurity", "Gaming", "Media", "SpaceTech"
-];
+// Constants and types now imported from Trading/types.ts
 
-// Category filters for buy tab
-const categories = [
-    "AI", "ML", "DeepTech", "Manufacturing", "Cafe", "B2B", "B2C", "B2B2C",
-    "Fintech", "SaaS", "HealthTech", "AgriTech", "D2C", "Logistics", "EV",
-    "EdTech", "Robotics", "IoT", "Blockchain", "E-commerce", "FoodTech",
-    "PropTech", "InsurTech", "LegalTech", "CleanTech", "BioTech", "Cybersecurity",
-    "AR/VR", "Gaming", "Media", "Entertainment", "Travel", "Hospitality",
-];
-
-interface Investment {
-    _id?: string;
-    companyName: string;
-    companyId?: string;
-    date?: Date | string;
-    amount?: number;
-    docs?: string[];
-}
-
-interface InvestorPortfolio {
-    _id: string;
-    user: {
-        _id: string;
-        username: string;
-        displayName?: string;
-        avatarUrl?: string;
-    };
-    previousInvestments: Investment[];
-}
+// Investment and InvestorPortfolio interfaces now imported from Trading/types.ts
 
 interface ActiveTrade {
     _id?: string;
@@ -94,6 +70,7 @@ const Trading = () => {
     const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
     const [selectedCompanyName, setSelectedCompanyName] = useState<string>('');
     const [selectedCompanyAge, setSelectedCompanyAge] = useState<string>('');
+    const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
 
     // Active trades
     const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
@@ -249,14 +226,22 @@ const Trading = () => {
         };
 
         try {
-            const response = await createTrade(tradeData);
-
-            // Add the new trade to local state
-            if (response && response.trade) {
-                setActiveTrades([...activeTrades, response.trade]);
+            if (editingTradeId) {
+                const response = await updateTrade(editingTradeId, tradeData);
+                if (response && response.trade) {
+                    setActiveTrades(activeTrades.map(t => t._id === editingTradeId ? response.trade : t));
+                }
+                Alert.alert('Success', 'Trade updated successfully!');
+            } else {
+                const response = await createTrade(tradeData);
+                if (response && response.trade) {
+                    setActiveTrades([...activeTrades, response.trade]);
+                }
+                Alert.alert('Success', 'Trade opened successfully!');
             }
 
             // Reset form
+            setEditingTradeId(null);
             setExpandedCompany(null);
             setSellingRangeMin(10);
             setSellingRangeMax(40);
@@ -272,11 +257,9 @@ const Trading = () => {
             setExternalLinkUrl('');
             setSelectedCompanyName('');
             setSelectedCompanyAge('');
-
-            Alert.alert('Success', 'Trade opened successfully!');
         } catch (error: any) {
-            console.error('Failed to create trade:', error);
-            Alert.alert('Error', error.message || 'Failed to open trade');
+            console.error('Failed to save trade:', error);
+            Alert.alert('Error', error.message || 'Failed to save trade');
         }
     };
 
@@ -294,7 +277,12 @@ const Trading = () => {
     const handleUpdateTrade = (tradeId: any) => {
         const trade = activeTrades.find(t => t._id === tradeId);
         if (trade) {
-            setExpandedCompany(trade.companyId);
+            // Populate form
+            setEditingTradeId(tradeId);
+            setExpandedCompany(trade.companyId); // Required for handleOpenTrade logic
+            setExpandedTradeId(tradeId); // Expand the active trade card to show form
+
+            setSelectedCompanyName(trade.companyName);
             setSellingRangeMin(trade.sellingRangeMin);
             setSellingRangeMax(trade.sellingRangeMax);
             setCompanyAge(trade.companyAge);
@@ -307,7 +295,6 @@ const Trading = () => {
             setSelectedIndustries(trade.selectedIndustries);
             setExternalLinkHeading(trade.externalLinkHeading || '');
             setExternalLinkUrl(trade.externalLinkUrl || '');
-            handleDeleteTrade(tradeId);
         }
     };
 
@@ -416,208 +403,33 @@ const Trading = () => {
                             </TouchableOpacity>
 
                             {isExpanded && expandedCompany === cardKey && (
-                                <View style={styles.portfolioExpanded}>
-                                    {/* Selling Range */}
-                                    <Text style={styles.formLabel}>Selling Range (%)</Text>
-                                    <View style={styles.rangeRow}>
-                                        <TextInput
-                                            style={styles.rangeInput}
-                                            placeholder="10"
-                                            placeholderTextColor="#666"
-                                            keyboardType="numeric"
-                                            value={String(sellingRangeMin)}
-                                            onChangeText={(text) => setSellingRangeMin(parseFloat(text) || 0)}
-                                        />
-                                        <Text style={styles.rangeToText}>to</Text>
-                                        <TextInput
-                                            style={styles.rangeInput}
-                                            placeholder="40"
-                                            placeholderTextColor="#666"
-                                            keyboardType="numeric"
-                                            value={String(sellingRangeMax)}
-                                            onChangeText={(text) => setSellingRangeMax(parseFloat(text) || 0)}
-                                        />
-                                    </View>
-
-                                    {/* Startup Details */}
-                                    <Text style={styles.formLabel}>Startup Details</Text>
-                                    <View style={styles.toggleRow}>
-                                        <TouchableOpacity
-                                            style={[styles.toggleButton, !isManualEntry && styles.toggleButtonActive]}
-                                            onPress={() => setIsManualEntry(false)}
-                                        >
-                                            <Text style={!isManualEntry ? styles.toggleTextActive : styles.toggleText}>
-                                                Auto Entry
-                                            </Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[styles.toggleButton, isManualEntry && styles.toggleButtonActive]}
-                                            onPress={() => setIsManualEntry(true)}
-                                        >
-                                            <Text style={isManualEntry ? styles.toggleTextActive : styles.toggleText}>
-                                                Manual Entry
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    {!isManualEntry ? (
-                                        // AUTO ENTRY
-                                        <View>
-                                            <TextInput
-                                                style={styles.usernameInput}
-                                                placeholder="@username"
-                                                placeholderTextColor="#666"
-                                                value={startupUsername}
-                                                onChangeText={setStartupUsername}
-                                            />
-
-                                            <Text style={styles.formLabel}>Add external link</Text>
-                                            <View style={styles.linkRow}>
-                                                <TextInput
-                                                    style={[styles.linkInput, { flex: 1, marginRight: 8 }]}
-                                                    placeholder="Heading"
-                                                    placeholderTextColor="#666"
-                                                    value={externalLinkHeading}
-                                                    onChangeText={setExternalLinkHeading}
-                                                />
-                                                <TextInput
-                                                    style={[styles.linkInput, { flex: 1 }]}
-                                                    placeholder="Link"
-                                                    placeholderTextColor="#666"
-                                                    value={externalLinkUrl}
-                                                    onChangeText={setExternalLinkUrl}
-                                                />
-                                            </View>
-                                        </View>
-                                    ) : (
-                                        // MANUAL ENTRY
-                                        <View>
-                                            <TextInput
-                                                style={styles.usernameInput}
-                                                placeholder="@username (optional)"
-                                                placeholderTextColor="#666"
-                                                value={startupUsername}
-                                                onChangeText={setStartupUsername}
-                                            />
-
-                                            <Text style={styles.formLabel}>Add external link</Text>
-                                            <View style={styles.linkRow}>
-                                                <TextInput
-                                                    style={[styles.linkInput, { flex: 1, marginRight: 8 }]}
-                                                    placeholder="Heading"
-                                                    placeholderTextColor="#666"
-                                                    value={externalLinkHeading}
-                                                    onChangeText={setExternalLinkHeading}
-                                                />
-                                                <TextInput
-                                                    style={[styles.linkInput, { flex: 1 }]}
-                                                    placeholder="Link"
-                                                    placeholderTextColor="#666"
-                                                    value={externalLinkUrl}
-                                                    onChangeText={setExternalLinkUrl}
-                                                />
-                                            </View>
-
-                                            {/* Segment Tags */}
-                                            <Text style={styles.formLabel}>Segment (max 3)</Text>
-                                            <ScrollView
-                                                showsVerticalScrollIndicator={false}
-                                                style={styles.tagsScroll}
-                                                nestedScrollEnabled={true}
-                                            >
-                                                <View style={styles.tagsContent}>
-                                                    {industryTags.map(tag => (
-                                                        <TouchableOpacity
-                                                            key={tag}
-                                                            onPress={() => toggleIndustry(tag)}
-                                                            disabled={!selectedIndustries.includes(tag) && selectedIndustries.length >= 3}
-                                                            style={[
-                                                                styles.tagChip,
-                                                                selectedIndustries.includes(tag) && styles.tagChipActive
-                                                            ]}
-                                                        >
-                                                            <Text style={[
-                                                                styles.tagChipText,
-                                                                selectedIndustries.includes(tag) && styles.tagChipTextActive
-                                                            ]}>
-                                                                {tag}
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    ))}
-                                                </View>
-                                            </ScrollView>
-
-                                            {/* Description */}
-                                            <Text style={styles.formLabel}>Description</Text>
-                                            <TextInput
-                                                style={styles.descriptionInput}
-                                                placeholder="Description..."
-                                                placeholderTextColor="#666"
-                                                multiline
-                                                numberOfLines={3}
-                                                value={description}
-                                                onChangeText={setDescription}
-                                            />
-
-                                            {/* Revenue Status */}
-                                            <View style={styles.toggleRow}>
-                                                <TouchableOpacity
-                                                    style={[styles.toggleButton, revenueStatus === 'revenue-generating' && styles.toggleButtonActive]}
-                                                    onPress={() => setRevenueStatus('revenue-generating')}
-                                                >
-                                                    <Text style={revenueStatus === 'revenue-generating' ? styles.toggleTextActive : styles.toggleText}>
-                                                        Revenue Generating
-                                                    </Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    style={[styles.toggleButton, revenueStatus === 'pre-revenue' && styles.toggleButtonActive]}
-                                                    onPress={() => setRevenueStatus('pre-revenue')}
-                                                >
-                                                    <Text style={revenueStatus === 'pre-revenue' ? styles.toggleTextActive : styles.toggleText}>
-                                                        Pre Revenue
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-
-                                            {/* Video Upload */}
-                                            <TouchableOpacity style={styles.uploadButton} onPress={handleVideoUpload}>
-                                                <MaterialCommunityIcons name="video" size={16} color="#fff" />
-                                                <Text style={styles.uploadButtonText}>
-                                                    {videoUri ? 'Video Selected' : 'Upload Video'}
-                                                </Text>
-                                            </TouchableOpacity>
-
-                                            {/* Image Upload */}
-                                            <TouchableOpacity style={styles.uploadButton} onPress={handleImageUpload}>
-                                                <MaterialCommunityIcons name="image" size={16} color="#fff" />
-                                                <Text style={styles.uploadButtonText}>Upload Images</Text>
-                                            </TouchableOpacity>
-
-                                            {imageUris.length > 0 && (
-                                                <View style={styles.imagePreviewContainer}>
-                                                    {imageUris.map((uri, idx) => (
-                                                        <View key={idx} style={styles.imagePreview}>
-                                                            <RNImage source={{ uri }} style={styles.previewImage} />
-                                                            <TouchableOpacity
-                                                                style={styles.removeImageButton}
-                                                                onPress={() => removeImage(idx)}
-                                                            >
-                                                                <MaterialCommunityIcons name="close" size={16} color="#fff" />
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                    ))}
-                                                </View>
-                                            )}
-                                        </View>
-                                    )}
-
-                                    <TouchableOpacity
-                                        style={styles.openTradeButton}
-                                        onPress={handleOpenTrade}
-                                    >
-                                        <Text style={styles.openTradeButtonText}>Open Trade</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                <TradingForm
+                                    sellingRangeMin={sellingRangeMin}
+                                    setSellingRangeMin={setSellingRangeMin}
+                                    sellingRangeMax={sellingRangeMax}
+                                    setSellingRangeMax={setSellingRangeMax}
+                                    isManualEntry={isManualEntry}
+                                    setIsManualEntry={setIsManualEntry}
+                                    startupUsername={startupUsername}
+                                    setStartupUsername={setStartupUsername}
+                                    externalLinkHeading={externalLinkHeading}
+                                    setExternalLinkHeading={setExternalLinkHeading}
+                                    externalLinkUrl={externalLinkUrl}
+                                    setExternalLinkUrl={setExternalLinkUrl}
+                                    description={description}
+                                    setDescription={setDescription}
+                                    revenueStatus={revenueStatus}
+                                    setRevenueStatus={setRevenueStatus}
+                                    videoUri={videoUri}
+                                    handleVideoUpload={handleVideoUpload}
+                                    imageUris={imageUris}
+                                    handleImageUpload={handleImageUpload}
+                                    removeImage={removeImage}
+                                    selectedIndustries={selectedIndustries}
+                                    toggleIndustry={toggleIndustry}
+                                    onSubmit={handleOpenTrade}
+                                    submitText={editingTradeId ? "Update Trade" : "Open Trade"}
+                                />
                             )}
                         </View>
                     );
@@ -637,7 +449,10 @@ const Trading = () => {
                                 <View key={tradeId} style={styles.tradeCard}>
                                     <TouchableOpacity
                                         style={styles.tradeCardHeader}
-                                        onPress={() => setExpandedTradeId(isExpanded ? null : (tradeId as string | number))}
+                                        onPress={() => {
+                                            setExpandedTradeId(isExpanded ? null : (tradeId as string | number));
+                                            setEditingTradeId(null);
+                                        }}
                                     >
                                         <View style={styles.tradeAvatar}>
                                             <Text style={styles.tradeAvatarText}>
@@ -652,7 +467,11 @@ const Trading = () => {
                                                     <Text style={styles.tradeBadgeText}>Trade</Text>
                                                 </View>
                                             </View>
-                                            <Text style={styles.tradeUsername}>@{trade.startupUsername}</Text>
+                                            {!isExpanded && (
+                                                <Text style={styles.tradeUsername} numberOfLines={1}>
+                                                    {trade.description}
+                                                </Text>
+                                            )}
                                             {!isExpanded && (
                                                 <Text style={styles.tradeMetaText}>
                                                     {trade.revenueStatus === 'revenue-generating' ? 'Revenue Generating' : 'Pre Revenue'} • {trade.sellingRangeMin}% - {trade.sellingRangeMax}%
@@ -683,56 +502,87 @@ const Trading = () => {
                                     </TouchableOpacity>
 
                                     {isExpanded && (
-                                        <View style={styles.tradeExpandedContent}>
-                                            {trade.description && (
-                                                <Text style={styles.tradeDescription}>"{trade.description}"</Text>
-                                            )}
+                                        editingTradeId === tradeId ? (
+                                            <TradingForm
+                                                sellingRangeMin={sellingRangeMin}
+                                                setSellingRangeMin={setSellingRangeMin}
+                                                sellingRangeMax={sellingRangeMax}
+                                                setSellingRangeMax={setSellingRangeMax}
+                                                isManualEntry={isManualEntry}
+                                                setIsManualEntry={setIsManualEntry}
+                                                startupUsername={startupUsername}
+                                                setStartupUsername={setStartupUsername}
+                                                externalLinkHeading={externalLinkHeading}
+                                                setExternalLinkHeading={setExternalLinkHeading}
+                                                externalLinkUrl={externalLinkUrl}
+                                                setExternalLinkUrl={setExternalLinkUrl}
+                                                description={description}
+                                                setDescription={setDescription}
+                                                revenueStatus={revenueStatus}
+                                                setRevenueStatus={setRevenueStatus}
+                                                videoUri={videoUri}
+                                                handleVideoUpload={handleVideoUpload}
+                                                imageUris={imageUris}
+                                                handleImageUpload={handleImageUpload}
+                                                removeImage={removeImage}
+                                                selectedIndustries={selectedIndustries}
+                                                toggleIndustry={toggleIndustry}
+                                                onSubmit={handleOpenTrade}
+                                                submitText="Update Trade"
+                                                noPadding
+                                            />
+                                        ) : (
+                                            <View style={styles.tradeExpandedContent}>
+                                                {trade.description && (
+                                                    <Text style={styles.tradeDescription}>"{trade.description}"</Text>
+                                                )}
 
-                                            {/* Media */}
-                                            {(trade.videoUrl || trade.imageUrls.length > 0) && (
-                                                <View style={styles.tradeMediaContainer}>
-                                                    {trade.videoUrl ? (
-                                                        <View style={styles.tradeMedia}>
-                                                            <Text style={{ color: '#fff', textAlign: 'center' }}>Video Player</Text>
-                                                        </View>
-                                                    ) : (
-                                                        <View style={styles.tradeMedia}>
-                                                            <RNImage
-                                                                source={{ uri: trade.imageUrls[photoIndex] }}
-                                                                style={{ width: '100%', height: '100%' }}
-                                                                resizeMode="cover"
-                                                            />
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            )}
+                                                {/* Media */}
+                                                {(trade.videoUrl || trade.imageUrls.length > 0) && (
+                                                    <View style={styles.tradeMediaContainer}>
+                                                        {trade.videoUrl ? (
+                                                            <View style={styles.tradeMedia}>
+                                                                <Text style={{ color: '#fff', textAlign: 'center' }}>Video Player</Text>
+                                                            </View>
+                                                        ) : (
+                                                            <View style={styles.tradeMedia}>
+                                                                <RNImage
+                                                                    source={{ uri: trade.imageUrls[photoIndex] }}
+                                                                    style={{ width: '100%', height: '100%' }}
+                                                                    resizeMode="cover"
+                                                                />
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                )}
 
-                                            {/* Stats Grid */}
-                                            <View style={styles.statsGrid}>
-                                                <View style={styles.statCard}>
-                                                    <Text style={styles.statLabel}>Revenue Status</Text>
-                                                    <Text style={styles.statValue}>
-                                                        {trade.revenueStatus === 'revenue-generating' ? 'Revenue Generating' : 'Pre Revenue'}
-                                                    </Text>
+                                                {/* Stats Grid */}
+                                                <View style={styles.statsGrid}>
+                                                    <View style={styles.statCard}>
+                                                        <Text style={styles.statLabel}>Revenue Status</Text>
+                                                        <Text style={styles.statValue}>
+                                                            {trade.revenueStatus === 'revenue-generating' ? 'Revenue Generating' : 'Pre Revenue'}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.statCard}>
+                                                        <Text style={styles.statLabel}>Company Age</Text>
+                                                        <Text style={styles.statValue}>{trade.companyAge || 'N/A'}</Text>
+                                                    </View>
+                                                    <View style={[styles.statCard, { width: '100%' }]}>
+                                                        <Text style={[styles.statLabel, { color: '#1a73e8' }]}>Selling Range</Text>
+                                                        <Text style={[styles.statValue, { color: '#1a73e8' }]}>
+                                                            {trade.sellingRangeMin}% - {trade.sellingRangeMax}%
+                                                        </Text>
+                                                    </View>
                                                 </View>
-                                                <View style={styles.statCard}>
-                                                    <Text style={styles.statLabel}>Company Age</Text>
-                                                    <Text style={styles.statValue}>{trade.companyAge || 'N/A'}</Text>
-                                                </View>
-                                                <View style={[styles.statCard, { gridColumn: 'span 2' }]}>
-                                                    <Text style={[styles.statLabel, { color: '#1a73e8' }]}>Selling Range</Text>
-                                                    <Text style={[styles.statValue, { color: '#1a73e8' }]}>
-                                                        {trade.sellingRangeMin}% - {trade.sellingRangeMax}%
-                                                    </Text>
+
+                                                {/* Views & Saves */}
+                                                <View style={styles.tradeStats}>
+                                                    <Text style={styles.tradeStatText}>Views: {trade.views}</Text>
+                                                    <Text style={styles.tradeStatText}>Saves: {trade.saves}</Text>
                                                 </View>
                                             </View>
-
-                                            {/* Views & Saves */}
-                                            <View style={styles.tradeStats}>
-                                                <Text style={styles.tradeStatText}>Views: {trade.views}</Text>
-                                                <Text style={styles.tradeStatText}>Saves: {trade.saves}</Text>
-                                            </View>
-                                        </View>
+                                        )
                                     )}
                                 </View>
                             );
@@ -785,6 +635,9 @@ const Trading = () => {
                     </View>
                 )}
 
+                {/* Suggested for you heading */}
+                <Text style={styles.suggestedHeading}>Suggested for you</Text>
+
                 {/* Trade Cards */}
                 {allTrades.map((trade) => {
                     const tradeId = trade._id || trade.id;
@@ -793,157 +646,16 @@ const Trading = () => {
                     const isSaved = savedItems.includes(String(tradeId));
 
                     return (
-                        <View key={tradeId} style={styles.professionalTradeCard}>
-                            {/* Header with Profile and Actions */}
-                            <View style={styles.professionalCardHeader}>
-                                {/* Profile Picture */}
-                                {trade.imageUrls && trade.imageUrls.length > 0 && trade.imageUrls[0] ? (
-                                    <RNImage
-                                        source={{ uri: trade.imageUrls[0] }}
-                                        style={styles.professionalAvatar}
-                                    />
-                                ) : (
-                                    <View style={styles.professionalAvatar}>
-                                        <Text style={styles.professionalAvatarText}>
-                                            {trade.companyName[0]}
-                                        </Text>
-                                    </View>
-                                )}
-
-                                {/* Company Info */}
-                                <View style={styles.professionalCompanyInfo}>
-                                    <Text style={styles.professionalCompanyName}>{trade.companyName}</Text>
-                                    {trade.startupUsername && (
-                                        <Text style={styles.professionalUsername}>{trade.startupUsername}</Text>
-                                    )}
-                                </View>
-
-                                {/* Action Buttons */}
-                                <View style={styles.professionalActions}>
-                                    <TouchableOpacity
-                                        style={styles.professionalActionBtn}
-                                        onPress={() => toggleSaveItem(String(tradeId))}
-                                    >
-                                        <MaterialCommunityIcons
-                                            name={isSaved ? "bookmark" : "bookmark-outline"}
-                                            size={22}
-                                            color={isSaved ? "#1a73e8" : "#bfbfbf"}
-                                        />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.professionalActionBtn}
-                                        onPress={() => Alert.alert('Chat', 'Chat functionality coming soon!')}
-                                    >
-                                        <MaterialCommunityIcons
-                                            name="message-outline"
-                                            size={22}
-                                            color="#bfbfbf"
-                                        />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            {/* Description */}
-                            <Text style={styles.professionalDescription}>
-                                {trade.description || 'No description provided'}
-                            </Text>
-
-                            {/* Image Carousel */}
-                            {trade.imageUrls && trade.imageUrls.length > 0 && (
-                                <View style={styles.professionalImageContainer}>
-                                    <RNImage
-                                        source={{ uri: trade.imageUrls[currentPhotoIndex[tradeId] || 0] }}
-                                        style={styles.professionalImage}
-                                    />
-
-                                    {/* Navigation Arrows */}
-                                    {trade.imageUrls.length > 1 && (
-                                        <>
-                                            {/* Left Arrow */}
-                                            {(currentPhotoIndex[tradeId] || 0) > 0 && (
-                                                <TouchableOpacity
-                                                    style={[styles.professionalArrow, styles.professionalArrowLeft]}
-                                                    onPress={() => {
-                                                        const currentIndex = currentPhotoIndex[tradeId] || 0;
-                                                        setCurrentPhotoIndex({
-                                                            ...currentPhotoIndex,
-                                                            [tradeId]: currentIndex - 1
-                                                        });
-                                                    }}
-                                                >
-                                                    <MaterialCommunityIcons name="chevron-left" size={22} color="#fff" />
-                                                </TouchableOpacity>
-                                            )}
-
-                                            {/* Right Arrow */}
-                                            {(currentPhotoIndex[tradeId] || 0) < trade.imageUrls.length - 1 && (
-                                                <TouchableOpacity
-                                                    style={[styles.professionalArrow, styles.professionalArrowRight]}
-                                                    onPress={() => {
-                                                        const currentIndex = currentPhotoIndex[tradeId] || 0;
-                                                        setCurrentPhotoIndex({
-                                                            ...currentPhotoIndex,
-                                                            [tradeId]: currentIndex + 1
-                                                        });
-                                                    }}
-                                                >
-                                                    <MaterialCommunityIcons name="chevron-right" size={22} color="#fff" />
-                                                </TouchableOpacity>
-                                            )}
-
-                                            {/* Image Indicators (Dots) */}
-                                            <View style={styles.professionalIndicators}>
-                                                {trade.imageUrls.map((_, idx) => (
-                                                    <View
-                                                        key={idx}
-                                                        style={[
-                                                            styles.professionalDot,
-                                                            idx === (currentPhotoIndex[tradeId] || 0) && styles.professionalDotActive
-                                                        ]}
-                                                    />
-                                                ))}
-                                            </View>
-                                        </>
-                                    )}
-                                </View>
-                            )}
-
-                            {/* Info Grid */}
-                            <View style={styles.professionalInfoGrid}>
-                                <View style={styles.professionalInfoItem}>
-                                    <Text style={styles.professionalInfoLabel}>Revenue</Text>
-                                    <Text style={styles.professionalInfoValue}>
-                                        {trade.revenueStatus === 'revenue-generating' ? 'Revenue Generating' : 'Pre Revenue'}
-                                    </Text>
-                                </View>
-                                <View style={styles.professionalInfoItem}>
-                                    <Text style={styles.professionalInfoLabel}>Age</Text>
-                                    <Text style={styles.professionalInfoValue}>{trade.companyAge || 'N/A'}</Text>
-                                </View>
-                                <View style={styles.professionalInfoItem}>
-                                    <Text style={styles.professionalInfoLabel}>Range</Text>
-                                    <Text style={styles.professionalInfoValue}>
-                                        {trade.sellingRangeMin}% - {trade.sellingRangeMax}%
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* Industry Tags */}
-                            {trade.selectedIndustries && trade.selectedIndustries.length > 0 && (
-                                <View style={styles.professionalTags}>
-                                    {trade.selectedIndustries.map((industry, idx) => (
-                                        <View key={idx} style={styles.professionalTag}>
-                                            <Text style={styles.professionalTagText}>{industry}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-
-                            {/* Express Interest Button */}
-                            <TouchableOpacity style={styles.expressInterestButton}>
-                                <Text style={styles.expressInterestText}>Express Interest</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <TradeCard
+                            key={tradeId}
+                            trade={trade}
+                            isExpanded={isExpanded}
+                            isSaved={isSaved}
+                            currentPhotoIndex={currentPhotoIndex[tradeId] || 0}
+                            onToggleExpand={() => setExpandedBuyTradeId(isExpanded ? null : (tradeId as string | number))}
+                            onToggleSave={() => toggleSaveItem(String(tradeId))}
+                            onPhotoIndexChange={(index) => setCurrentPhotoIndex(prev => ({ ...prev, [tradeId]: index }))}
+                        />
                     );
                 })}
             </ScrollView>
@@ -1074,798 +786,5 @@ const Trading = () => {
         </SafeAreaView>
     );
 };
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#070707' },
-    headerContainer: { paddingHorizontal: 12, paddingTop: 12 },
-    tabsRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#1a1a1a',
-        position: 'relative',
-    },
-    tabItem: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 12,
-    },
-    tabText: {
-        color: '#999',
-        fontSize: 14,
-    },
-    tabTextActive: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    tabIndicator: {
-        position: 'absolute',
-        bottom: 0,
-        height: 3,
-        backgroundColor: '#fff',
-    },
-    searchRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f0f0f', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 24, gap: 8 },
-    searchInput: { flex: 1, color: '#fff' },
-    bookmarkBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f0f0f' },
-    bookmarkBtnActive: { backgroundColor: '#1a73e8' },
-    filterButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#0f0f0f',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        marginTop: 12,
-        gap: 8,
-    },
-    filterButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-        flex: 1,
-    },
-    pagerPage: { flex: 1 },
-
-    // Portfolio styles
-    portfolioHeader: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    portfolioCard: {
-        backgroundColor: '#0f0f0f',
-        marginHorizontal: 16,
-        marginVertical: 6,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#333',
-        overflow: 'hidden',
-    },
-    portfolioCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 16,
-    },
-    portfolioCompanyName: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    yearsBadge: {
-        backgroundColor: '#2a2a2a',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginLeft: 12,
-    },
-    yearsBadgeText: {
-        color: '#999',
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    portfolioExpanded: {
-        borderTopWidth: 1,
-        borderTopColor: '#222',
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-    },
-    formLabel: {
-        color: '#999',
-        fontSize: 13,
-        marginBottom: 8,
-        marginTop: 12,
-    },
-    rangeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-        gap: 12,
-    },
-    rangeInput: {
-        flex: 1,
-        backgroundColor: '#1a1a1a',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        color: '#fff',
-        fontSize: 14,
-    },
-    rangeToText: {
-        color: '#666',
-        fontSize: 14,
-    },
-    toggleRow: {
-        flexDirection: 'row',
-        marginBottom: 12,
-        gap: 8,
-    },
-    toggleButton: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: '#333',
-    },
-    toggleButtonActive: {
-        backgroundColor: '#2a2a2a',
-        borderColor: '#444',
-    },
-    toggleText: {
-        color: '#666',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    toggleTextActive: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    usernameInput: {
-        backgroundColor: '#0a0a0a',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        color: '#fff',
-        fontSize: 14,
-        marginBottom: 8,
-    },
-    linkRow: {
-        flexDirection: 'row',
-        marginBottom: 16,
-        gap: 8,
-    },
-    linkInput: {
-        backgroundColor: '#0a0a0a',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        color: '#fff',
-        fontSize: 14,
-    },
-    tagsScroll: {
-        maxHeight: 120,
-        marginBottom: 12,
-    },
-    tagsContent: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    tagChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-        backgroundColor: '#1a1a1a',
-        marginRight: 8,
-        marginBottom: 8,
-    },
-    tagChipActive: {
-        backgroundColor: '#fff',
-    },
-    tagChipText: {
-        color: '#999',
-        fontSize: 12,
-    },
-    tagChipTextActive: {
-        color: '#000',
-        fontWeight: '600',
-    },
-    descriptionInput: {
-        backgroundColor: '#0a0a0a',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        color: '#fff',
-        fontSize: 14,
-        minHeight: 80,
-        textAlignVertical: 'top',
-    },
-    uploadButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#2a2a2a',
-        borderRadius: 8,
-        paddingVertical: 12,
-        marginTop: 8,
-        gap: 8,
-    },
-    uploadButtonText: {
-        color: '#fff',
-        fontSize: 14,
-    },
-    imagePreviewContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginTop: 12,
-    },
-    imagePreview: {
-        width: 64,
-        height: 64,
-        borderRadius: 8,
-        overflow: 'hidden',
-        position: 'relative',
-    },
-    previewImage: {
-        width: '100%',
-        height: '100%',
-    },
-    removeImageButton: {
-        position: 'absolute',
-        top: 4,
-        right: 4,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        borderRadius: 12,
-        width: 24,
-        height: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    openTradeButton: {
-        backgroundColor: '#3a3a3a',
-        borderRadius: 8,
-        paddingVertical: 14,
-        alignItems: 'center',
-        marginTop: 16,
-    },
-    openTradeButtonText: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '600',
-    },
-
-    // Active Trades styles
-    tradeCard: {
-        backgroundColor: '#0f0f0f',
-        marginHorizontal: 16,
-        marginVertical: 6,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#333',
-        padding: 16,
-    },
-    tradeCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 12,
-    },
-    tradeAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#2a2a2a',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    tradeAvatarText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    tradeCompanyName: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    tradeBadge: {
-        backgroundColor: '#2a2a2a',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    tradeBadgeText: {
-        color: '#999',
-        fontSize: 10,
-    },
-    tradeUsername: {
-        color: '#999',
-        fontSize: 12,
-        marginTop: 2,
-    },
-    tradeMetaText: {
-        color: '#666',
-        fontSize: 11,
-        marginTop: 4,
-    },
-    tradeActionButton: {
-        padding: 8,
-        borderRadius: 8,
-        backgroundColor: '#1a1a1a',
-    },
-    tradeExpandedContent: {
-        marginTop: 16,
-        gap: 12,
-    },
-    tradeDescription: {
-        color: '#ccc',
-        fontSize: 13,
-        lineHeight: 18,
-    },
-    tradeMediaContainer: {
-        marginHorizontal: -16,
-    },
-    tradeMedia: {
-        aspectRatio: 16 / 9,
-        backgroundColor: '#1a1a1a',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    statCard: {
-        flex: 1,
-        minWidth: '48%',
-        backgroundColor: '#1a1a1a',
-        borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#2a2a2a',
-    },
-    statLabel: {
-        color: '#999',
-        fontSize: 11,
-        marginBottom: 4,
-    },
-    statValue: {
-        color: '#fff',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    tradeStats: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    tradeStatText: {
-        color: '#999',
-        fontSize: 12,
-    },
-
-    // Buy tab styles
-    categoriesContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        gap: 8,
-    },
-    categoryChip: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#1a1a1a',
-    },
-    categoryChipActive: {
-        backgroundColor: '#1a73e8',
-    },
-    categoryChipText: {
-        color: '#999',
-        fontSize: 13,
-    },
-    categoryChipTextActive: {
-        color: '#fff',
-        fontWeight: '600',
-    },
-    cardsList: { flex: 1 },
-    card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f0f0f', marginVertical: 8, marginHorizontal: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: '#333333' },
-    avatarWrap: { marginRight: 12 },
-    avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222' },
-    cardBody: { flex: 1 },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    companyName: { color: '#fff', fontWeight: '700' },
-    personName: { color: '#bfbfbf', fontSize: 12, marginTop: 4 },
-    tagline: { color: '#bfbfbf', fontSize: 12, marginTop: 6 },
-    iconBtn: { padding: 6 },
-
-    // BUY tab trade card styles
-    buyTradeCard: {
-        backgroundColor: '#0f0f0f',
-        marginHorizontal: 16,
-        marginVertical: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#333',
-        overflow: 'hidden',
-    },
-    buyTradeCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        padding: 16,
-    },
-    buyTradeAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#1a73e8',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    buyTradeAvatarText: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: '700',
-    },
-    buyTradeInfo: {
-        flex: 1,
-        marginRight: 12,
-    },
-    buyTradeCompanyName: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '700',
-        marginBottom: 2,
-    },
-    buyTradeUsername: {
-        color: '#999',
-        fontSize: 13,
-        marginBottom: 6,
-    },
-    buyTradeDescription: {
-        color: '#bfbfbf',
-        fontSize: 13,
-        lineHeight: 18,
-    },
-    buyTradeActions: {
-        flexDirection: 'column',
-        gap: 8,
-    },
-    buyTradeActionBtn: {
-        padding: 8,
-    },
-    buyTradeExpanded: {
-        paddingHorizontal: 16,
-        paddingBottom: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#222',
-    },
-    buyTradeAvatarImage: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        marginRight: 12,
-    },
-    investorDetailsSection: {
-        marginBottom: 16,
-    },
-    investorName: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 4,
-    },
-    investorUsername: {
-        color: '#999',
-        fontSize: 14,
-        marginBottom: 2,
-    },
-    investorTime: {
-        color: '#666',
-        fontSize: 12,
-    },
-    expandedDescription: {
-        color: '#bfbfbf',
-        fontSize: 14,
-        lineHeight: 22,
-        marginBottom: 16,
-    },
-    imageCarouselContainer: {
-        position: 'relative',
-        marginBottom: 16,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    carouselImage: {
-        width: '100%',
-        height: 250,
-        backgroundColor: '#1a1a1a',
-        borderRadius: 12,
-    },
-    carouselArrow: {
-        position: 'absolute',
-        top: '50%',
-        transform: [{ translateY: -20 }],
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10,
-    },
-    carouselArrowLeft: {
-        left: 12,
-    },
-    carouselArrowRight: {
-        right: 12,
-    },
-    imageIndicators: {
-        position: 'absolute',
-        bottom: 12,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 6,
-    },
-    indicator: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    },
-    indicatorActive: {
-        backgroundColor: '#fff',
-        width: 24,
-    },
-    imagesScrollContainer: {
-        marginBottom: 16,
-    },
-    imagesScrollContent: {
-        gap: 12,
-    },
-    tradeImage: {
-        width: 300,
-        height: 200,
-        borderRadius: 12,
-        backgroundColor: '#1a1a1a',
-    },
-    buyTradeSection: {
-        marginBottom: 16,
-    },
-    buyTradeSectionTitle: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-        marginBottom: 8,
-    },
-    buyTradeSectionText: {
-        color: '#bfbfbf',
-        fontSize: 13,
-        lineHeight: 20,
-    },
-    buyTradeIndustries: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    buyTradeIndustryTag: {
-        backgroundColor: '#1a1a1a',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-    },
-    buyTradeIndustryText: {
-        color: '#fff',
-        fontSize: 12,
-    },
-    buyTradeDetailsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-        marginBottom: 16,
-    },
-    buyTradeDetailItem: {
-        flex: 1,
-        minWidth: '45%',
-    },
-    buyTradeDetailLabel: {
-        color: '#999',
-        fontSize: 11,
-        marginBottom: 4,
-    },
-    buyTradeDetailValue: {
-        color: '#fff',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    buyTradeStats: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    buyTradeStatText: {
-        color: '#999',
-        fontSize: 12,
-    },
-
-    emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 32,
-    },
-    emptyTitle: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 8,
-    },
-    emptyText: {
-        color: '#666',
-        fontSize: 14,
-        textAlign: 'center',
-    },
-
-    // Professional Trade Card Styles
-    professionalTradeCard: {
-        backgroundColor: '#0a0a0a',
-        borderRadius: 16,
-        marginBottom: 20,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#1a1a1a',
-    },
-    professionalCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    professionalAvatar: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#1a1a1a',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    professionalAvatarText: {
-        color: '#fff',
-        fontSize: 24,
-        fontWeight: '700',
-    },
-    professionalCompanyInfo: {
-        flex: 1,
-    },
-    professionalCompanyName: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 2,
-    },
-    professionalUsername: {
-        color: '#999',
-        fontSize: 14,
-    },
-    professionalActions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    professionalActionBtn: {
-        width: 40,
-        height: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    professionalDescription: {
-        color: '#bfbfbf',
-        fontSize: 15,
-        lineHeight: 24,
-        marginBottom: 16,
-    },
-    professionalImageContainer: {
-        position: 'relative',
-        marginBottom: 16,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    professionalImage: {
-        width: '100%',
-        height: 300,
-        backgroundColor: '#1a1a1a',
-        borderRadius: 12,
-    },
-    professionalArrow: {
-        position: 'absolute',
-        top: '50%',
-        transform: [{ translateY: -18 }],
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10,
-    },
-    professionalArrowLeft: {
-        left: 16,
-    },
-    professionalArrowRight: {
-        right: 16,
-    },
-    professionalIndicators: {
-        position: 'absolute',
-        bottom: 12,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 6,
-    },
-    professionalDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    },
-    professionalDotActive: {
-        backgroundColor: '#fff',
-        width: 20,
-    },
-    professionalInfoGrid: {
-        flexDirection: 'row',
-        marginBottom: 16,
-        gap: 12,
-    },
-    professionalInfoItem: {
-        flex: 1,
-    },
-    professionalInfoLabel: {
-        color: '#999',
-        fontSize: 12,
-        marginBottom: 4,
-    },
-    professionalInfoValue: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    professionalTags: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginBottom: 20,
-    },
-    professionalTag: {
-        backgroundColor: '#1a1a1a',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 6,
-    },
-    professionalTagText: {
-        color: '#bfbfbf',
-        fontSize: 12,
-    },
-    expressInterestButton: {
-        backgroundColor: '#4a4a4a',
-        paddingVertical: 14,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    expressInterestText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-});
 
 export default Trading;
