@@ -40,7 +40,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
     const [error, setError] = useState<string | null>(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    
+
     // Pagination State
     const [backendSkip, setBackendSkip] = useState(0);
     const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -122,27 +122,60 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
         }));
     };
 
+    const CACHE_KEY = 'ATMOSPHERE_HOME_FEED_CACHE';
+
+    // Load cache on mount
+    useEffect(() => {
+        const loadCache = async () => {
+            try {
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    const rawData = JSON.parse(cached);
+                    console.log('[Home] Loaded cached feed:', rawData.length, 'items');
+                    // Normalize cached data (generates fresh IDs for this session)
+                    const normalized = normalizeData(rawData);
+                    setPosts(normalized);
+                    setBackendSkip(rawData.length);
+                    setLoading(false); // Show content immediately
+                    setInitialLoadDone(true);
+                }
+            } catch (e) {
+                console.error('[Home] Failed to load cache:', e);
+            }
+        };
+        loadCache();
+        // Then fetch fresh data
+        loadPosts(true);
+    }, []);
+
     const loadPosts = async (isRefresh = false) => {
         if (loadingMore && !isRefresh) return;
-        
+
         try {
-            if (isRefresh) {
+            // Only show full loader if we have NO data (and didn't load cache)
+            if (isRefresh && posts.length === 0 && !initialLoadDone) {
                 setLoading(true);
-                setError(null);
-            } else {
+            }
+            if (!isRefresh) {
                 setLoadingMore(true);
             }
+            if (isRefresh) setError(null);
 
             // If refresh, start from 0. Else use current backendSkip.
             let skipToUse = isRefresh ? 0 : backendSkip;
-            
+
             // Fetch logic with loop check
             let data = await fetchStartupPosts(PAGE_SIZE, skipToUse);
             let nextSkip = skipToUse + data.length;
 
+            // Cache Logic: If this is the first page of fresh data, save it
+            if (isRefresh && skipToUse === 0 && data.length > 0) {
+                AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data)).catch(e =>
+                    console.error('[Home] Failed to save cache', e)
+                );
+            }
+
             // Loop Logic: If we got fewer items than requested (or 0), we reached the end.
-            // But if we have duplicates or empty backend, we might spiral.
-            // Strategy: If 0 items returned && we have existing posts, fetch from 0 again.
             if (data.length === 0 && posts.length > 0 && !isRefresh) {
                 console.log('[Home] Reached end of feed, looping back to start');
                 skipToUse = 0;
@@ -159,22 +192,18 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 setPosts(prev => [...prev, ...normalized]);
                 setBackendSkip(nextSkip);
             }
-            
+
             setInitialLoadDone(true);
 
         } catch (err) {
             console.error('Failed to fetch posts:', err);
-            if (isRefresh) setError('Failed to load posts');
+            // If error on refresh, only show error if we have NO posts (cache failed too)
+            if (isRefresh && posts.length === 0) setError('Failed to load posts');
         } finally {
             setLoading(false);
             setLoadingMore(false);
         }
     };
-
-    // Initial load
-    useEffect(() => {
-        loadPosts(true);
-    }, []);
 
     const renderFooter = () => {
         if (!loadingMore) return <View style={{ height: BOTTOM_NAV_HEIGHT + 50 }} />;
