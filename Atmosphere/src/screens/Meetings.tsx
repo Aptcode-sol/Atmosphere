@@ -3,6 +3,7 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Activity
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl } from '../lib/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import MeetingsVideoCall from './MeetingsVideoCall';
 /* eslint-disable react-native/no-inline-styles */
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
@@ -23,7 +24,8 @@ type Meeting = {
     description?: string;
     organizer?: any;
     scheduledAt?: string | Date;
-    participantsDetail?: any[];
+        meetingLink?: string;
+        participantsDetail?: any[];
 };
 
 const MeetingCard = ({ meeting, onJoin, joinLabel = 'Join', disabled = false, showRemove: _showRemove = false, onRemove: _onRemove }: any) => {
@@ -115,11 +117,13 @@ const Meetings = () => {
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [myMeetings, setMyMeetings] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
-    const [_error, _setError] = useState<string | null>(null);
+    const [_error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchBar, setShowSearchBar] = useState(false);
     const [userRole, setUserRole] = useState<string>('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showVideoModal, setShowVideoModal] = useState(false);
+    const [videoMeetingId, setVideoMeetingId] = useState<string | null>(null);
     const [createForm, setCreateForm] = useState({
         title: '',
         description: '',
@@ -310,6 +314,10 @@ const Meetings = () => {
             console.log('Successfully joined meeting');
             setMyMeetings(prev => [...prev, String(meeting._id || meeting.id)]);
             setActiveTab('my');
+            // Open the video modal to join the live call (if meeting has meetingLink or id)
+            const mId = meeting.meetingLink || meeting._id || meeting.id;
+            setVideoMeetingId(String(mId));
+            setShowVideoModal(true);
         } catch (err) {
             console.error('handleJoin ERROR:', err);
             setError(err instanceof Error ? err.message : String(err));
@@ -520,6 +528,8 @@ const Meetings = () => {
                     </View>
                 </View>
             </Modal>
+            {/* Video Meeting Modal */}
+            <MeetingsVideoCall visible={showVideoModal} onClose={() => setShowVideoModal(false)} />
         </View>
     );
 };
