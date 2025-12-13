@@ -134,7 +134,7 @@ const LandingPage = () => {
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             {renderContent()}
-            {!selectedPostId && !selectedChatId && <BottomNav activeRoute={mapRouteToBottom(route)} onRouteChange={(r) => {
+            {!selectedChatId && <BottomNav activeRoute={mapRouteToBottom(route)} onRouteChange={(r) => {
                 // Clear any overlay states for immediate navigation
                 setSelectedPostId(null);
                 setSelectedChatId(null);

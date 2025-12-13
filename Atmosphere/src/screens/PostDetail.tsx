@@ -5,15 +5,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl, DEFAULT_BASE_URL } from '../lib/config';
 import { getImageSource } from '../lib/image';
-
-
-
+import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 
 type PostDetailProps = {
   route: { params: { postId: string } };
   navigation?: { goBack?: () => void };
 };
-
 
 const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ route, navigation, onBackPress }) => {
   const { theme } = useContext(ThemeContext);
@@ -46,7 +43,6 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         const data = await res.json();
         const postData = data.post || data;
         setPost(postData);
-        // Set liked state if available from backend (e.g., postData.likedByUser)
         if (typeof postData.likedByUser === 'boolean') {
           setLiked(postData.likedByUser);
         }
@@ -155,9 +151,7 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         body: JSON.stringify({ text: commentText })
       });
       const data = await res.json();
-      // Instantly show new comment at top
       setComments((prev) => [data.comment || data, ...prev]);
-      // Prefer server returned counts
       const newCount = data?.commentsCount ?? data?.comments?.length ?? undefined;
       setPost((prev: any) => ({ ...prev, commentsCount: typeof newCount === 'number' ? newCount : ((prev.commentsCount || 0) + 1) }));
       setCommentText('');
@@ -208,136 +202,188 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
     setShareLoading(false);
   };
 
+  const goBack = () => {
+    if (navigation && navigation.goBack) navigation.goBack();
+    else if (onBackPress) onBackPress();
+  };
+
   if (loading) {
     return (
-      <SafeAreaView style={[styles.flex1, { backgroundColor: theme.background }]}>
-        <ActivityIndicator style={styles.flex1} color={theme.primary} />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
       </SafeAreaView>
     );
   }
+
   if (!post) {
     return (
-      <SafeAreaView style={[styles.flex1, { backgroundColor: theme.background }]}>
-        <View style={styles.center}><Text style={{ color: theme.text }}>Post not found.</Text></View>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={goBack} style={styles.backBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Post</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.centerContent}>
+          <Text style={{ color: theme.text }}>Post not found.</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  return (
-    <SafeAreaView style={[styles.flex1, { backgroundColor: theme.background }]}>
-      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            if (navigation && navigation.goBack) navigation.goBack();
-            else if (onBackPress) onBackPress();
-          }}
-        >
-          <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
-        </TouchableOpacity>
+  const authorName = post.author?.displayName || post.author?.username || 'Unknown';
+  const authorImage = post.author?.profileImage || post.author?.avatarUrl || 'https://via.placeholder.com/100x100.png?text=User';
 
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Post</Text>
+        <TouchableOpacity onPress={handleSave} style={styles.headerRight}>
+          <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={24} color={theme.text} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 80 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Author Row */}
-        {post.author && (
-          <View style={styles.authorRow}>
-            <Image source={getImageSource(post.author.profileImage || 'https://via.placeholder.com/100x100.png?text=User')} style={styles.authorAvatar} />
-            <View>
-              <Text style={[styles.authorName, { color: theme.text }]}>{post.author.displayName || post.author.username}</Text>
-              {post.createdAt && (
-                <Text style={[styles.timestamp, { color: theme.placeholder }]}>Posted {new Date(post.createdAt).toLocaleString()}</Text>
-              )}
-            </View>
+        <View style={styles.authorRow}>
+          <Image source={getImageSource(authorImage)} style={styles.authorAvatar} />
+          <View style={styles.authorInfo}>
+            <Text style={[styles.authorName, { color: theme.text }]}>{authorName}</Text>
+            {post.createdAt && (
+              <Text style={[styles.timestamp, { color: theme.placeholder }]}>
+                {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </Text>
+            )}
           </View>
-        )}
+          <TouchableOpacity style={[styles.followBtn, { borderColor: theme.primary }]}>
+            <Text style={[styles.followBtnText, { color: theme.primary }]}>Follow</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Image Slider */}
-        <FlatList
-          data={images}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(_, idx) => `img-${idx}`}
-          renderItem={({ item }) => (
-            <Image source={getImageSource(item)} style={[styles.image, { width: windowWidth }, styles.imageFixedHeight]} resizeMode="cover" onError={(e) => { console.warn('PostDetail image error', e.nativeEvent, item); }} />
-          )}
-          onMomentumScrollEnd={e => {
-            const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
-            setActiveImage(index);
-          }}
-        />
-        {/* Image indicators */}
-        {images.length > 1 && (
-          <View style={styles.dotsRow}>
-            {images.map((_, idx) => (
-              <View key={idx} style={[styles.dot, activeImage === idx && styles.dotActive]} />
-            ))}
-          </View>
+        {images.length > 0 && (
+          <>
+            <FlatList
+              data={images}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(_, idx) => `img-${idx}`}
+              renderItem={({ item }) => (
+                <View style={[styles.imageContainer, { width: windowWidth }]}>
+                  <Image
+                    source={getImageSource(item)}
+                    style={styles.postImage}
+                    resizeMode="cover"
+                    onError={(e) => { console.warn('PostDetail image error', e.nativeEvent, item); }}
+                  />
+                </View>
+              )}
+              onMomentumScrollEnd={e => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+                setActiveImage(index);
+              }}
+            />
+            {/* Image indicators */}
+            {images.length > 1 && (
+              <View style={styles.dotsRow}>
+                {images.map((_, idx) => (
+                  <View key={idx} style={[styles.dot, activeImage === idx && styles.dotActive]} />
+                ))}
+              </View>
+            )}
+          </>
         )}
 
         {/* Action Buttons */}
-        <View style={styles.actionsRow}>
+        <View style={[styles.actionsRow, { borderColor: theme.border }]}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleLike} disabled={likeLoading}>
-            <MaterialCommunityIcons name={liked ? "heart" : "heart-outline"} size={28} color={liked ? 'red' : theme.text} />
+            <MaterialCommunityIcons name={liked ? "heart" : "heart-outline"} size={26} color={liked ? '#FF3B5C' : theme.text} />
+            <Text style={[styles.actionCount, { color: theme.text }]}>{post.likesCount || 0}</Text>
           </TouchableOpacity>
-          <Text style={styles.actionCount}>{post.likesCount || 0}</Text>
 
           <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments((v) => !v)}>
-            <MaterialCommunityIcons name="comment-outline" size={28} color={theme.text} />
+            <MaterialCommunityIcons name="comment-outline" size={26} color={showComments ? theme.primary : theme.text} />
+            <Text style={[styles.actionCount, { color: theme.text }]}>{post.commentsCount || 0}</Text>
           </TouchableOpacity>
-          <Text style={styles.actionCount}>{post.commentsCount || 0}</Text>
 
           <TouchableOpacity style={styles.actionBtn} onPress={handleShare} disabled={shareLoading}>
-            <MaterialCommunityIcons name="share-outline" size={28} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={styles.actionCount}>{post.sharesCount || 0}</Text>
-
-          <View style={styles.flex1} />
-          <TouchableOpacity style={styles.actionBtn} onPress={handleSave}>
-            <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={28} color={theme.text} />
+            <MaterialCommunityIcons name="share-outline" size={26} color={theme.text} />
+            <Text style={[styles.actionCount, { color: theme.text }]}>{post.sharesCount || 0}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Content/Caption */}
-        {post.content && <Text style={[styles.content, { color: theme.text }]}>{post.content}</Text>}
+        {post.content && (
+          <View style={styles.contentContainer}>
+            <Text style={[styles.content, { color: theme.text }]}>{post.content}</Text>
+          </View>
+        )}
 
         {/* Tags */}
         {post.tags && post.tags.length > 0 && (
           <View style={styles.tagsRow}>
             {post.tags.map((tag: string, idx: number) => (
-              <Text key={idx} style={[styles.tag, { color: theme.primary }]}>#{tag} </Text>
+              <View key={idx} style={[styles.tagChip, { backgroundColor: theme.cardBackground || '#1a1a1a' }]}>
+                <Text style={[styles.tagText, { color: theme.primary }]}>#{tag}</Text>
+              </View>
             ))}
           </View>
         )}
 
-        {/* Comments Section (toggle) */}
+        {/* Comments Section */}
         {showComments && (
-          <View style={styles.commentsSection}>
+          <View style={[styles.commentsSection, { borderTopColor: theme.border }]}>
             <Text style={[styles.commentsTitle, { color: theme.text }]}>Comments</Text>
-            <View style={styles.commentInputRow}>
+
+            {/* Comment Input */}
+            <View style={[styles.commentInputRow, { backgroundColor: theme.cardBackground || '#1a1a1a' }]}>
               <TextInput
-                style={[styles.commentInput, { color: theme.text, borderColor: theme.border }]}
+                style={[styles.commentInput, { color: theme.text }]}
                 placeholder="Add a comment..."
                 placeholderTextColor={theme.placeholder}
                 value={commentText}
                 onChangeText={setCommentText}
                 editable={!commentSubmitting}
               />
-              <TouchableOpacity onPress={handleCommentSubmit} disabled={commentSubmitting || !commentText.trim()}>
-                <MaterialCommunityIcons name="send" size={24} color={theme.primary} />
+              <TouchableOpacity
+                onPress={handleCommentSubmit}
+                disabled={commentSubmitting || !commentText.trim()}
+                style={[styles.sendBtn, { backgroundColor: commentText.trim() ? theme.primary : theme.border }]}
+              >
+                <MaterialCommunityIcons name="send" size={18} color={commentText.trim() ? '#fff' : theme.placeholder} />
               </TouchableOpacity>
             </View>
+
+            {/* Comments List */}
             {commentsLoading ? (
-              <ActivityIndicator color={theme.primary} />
+              <ActivityIndicator color={theme.primary} style={{ marginTop: 16 }} />
             ) : (
               comments.length === 0 ? (
-                <Text style={[{ color: theme.placeholder }, styles.margin8]}>No comments yet.</Text>
+                <Text style={[styles.noComments, { color: theme.placeholder }]}>No comments yet. Be the first to comment!</Text>
               ) : (
                 comments.map((c, idx) => (
                   <View key={c._id || idx} style={styles.commentRow}>
                     <Image source={getImageSource(c.author?.avatarUrl || 'https://via.placeholder.com/40x40.png?text=U')} style={styles.commentAvatar} />
-                    <View style={styles.flex1}>
-                      <Text style={[styles.commentAuthor, { color: theme.text }]}>{c.author?.displayName || c.author?.username || 'User'}</Text>
+                    <View style={styles.commentContent}>
+                      <View style={styles.commentHeader}>
+                        <Text style={[styles.commentAuthor, { color: theme.text }]}>{c.author?.displayName || c.author?.username || 'User'}</Text>
+                        <Text style={[styles.commentTime, { color: theme.placeholder }]}>
+                          {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </Text>
+                      </View>
                       <Text style={[styles.commentText, { color: theme.text }]}>{c.text}</Text>
-                      <Text style={[styles.commentTimestamp, { color: theme.placeholder }]}>{new Date(c.createdAt).toLocaleString()}</Text>
                     </View>
                   </View>
                 ))
@@ -351,39 +397,211 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  image: { width: '100%', height: 400, backgroundColor: '#e0e0e0' },
-  content: { fontSize: 16, marginHorizontal: 16, marginBottom: 16 },
-  likes: { fontWeight: 'bold', marginHorizontal: 16, marginBottom: 8, fontSize: 15 },
-  authorRow: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  authorAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10, backgroundColor: '#ccc' },
-  authorName: { fontWeight: 'bold', fontSize: 16 },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, marginVertical: 8, elevation: 2 },
-  actionBtn: { marginRight: 8, alignItems: 'center', justifyContent: 'center' },
-  actionCount: { fontSize: 13, fontWeight: '500', marginRight: 12, minWidth: 24, textAlign: 'center', color: '#fff' },
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginVertical: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbb', marginHorizontal: 3 },
-  dotActive: { backgroundColor: '#333' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  backButton: { marginTop: 16, marginLeft: 16, marginBottom: 8, alignSelf: 'flex-start' },
-  backText: { fontSize: 16, fontWeight: '500' },
-  countsRow: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 16, marginBottom: 8 },
-  countText: { fontSize: 14, fontWeight: '500' },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 16, marginBottom: 4 },
-  tag: { fontSize: 13, fontWeight: '500', marginRight: 8 },
-  timestamp: { fontSize: 12, marginHorizontal: 16, marginBottom: 8 },
-  commentsSection: { marginTop: 16, marginHorizontal: 16, marginBottom: 32 },
-  commentsTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
-  commentInputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  commentInput: { flex: 1, borderWidth: 1, borderRadius: 20, padding: 8, fontSize: 14, marginRight: 8 },
-  commentRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  commentAvatar: { width: 32, height: 32, borderRadius: 16, marginRight: 8, backgroundColor: '#ccc' },
-  commentAuthor: { fontWeight: 'bold', fontSize: 13 },
-  commentText: { fontSize: 14 },
-  commentTimestamp: { fontSize: 11, color: '#888' },
-  flex1: { flex: 1 },
-  imageFixedHeight: { height: 400 },
-  margin8: { margin: 8 },
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerRight: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  authorAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#333',
+  },
+  authorInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  authorName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timestamp: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  followBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  followBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  imageContainer: {
+    aspectRatio: 1,
+    backgroundColor: '#1a1a1a',
+  },
+  postImage: {
+    width: '100%',
+    height: '100%',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#555',
+    marginHorizontal: 4,
+  },
+  dotActive: {
+    backgroundColor: '#1FADFF',
+    width: 24,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 24,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionCount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  content: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 16,
+  },
+  tagChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  tagText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  commentsSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  commentsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  commentInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    paddingLeft: 16,
+    paddingRight: 4,
+    paddingVertical: 4,
+  },
+  commentInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 8,
+  },
+  sendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noComments: {
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+    fontSize: 14,
+  },
+  commentRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+  },
+  commentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#333',
+  },
+  commentContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  commentAuthor: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  commentTime: {
+    fontSize: 12,
+  },
+  commentText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
 });
 
 export default PostDetail;
