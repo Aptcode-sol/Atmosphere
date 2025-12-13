@@ -1,0 +1,672 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#070707' },
+    headerContainer: { paddingHorizontal: 16, paddingTop: 12 },
+    tabsRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#1a1a1a',
+        position: 'relative',
+    },
+    tabItem: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: 12,
+    },
+    tabText: {
+        color: '#999',
+        fontSize: 14,
+    },
+    tabTextActive: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    tabIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        height: 3,
+        backgroundColor: '#fff',
+    },
+    searchRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
+    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f0f0f', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 24, gap: 8 },
+    searchInput: { flex: 1, color: '#fff' },
+    bookmarkBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f0f0f' },
+    bookmarkBtnActive: { backgroundColor: '#1a73e8' },
+    filterButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#0f0f0f',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        marginTop: 12,
+        gap: 8,
+    },
+    filterButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+    },
+    pagerPage: { flex: 1 },
+
+    // Portfolio styles
+    portfolioHeader: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    portfolioCard: {
+        backgroundColor: '#0f0f0f',
+        marginHorizontal: 16,
+        marginVertical: 6,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#333',
+        overflow: 'hidden',
+    },
+    portfolioCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+    },
+    portfolioCompanyName: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    yearsBadge: {
+        backgroundColor: '#2a2a2a',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginLeft: 12,
+    },
+    yearsBadgeText: {
+        color: '#999',
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    portfolioExpanded: {
+        borderTopWidth: 1,
+        borderTopColor: '#222',
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+    },
+    formLabel: {
+        color: '#999',
+        fontSize: 13,
+        marginBottom: 8,
+        marginTop: 12,
+    },
+    rangeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+        gap: 12,
+    },
+    rangeInput: {
+        flex: 1,
+        backgroundColor: '#1a1a1a',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        color: '#fff',
+        fontSize: 14,
+    },
+    rangeToText: {
+        color: '#666',
+        fontSize: 14,
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        marginBottom: 12,
+        gap: 8,
+    },
+    toggleButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    toggleButtonActive: {
+        backgroundColor: '#2a2a2a',
+        borderColor: '#444',
+    },
+    toggleText: {
+        color: '#666',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    toggleTextActive: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    usernameInput: {
+        backgroundColor: '#0a0a0a',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        color: '#fff',
+        fontSize: 14,
+        marginBottom: 8,
+    },
+    linkRow: {
+        flexDirection: 'row',
+        marginBottom: 16,
+        gap: 8,
+    },
+    linkInput: {
+        backgroundColor: '#0a0a0a',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        color: '#fff',
+        fontSize: 14,
+    },
+    tagsScroll: {
+        maxHeight: 120,
+        marginBottom: 12,
+    },
+    tagsContent: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    tagChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: '#1a1a1a',
+        marginRight: 8,
+        marginBottom: 8,
+    },
+    tagChipActive: {
+        backgroundColor: '#fff',
+    },
+    tagChipText: {
+        color: '#999',
+        fontSize: 12,
+    },
+    tagChipTextActive: {
+        color: '#000',
+        fontWeight: '600',
+    },
+    descriptionInput: {
+        backgroundColor: '#0a0a0a',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        color: '#fff',
+        fontSize: 14,
+        minHeight: 80,
+        textAlignVertical: 'top',
+    },
+    uploadButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#2a2a2a',
+        borderRadius: 8,
+        paddingVertical: 12,
+        marginTop: 8,
+        gap: 8,
+    },
+    uploadButtonText: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    imagePreviewContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 12,
+    },
+    imagePreview: {
+        width: 64,
+        height: 64,
+        borderRadius: 8,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    previewImage: {
+        width: '100%',
+        height: '100%',
+    },
+    removeImageButton: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderRadius: 12,
+        width: 24,
+        height: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    openTradeButton: {
+        backgroundColor: '#3a3a3a',
+        borderRadius: 8,
+        paddingVertical: 14,
+        alignItems: 'center',
+        marginTop: 16,
+    },
+    openTradeButtonText: {
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: '600',
+    },
+
+    // Active Trades styles
+    tradeCard: {
+        backgroundColor: '#0f0f0f',
+        marginHorizontal: 16,
+        marginVertical: 6,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#333',
+        padding: 16,
+    },
+    tradeCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+    },
+    tradeAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#2a2a2a',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tradeAvatarText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    tradeCompanyName: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    tradeBadge: {
+        backgroundColor: '#2a2a2a',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    tradeBadgeText: {
+        color: '#999',
+        fontSize: 10,
+    },
+    tradeUsername: {
+        color: '#999',
+        fontSize: 12,
+        marginTop: 2,
+    },
+    tradeMetaText: {
+        color: '#666',
+        fontSize: 11,
+        marginTop: 4,
+    },
+    tradeActionButton: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#1a1a1a',
+    },
+    tradeExpandedContent: {
+        marginTop: 16,
+        gap: 12,
+    },
+    tradeDescription: {
+        color: '#ccc',
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    tradeMediaContainer: {
+        marginHorizontal: -16,
+    },
+    tradeMedia: {
+        aspectRatio: 16 / 9,
+        backgroundColor: '#1a1a1a',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    statCard: {
+        flex: 1,
+        minWidth: '48%',
+        backgroundColor: '#1a1a1a',
+        borderRadius: 8,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#2a2a2a',
+    },
+    statLabel: {
+        color: '#999',
+        fontSize: 11,
+        marginBottom: 4,
+    },
+    statValue: {
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    tradeStats: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    tradeStatText: {
+        color: '#999',
+        fontSize: 12,
+    },
+
+    // Buy tab styles
+    categoriesContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 8,
+    },
+    categoryChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#1a1a1a',
+    },
+    categoryChipActive: {
+        backgroundColor: '#1a73e8',
+    },
+    categoryChipText: {
+        color: '#999',
+        fontSize: 13,
+    },
+    categoryChipTextActive: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    cardsList: { flex: 1 },
+    card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f0f0f', marginVertical: 8, marginHorizontal: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: '#333333' },
+    avatarWrap: { marginRight: 12 },
+    avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222' },
+    cardBody: { flex: 1 },
+    cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    companyName: { color: '#fff', fontWeight: '700' },
+    personName: { color: '#bfbfbf', fontSize: 12, marginTop: 4 },
+    tagline: { color: '#bfbfbf', fontSize: 12, marginTop: 6 },
+    iconBtn: { padding: 6 },
+
+    emptyContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 32,
+    },
+    emptyTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 8,
+    },
+    emptyText: {
+        color: '#666',
+        fontSize: 14,
+        textAlign: 'center',
+    },
+
+    suggestedHeading: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+        marginTop: 20,
+        marginBottom: 16,
+        paddingHorizontal: 16,
+    },
+
+    // Collapsed Card Styles - Matching Active Trades Structure
+    collapsedCardRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+    },
+    expandedCardHeader: {
+        alignItems: 'center', // Centers Name with Avatar when expanded
+    },
+    collapsedAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#2a2a2a',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    collapsedAvatarText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    collapsedCompanyInfo: {
+        flex: 1,
+    },
+    collapsedNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+    },
+    collapsedCompanyName: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    collapsedDescription: {
+        color: '#666',
+        fontSize: 11,
+        marginTop: 4, // Matching tradeMetaText/tradeUsername spacing
+    },
+    collapsedActions: {
+        flexDirection: 'row', // Matching Active Trades structure
+        gap: 8,
+    },
+    collapsedActionBtn: {
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#1a1a1a',
+    },
+    collapsedBookmarkBtn: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    collapsedUsername: {
+        color: '#999',
+        fontSize: 13,
+        marginRight: 8,
+    },
+    collapsedDescriptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 72,
+    },
+    collapsedChatBtn: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    // Professional Trade Card Styles - Updated to match tradeCard
+    professionalTradeCard: {
+        backgroundColor: '#0f0f0f', // Matching tradeCard bg
+        borderRadius: 12,
+        marginBottom: 12, // slightly different as this is a list
+        padding: 16, // Matching tradeCard padding
+        borderWidth: 1,
+        borderColor: '#333', // Matching tradeCard border
+        marginHorizontal: 16, // Added margin to increase side padding
+    },
+    professionalCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    professionalAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#1a1a1a',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 10,
+    },
+    professionalAvatarText: {
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: '700',
+    },
+    professionalCompanyInfo: {
+        flex: 1,
+    },
+    professionalCompanyName: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 2,
+    },
+    professionalUsername: {
+        color: '#999',
+        fontSize: 13,
+    },
+    professionalActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    professionalActionBtn: {
+        width: 36,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    professionalDescription: {
+        color: '#bfbfbf',
+        fontSize: 14,
+        lineHeight: 20,
+        marginBottom: 10,
+    },
+    professionalImageContainer: {
+        position: 'relative',
+        marginBottom: 10,
+        borderRadius: 10,
+        overflow: 'hidden',
+    },
+    professionalImage: {
+        width: '100%',
+        height: 320, // Increased height for better visibility
+        backgroundColor: '#1a1a1a',
+        borderRadius: 10,
+    },
+    professionalArrow: {
+        position: 'absolute',
+        top: '50%',
+        transform: [{ translateY: -18 }],
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10,
+    },
+    professionalArrowLeft: {
+        left: 16,
+    },
+    professionalArrowRight: {
+        right: 16,
+    },
+    professionalIndicators: {
+        position: 'absolute',
+        bottom: 12,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 6,
+    },
+    professionalDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    },
+    professionalDotActive: {
+        backgroundColor: '#fff',
+        width: 20,
+    },
+    professionalInfoGrid: {
+        flexDirection: 'row',
+        marginBottom: 16,
+        gap: 12,
+    },
+    professionalInfoItem: {
+        flex: 1,
+    },
+    professionalInfoLabel: {
+        color: '#999',
+        fontSize: 12,
+        marginBottom: 4,
+    },
+    professionalInfoValue: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    professionalTags: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 20,
+    },
+    professionalTag: {
+        backgroundColor: '#1a1a1a',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+    },
+    professionalTagText: {
+        color: '#bfbfbf',
+        fontSize: 12,
+    },
+    expandedDescription: {
+        color: '#e0e0e0',
+        fontSize: 14,
+        lineHeight: 20,
+        marginBottom: 16,
+        marginTop: 12,
+    },
+    expressInterestButton: {
+        backgroundColor: '#4a4a4a',
+        paddingVertical: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    expressInterestText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+});

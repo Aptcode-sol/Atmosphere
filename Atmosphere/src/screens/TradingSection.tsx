@@ -1,137 +1,906 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
-import { fetchMarkets, placeOrder } from '../lib/api';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, fetchInvestors } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { launchImageLibrary } from 'react-native-image-picker';
 
+// Import modular files
+import { categories, Investment, InvestorPortfolio } from './Trading/types';
+import { styles } from './Trading/styles';
+import { TradingForm } from './Trading/components/TradingForm';
+import { TradeCard } from './Trading/components/TradeCard';
+// import { FilterBar } from './Trading/components/FilterBar';
+// import { getYearsAgo } from './Trading/utils';
 
+const { width: screenW } = Dimensions.get('window');
+
+// Constants and types now imported from Trading/types.ts
+
+// Investment and InvestorPortfolio interfaces now imported from Trading/types.ts
+
+interface ActiveTrade {
+    _id?: string;
+    id?: number;
+    companyId: string;
+    companyName: string;
+    companyType: string[];
+    companyAge: string;
+    revenueStatus: "revenue-generating" | "pre-revenue";
+    description: string;
+    startupUsername: string;
+    sellingRangeMin: number;
+    sellingRangeMax: number;
+    videoUrl?: string;
+    imageUrls: string[];
+    views: number;
+    saves: number;
+    isEdited: boolean;
+    isManualEntry: boolean;
+    selectedIndustries: string[];
+    externalLinkHeading?: string;
+    externalLinkUrl?: string;
+}
 
 const Trading = () => {
-    const [markets, setMarkets] = useState<any[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+    // Data State
+    const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
-        (async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const m = await fetchMarkets();
-                setMarkets(Array.isArray(m) ? m : []);
-            } catch (e: any) {
-                console.warn('Failed to load markets', e);
-                setError(e?.message || 'Failed to load markets');
-            } finally {
-                setLoading(false);
+    // UI State
+    const [activeTab, setActiveTab] = useState<'Data' | 'Buy' | 'Sell' | 'Leaderboard'>('Data');
+    const [searchValue, setSearchValue] = useState('');
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+    // Buy/Sell specific states
+    const [buyTrades, setBuyTrades] = useState<any[]>([]);
+    const [buyLoading, setBuyLoading] = useState(false);
+    const [investors, setInvestors] = useState<InvestorPortfolio[]>([]);
+    const [investorsLoading, setInvestorsLoading] = useState<boolean>(true);
+    const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
+    const pagerRef = useRef<any>(null);
+    const scrollX = useRef(new Animated.Value(0)).current;
+
+    // SELL tab - Portfolio form state
+    const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
+    const [sellingRangeMin, setSellingRangeMin] = useState<number>(10);
+    const [sellingRangeMax, setSellingRangeMax] = useState<number>(40);
+    const [companyAge, setCompanyAge] = useState<string>('');
+    const [revenueStatus, setRevenueStatus] = useState<"revenue-generating" | "pre-revenue">("pre-revenue");
+    const [description, setDescription] = useState<string>('');
+    const [startupUsername, setStartupUsername] = useState<string>('');
+    const [isManualEntry, setIsManualEntry] = useState<boolean>(false);
+    const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
+    const [companyType] = useState<string[]>([]);
+    const [videoUri, setVideoUri] = useState<string>('');
+    const [imageUris, setImageUris] = useState<string[]>([]);
+    const [externalLinkHeading, setExternalLinkHeading] = useState<string>('');
+    const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
+    const [selectedCompanyName, setSelectedCompanyName] = useState<string>('');
+    const [selectedCompanyAge, setSelectedCompanyAge] = useState<string>('');
+    const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+
+    // Active trades
+    const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>([]);
+    const [expandedTradeId, setExpandedTradeId] = useState<string | number | null>(null);
+    const [currentPhotoIndex, setCurrentPhotoIndex] = useState<{ [key: string]: number }>({});
+
+    // BUY tab state
+    const [showSavedOnly, setShowSavedOnly] = useState(false);
+    const [savedItems, setSavedItems] = useState<string[]>([]);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+    // BUY TAB Pagination State
+    const [buySkip, setBuySkip] = useState(0);
+    const [buyHasMore, setBuyHasMore] = useState(true);
+
+    const [buyInitialLoadDone, setBuyInitialLoadDone] = useState(false);
+    const [expandedBuyTradeId, setExpandedBuyTradeId] = useState<string | number | null>(null);
+
+    const BUY_LIMIT = 20;
+
+    // Fetch Buy Trades
+    const fetchBuyTrades = React.useCallback(async (reset = false) => {
+        if (reset) {
+            setBuyLoading(true);
+            setBuySkip(0);
+        }
+
+        const currentSkip = reset ? 0 : buySkip;
+
+        try {
+            const filters: any = {};
+            if (searchValue) filters.q = searchValue;
+            if (selectedCategories.length > 0) filters.industries = selectedCategories.join(',');
+
+            const data = await getAllTrades(BUY_LIMIT, currentSkip, filters);
+
+            if (reset) {
+                setBuyTrades(data);
+                // Update Cache only on fresh load 
+                AsyncStorage.setItem('ATMOSPHERE_TRADES_BUY_CACHE', JSON.stringify(data)).catch(() => { });
+            } else {
+                setBuyTrades(prev => [...prev, ...data]);
             }
+
+            setBuyHasMore(data.length >= BUY_LIMIT);
+            setBuySkip(currentSkip + BUY_LIMIT);
+        } catch (e) {
+            console.warn('Failed to load buy trades', e);
+        } finally {
+            setBuyLoading(false);
+        }
+    }, [buySkip, searchValue, selectedCategories]);
+
+    // Refresh Logic (Merged)
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        try {
+            if (activeTab === 'Buy') {
+                await fetchBuyTrades(true);
+            } else {
+                // Refresh Sell Tab components
+                await Promise.all([
+                    getMyTrades().then(t => setActiveTrades(t)).catch(console.warn),
+                    fetchInvestors().then(i => setInvestors(i)).catch(console.warn)
+                ]);
+            }
+        } catch (e) {
+            console.warn('Refresh error', e);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [activeTab, fetchBuyTrades]);
+
+
+
+    // ... existing load active trades logic ...
+
+    // BUY TAB: Load Cache & Initial Fetch
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                // Load Cache
+                const cached = await AsyncStorage.getItem('ATMOSPHERE_TRADES_BUY_CACHE');
+                if (cached && mounted) {
+                    setBuyTrades(JSON.parse(cached));
+                    setBuyInitialLoadDone(true);
+                }
+            } catch { /* ignore */ }
+
+            // Allow fetch to proceed if no cache or after cache load
+            if (mounted) setBuyInitialLoadDone(true);
         })();
+        return () => { mounted = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleBuy = async (assetId: string) => {
+    // Fetch Investors (Sell Tab)
+    useEffect(() => {
+        let mounted = true;
+        const loadInvestors = async () => {
+            try {
+                const data = await fetchInvestors();
+                if (mounted) {
+                    setInvestors(data);
+                }
+            } catch (e) {
+                console.warn('Failed to load investors', e);
+            } finally {
+                if (mounted) setInvestorsLoading(false);
+            }
+        };
+        loadInvestors();
+        return () => { mounted = false; };
+    }, []);
+
+    // Fetch My Active Trades (Sell Tab)
+    useEffect(() => {
+        let mounted = true;
+        const loadMyTrades = async () => {
+            try {
+                const trades = await getMyTrades();
+                if (mounted) {
+                    setActiveTrades(trades);
+                }
+            } catch (e) {
+                console.warn('Failed to load my trades', e);
+            }
+        };
+        loadMyTrades();
+        return () => { mounted = false; };
+    }, []);
+
+
+
+    // Trigger fetch on initial load or filter change
+    useEffect(() => {
+        if (!buyInitialLoadDone) return;
+
+        // Debounce only if searching
+        if (searchValue) {
+            const timer = setTimeout(() => {
+                fetchBuyTrades(true);
+            }, 500);
+            return () => clearTimeout(timer);
+        } else {
+            fetchBuyTrades(true);
+        }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [buyInitialLoadDone, searchValue, selectedCategories]);
+
+    const handleLoadMoreBuy = () => {
+        if (!buyHasMore || buyLoading) return;
+        fetchBuyTrades(false);
+    };
+
+    const togglePortfolio = (cardKey: string) => {
+        setExpandedPortfolios(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(cardKey)) {
+                newSet.delete(cardKey);
+            } else {
+                newSet.add(cardKey);
+            }
+            return newSet;
+        });
+    };
+
+
+
+    const toggleIndustry = (industry: string) => {
+        setSelectedIndustries(prev =>
+            prev.includes(industry)
+                ? prev.filter(i => i !== industry)
+                : prev.length < 3 ? [...prev, industry] : prev
+        );
+    };
+
+    const handleVideoUpload = async () => {
         try {
-            await placeOrder(assetId, 'buy', 1);
-            Alert.alert('Order executed');
-        } catch (e: any) {
-            Alert.alert('Order failed', e?.message || String(e));
+            const result = await launchImageLibrary({
+                mediaType: 'video',
+                quality: 0.8,
+            });
+
+            if (!result.didCancel && result.assets && result.assets.length > 0) {
+                setVideoUri(result.assets[0].uri || '');
+            }
+        } catch (error) {
+            console.warn('Video upload error:', error);
         }
     };
+
+    const handleImageUpload = async () => {
+        try {
+            const result = await launchImageLibrary({
+                mediaType: 'photo',
+                quality: 0.8,
+            });
+
+            if (!result.didCancel && result.assets && result.assets.length > 0) {
+                setImageUris([...imageUris, result.assets[0].uri || '']);
+            }
+        } catch (error) {
+            console.warn('Image upload error:', error);
+        }
+    };
+
+    const removeImage = (index: number) => {
+        setImageUris(imageUris.filter((_, i) => i !== index));
+    };
+
+    const handleOpenTrade = async () => {
+        if (!expandedCompany) return;
+
+        // Use the company name and age that were stored when the portfolio card was expanded
+        const finalCompanyName = selectedCompanyName || 'Company';
+        const finalCompanyAge = selectedCompanyAge || companyAge || '';
+
+        const tradeData = {
+            companyId: expandedCompany,
+            companyName: finalCompanyName,
+            companyType,
+            companyAge: finalCompanyAge,
+            revenueStatus,
+            description,
+            startupUsername,
+            sellingRangeMin,
+            sellingRangeMax,
+            selectedIndustries,
+            isManualEntry,
+            externalLinkHeading,
+            externalLinkUrl,
+            // Note: videoUrl and imageUrls are excluded for now (future implementation)
+        };
+
+        try {
+            if (editingTradeId) {
+                const response = await updateTrade(editingTradeId, tradeData);
+                if (response && response.trade) {
+                    setActiveTrades(activeTrades.map(t => t._id === editingTradeId ? response.trade : t));
+                }
+                Alert.alert('Success', 'Trade updated successfully!');
+            } else {
+                const response = await createTrade(tradeData);
+                if (response && response.trade) {
+                    setActiveTrades([...activeTrades, response.trade]);
+                }
+                Alert.alert('Success', 'Trade opened successfully!');
+            }
+
+            // Reset form
+            setEditingTradeId(null);
+            setExpandedCompany(null);
+            setSellingRangeMin(10);
+            setSellingRangeMax(40);
+            setCompanyAge('');
+            setRevenueStatus('pre-revenue');
+            setDescription('');
+            setStartupUsername('');
+            setIsManualEntry(false);
+            setSelectedIndustries([]);
+            setVideoUri('');
+            setImageUris([]);
+            setExternalLinkHeading('');
+            setExternalLinkUrl('');
+            setSelectedCompanyName('');
+            setSelectedCompanyAge('');
+        } catch (error: any) {
+            console.error('Failed to save trade:', error);
+            Alert.alert('Error', error.message || 'Failed to save trade');
+        }
+    };
+
+    const handleDeleteTrade = async (tradeId: any) => {
+        try {
+            await deleteTrade(tradeId);
+            setActiveTrades(activeTrades.filter(trade => trade._id !== tradeId));
+            Alert.alert('Success', 'Trade deleted successfully!');
+        } catch (error: any) {
+            console.error('Failed to delete trade:', error);
+            Alert.alert('Error', error.message || 'Failed to delete trade');
+        }
+    };
+
+    const handleUpdateTrade = (tradeId: any) => {
+        const trade = activeTrades.find(t => t._id === tradeId);
+        if (trade) {
+            // Populate form
+            setEditingTradeId(tradeId);
+            setExpandedCompany(trade.companyId); // Required for handleOpenTrade logic
+            setExpandedTradeId(tradeId); // Expand the active trade card to show form
+
+            setSelectedCompanyName(trade.companyName);
+            setSellingRangeMin(trade.sellingRangeMin);
+            setSellingRangeMax(trade.sellingRangeMax);
+            setCompanyAge(trade.companyAge);
+            setRevenueStatus(trade.revenueStatus);
+            setDescription(trade.description);
+            setStartupUsername(trade.startupUsername);
+            setIsManualEntry(trade.isManualEntry);
+            setVideoUri(trade.videoUrl || '');
+            setImageUris(trade.imageUrls || []);
+            setSelectedIndustries(trade.selectedIndustries);
+            setExternalLinkHeading(trade.externalLinkHeading || '');
+            setExternalLinkUrl(trade.externalLinkUrl || '');
+        }
+    };
+
+    const handleCategoryClick = (category: string) => {
+        setSelectedCategories(prev =>
+            prev.includes(category)
+                ? prev.filter(c => c !== category)
+                : [...prev, category]
+        );
+    };
+
+    const toggleSaveItem = (itemId: string) => {
+        setSavedItems(prev =>
+            prev.includes(itemId)
+                ? prev.filter(id => id !== itemId)
+                : [...prev, itemId]
+        );
+    };
+
+    const renderInvestorPortfolios = () => {
+        if (investorsLoading) {
+            return (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator size="large" color="#1a73e8" />
+                </View>
+            );
+        }
+
+        // Flatten all investments from all investors into a single list
+        const allInvestments: Array<Investment & { investorId: string; investorName: string }> = [];
+        investors.forEach(investor => {
+            if (investor.previousInvestments && investor.previousInvestments.length > 0) {
+                investor.previousInvestments.forEach(investment => {
+                    allInvestments.push({
+                        ...investment,
+                        investorId: investor._id,
+                        investorName: investor.user?.displayName || investor.user?.username || 'Investor'
+                    });
+                });
+            }
+        });
+
+        if (allInvestments.length === 0) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyTitle}>No Portfolios Available</Text>
+                    <Text style={styles.emptyText}>
+                        No investors have listed their portfolios yet
+                    </Text>
+                </View>
+            );
+        }
+
+        // Calculate years ago for each investment
+        const getYearsAgo = (date?: Date | string) => {
+            if (!date) return '';
+            const now = new Date();
+            const investmentDate = new Date(date);
+            const diffMs = now.getTime() - investmentDate.getTime();
+            const years = diffMs / (1000 * 60 * 60 * 24 * 365.25);
+            return `${years.toFixed(1)} years`;
+        };
+
+        return (
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#1a73e8"
+                        title="Release to refresh"
+                        titleColor="#888"
+                    />
+                }
+            >
+                <Text style={styles.portfolioHeader}>Portfolio</Text>
+                {allInvestments.map((item, index) => {
+                    const cardKey = `${item.companyName}-${item.investorId}`;
+                    const isExpanded = expandedPortfolios.has(cardKey);
+                    const yearsText = getYearsAgo(item.date);
+
+                    return (
+                        <View key={index} style={styles.portfolioCard}>
+                            <TouchableOpacity
+                                style={styles.portfolioCardHeader}
+                                onPress={() => {
+                                    togglePortfolio(cardKey);
+                                    if (isExpanded) {
+                                        setExpandedCompany(null);
+                                        setSelectedCompanyName('');
+                                        setSelectedCompanyAge('');
+                                    } else {
+                                        setExpandedCompany(cardKey);
+                                        setSelectedCompanyName(item.companyName);
+                                        setSelectedCompanyAge(yearsText);
+                                    }
+                                }}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Text style={styles.portfolioCompanyName}>
+                                            {item.companyName}
+                                        </Text>
+                                        {yearsText ? (
+                                            <View style={styles.yearsBadge}>
+                                                <Text style={styles.yearsBadgeText}>{yearsText}</Text>
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                </View>
+                                <MaterialCommunityIcons
+                                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                                    size={24}
+                                    color="#bfbfbf"
+                                />
+                            </TouchableOpacity>
+
+                            {isExpanded && expandedCompany === cardKey && (
+                                <TradingForm
+                                    sellingRangeMin={sellingRangeMin}
+                                    setSellingRangeMin={setSellingRangeMin}
+                                    sellingRangeMax={sellingRangeMax}
+                                    setSellingRangeMax={setSellingRangeMax}
+                                    isManualEntry={isManualEntry}
+                                    setIsManualEntry={setIsManualEntry}
+                                    startupUsername={startupUsername}
+                                    setStartupUsername={setStartupUsername}
+                                    externalLinkHeading={externalLinkHeading}
+                                    setExternalLinkHeading={setExternalLinkHeading}
+                                    externalLinkUrl={externalLinkUrl}
+                                    setExternalLinkUrl={setExternalLinkUrl}
+                                    description={description}
+                                    setDescription={setDescription}
+                                    revenueStatus={revenueStatus}
+                                    setRevenueStatus={setRevenueStatus}
+                                    videoUri={videoUri}
+                                    handleVideoUpload={handleVideoUpload}
+                                    imageUris={imageUris}
+                                    handleImageUpload={handleImageUpload}
+                                    removeImage={removeImage}
+                                    selectedIndustries={selectedIndustries}
+                                    toggleIndustry={toggleIndustry}
+                                    onSubmit={handleOpenTrade}
+                                    submitText={editingTradeId ? "Update Trade" : "Open Trade"}
+                                />
+                            )}
+                        </View>
+                    );
+                })}
+
+                {/* Active Trades Section */}
+                {activeTrades.length > 0 && (
+                    <View style={{ marginTop: 24 }}>
+                        <Text style={styles.portfolioHeader}>Active Trades</Text>
+                        {activeTrades.map((trade) => {
+                            const tradeId = trade._id || trade.id;
+                            if (!tradeId) return null;
+                            const isExpanded = expandedTradeId === tradeId;
+                            const photoIndex = currentPhotoIndex[tradeId] || 0;
+
+                            return (
+                                <View key={tradeId} style={styles.tradeCard}>
+                                    <TouchableOpacity
+                                        style={styles.tradeCardHeader}
+                                        onPress={() => {
+                                            setExpandedTradeId(isExpanded ? null : (tradeId as string | number));
+                                            setEditingTradeId(null);
+                                        }}
+                                    >
+                                        <View style={styles.tradeAvatar}>
+                                            <Text style={styles.tradeAvatarText}>
+                                                {trade.companyName[0]}
+                                            </Text>
+                                        </View>
+
+                                        <View style={{ flex: 1 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                <Text style={styles.tradeCompanyName}>{trade.companyName}</Text>
+                                                <View style={styles.tradeBadge}>
+                                                    <Text style={styles.tradeBadgeText}>Trade</Text>
+                                                </View>
+                                            </View>
+                                            {!isExpanded && (
+                                                <Text style={styles.tradeUsername} numberOfLines={1}>
+                                                    {trade.description}
+                                                </Text>
+                                            )}
+                                            {!isExpanded && (
+                                                <Text style={styles.tradeMetaText}>
+                                                    {trade.revenueStatus === 'revenue-generating' ? 'Revenue Generating' : 'Pre Revenue'} • {trade.sellingRangeMin}% - {trade.sellingRangeMax}%
+                                                </Text>
+                                            )}
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                            <TouchableOpacity
+                                                style={styles.tradeActionButton}
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    handleUpdateTrade(tradeId);
+                                                }}
+                                            >
+                                                <MaterialCommunityIcons name="pencil" size={16} color="#999" />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.tradeActionButton}
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteTrade(tradeId);
+                                                }}
+                                            >
+                                                <MaterialCommunityIcons name="delete" size={16} color="#ff4444" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    {isExpanded && (
+                                        editingTradeId === tradeId ? (
+                                            <TradingForm
+                                                sellingRangeMin={sellingRangeMin}
+                                                setSellingRangeMin={setSellingRangeMin}
+                                                sellingRangeMax={sellingRangeMax}
+                                                setSellingRangeMax={setSellingRangeMax}
+                                                isManualEntry={isManualEntry}
+                                                setIsManualEntry={setIsManualEntry}
+                                                startupUsername={startupUsername}
+                                                setStartupUsername={setStartupUsername}
+                                                externalLinkHeading={externalLinkHeading}
+                                                setExternalLinkHeading={setExternalLinkHeading}
+                                                externalLinkUrl={externalLinkUrl}
+                                                setExternalLinkUrl={setExternalLinkUrl}
+                                                description={description}
+                                                setDescription={setDescription}
+                                                revenueStatus={revenueStatus}
+                                                setRevenueStatus={setRevenueStatus}
+                                                videoUri={videoUri}
+                                                handleVideoUpload={handleVideoUpload}
+                                                imageUris={imageUris}
+                                                handleImageUpload={handleImageUpload}
+                                                removeImage={removeImage}
+                                                selectedIndustries={selectedIndustries}
+                                                toggleIndustry={toggleIndustry}
+                                                onSubmit={handleOpenTrade}
+                                                submitText="Update Trade"
+                                                noPadding
+                                            />
+                                        ) : (
+                                            <View style={styles.tradeExpandedContent}>
+                                                {trade.description && (
+                                                    <Text style={styles.tradeDescription}>"{trade.description}"</Text>
+                                                )}
+
+                                                {/* Media */}
+                                                {(trade.videoUrl || trade.imageUrls.length > 0) && (
+                                                    <View style={styles.tradeMediaContainer}>
+                                                        {trade.videoUrl ? (
+                                                            <View style={styles.tradeMedia}>
+                                                                <Text style={{ color: '#fff', textAlign: 'center' }}>Video Player</Text>
+                                                            </View>
+                                                        ) : (
+                                                            <View style={styles.tradeMedia}>
+                                                                <RNImage
+                                                                    source={{ uri: trade.imageUrls[photoIndex] }}
+                                                                    style={{ width: '100%', height: '100%' }}
+                                                                    resizeMode="cover"
+                                                                />
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                )}
+
+                                                {/* Stats Grid */}
+                                                <View style={styles.statsGrid}>
+                                                    <View style={styles.statCard}>
+                                                        <Text style={styles.statLabel}>Revenue Status</Text>
+                                                        <Text style={styles.statValue}>
+                                                            {trade.revenueStatus === 'revenue-generating' ? 'Revenue Generating' : 'Pre Revenue'}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.statCard}>
+                                                        <Text style={styles.statLabel}>Company Age</Text>
+                                                        <Text style={styles.statValue}>{trade.companyAge || 'N/A'}</Text>
+                                                    </View>
+                                                    <View style={[styles.statCard, { width: '100%' }]}>
+                                                        <Text style={[styles.statLabel, { color: '#1a73e8' }]}>Selling Range</Text>
+                                                        <Text style={[styles.statValue, { color: '#1a73e8' }]}>
+                                                            {trade.sellingRangeMin}% - {trade.sellingRangeMax}%
+                                                        </Text>
+                                                    </View>
+                                                </View>
+
+                                                {/* Views & Saves */}
+                                                <View style={styles.tradeStats}>
+                                                    <Text style={styles.tradeStatText}>Views: {trade.views}</Text>
+                                                    <Text style={styles.tradeStatText}>Saves: {trade.saves}</Text>
+                                                </View>
+                                            </View>
+                                        )
+                                    )}
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+            </ScrollView>
+        );
+    };
+
+    const renderMarketsList = () => {
+        // We use buyTrades for data
+        const data = buyTrades;
+
+        const ListHeader = () => (
+            <>
+                {/* Category Filters - Only show when filter is open */}
+                {isFilterOpen && (
+                    <View style={styles.categoriesContainer}>
+                        {categories.map(category => (
+                            <TouchableOpacity
+                                key={category}
+                                onPress={() => handleCategoryClick(category)}
+                                style={[
+                                    styles.categoryChip,
+                                    selectedCategories.includes(category) && styles.categoryChipActive
+                                ]}
+                            >
+                                <Text style={[
+                                    styles.categoryChipText,
+                                    selectedCategories.includes(category) && styles.categoryChipTextActive
+                                ]}>
+                                    {category}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+                {/* Suggested for you heading */}
+                <Text style={styles.suggestedHeading}>Suggested for you</Text>
+            </>
+        );
+
+        if (buyLoading && data.length === 0) {
+            return (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    <ActivityIndicator size="large" color="#1a73e8" />
+                </View>
+            );
+        }
+
+        return (
+            <FlatList
+                data={data}
+
+                keyExtractor={(item) => String(item._id || item.id)}
+                contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
+                renderItem={({ item }) => {
+                    const tradeId = item._id || item.id;
+                    if (!tradeId) return null;
+                    const isExpanded = expandedBuyTradeId === tradeId;
+                    const isSaved = savedItems.includes(String(tradeId));
+
+                    return (
+                        <TradeCard
+                            trade={item}
+                            isExpanded={isExpanded}
+                            isSaved={isSaved}
+                            currentPhotoIndex={currentPhotoIndex[String(tradeId)] || 0}
+                            onToggleExpand={() => setExpandedBuyTradeId(isExpanded ? null : (tradeId as string | number))}
+                            onToggleSave={() => toggleSaveItem(String(tradeId))}
+                            onPhotoIndexChange={(index) => setCurrentPhotoIndex(prev => ({ ...prev, [tradeId]: index }))}
+                        />
+                    );
+                }}
+                ListHeaderComponent={ListHeader}
+                onEndReached={handleLoadMoreBuy}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={() => buyLoading && data.length > 0 ? <ActivityIndicator size="small" color="#1a73e8" style={{ margin: 20 }} /> : null}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#1a73e8"
+                        title="Release to refresh"
+                        titleColor="#888"
+                    />
+                }
+            />
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             {/* Fixed header */}
             <View style={styles.headerContainer}>
+                {/* Swipeable tabs with underline indicator */}
                 <View style={styles.tabsRow}>
-                    <TouchableOpacity style={[styles.tabButton, styles.tabLeft]}>
-                        <Text style={styles.tabText}>BUY</Text>
+                    <TouchableOpacity
+                        style={styles.tabItem}
+                        onPress={() => {
+                            setActiveTab('Buy');
+                            pagerRef.current?.scrollTo({ x: 0, animated: true });
+                        }}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'Buy' && styles.tabTextActive]}>
+                            BUY
+                        </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.tabButton, styles.tabRight]}>
-                        <Text style={styles.tabText}>SELL</Text>
+                    <TouchableOpacity
+                        style={styles.tabItem}
+                        onPress={() => {
+                            setActiveTab('Sell');
+                            pagerRef.current?.scrollTo({ x: screenW, animated: true });
+                        }}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'Sell' && styles.tabTextActive]}>
+                            SELL
+                        </Text>
                     </TouchableOpacity>
+
+                    {/* Animated underline indicator */}
+                    <Animated.View
+                        style={[
+                            styles.tabIndicator,
+                            {
+                                width: screenW / 2,
+                                transform: [{
+                                    translateX: scrollX.interpolate({
+                                        inputRange: [0, screenW],
+                                        outputRange: [0, screenW / 2]
+                                    })
+                                }]
+                            }
+                        ]}
+                    />
                 </View>
 
-                <View style={styles.searchRow}>
-                    <View style={styles.searchBox}>
-                        <MaterialCommunityIcons name="magnify" size={18} color="#bfbfbf" />
-                        <TextInput placeholder="Search companies..." placeholderTextColor="#bfbfbf" style={styles.searchInput} />
-                    </View>
-                    <TouchableOpacity style={styles.bookmarkBtn}>
-                        <MaterialCommunityIcons name="bookmark-outline" size={20} color="#bfbfbf" />
-                    </TouchableOpacity>
-                </View>
+                {/* Show search/filters only on Buy tab */}
+                {activeTab === 'Buy' && (
+                    <>
+                        <View style={styles.searchRow}>
+                            <View style={styles.searchBox}>
+                                <MaterialCommunityIcons name="magnify" size={18} color="#bfbfbf" />
+                                <TextInput
+                                    placeholder="Search companies..."
+                                    placeholderTextColor="#bfbfbf"
+                                    style={styles.searchInput}
+                                    value={searchValue}
+                                    onChangeText={setSearchValue}
+                                />
+                                {searchValue !== '' && (
+                                    <TouchableOpacity onPress={() => setSearchValue('')}>
+                                        <MaterialCommunityIcons name="close" size={18} color="#bfbfbf" />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                style={[styles.bookmarkBtn, showSavedOnly && styles.bookmarkBtnActive]}
+                                onPress={() => setShowSavedOnly(!showSavedOnly)}
+                            >
+                                <MaterialCommunityIcons
+                                    name={showSavedOnly ? "bookmark" : "bookmark-outline"}
+                                    size={20}
+                                    color={showSavedOnly ? "#fff" : "#bfbfbf"}
+                                />
+                            </TouchableOpacity>
+                        </View>
 
-                <TouchableOpacity style={styles.filterRow}>
-                    <View style={styles.filterLeft}><MaterialCommunityIcons name="tune" size={18} color="#fff" /></View>
-                    <Text style={styles.filterText}>Filters</Text>
-                    <MaterialCommunityIcons name="chevron-down" size={20} color="#bfbfbf" style={{ marginLeft: 'auto' }} />
-                </TouchableOpacity>
-
-                <Text style={styles.sectionTitle}>Suggested for You</Text>
+                        {/* Filter Button */}
+                        <TouchableOpacity
+                            style={styles.filterButton}
+                            onPress={() => setIsFilterOpen(!isFilterOpen)}
+                        >
+                            <MaterialCommunityIcons name="tune" size={18} color="#fff" />
+                            <Text style={styles.filterButtonText}>Filters</Text>
+                            <MaterialCommunityIcons
+                                name={isFilterOpen ? "chevron-up" : "chevron-down"}
+                                size={20}
+                                color="#bfbfbf"
+                            />
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
 
-            {/* Scrollable cards only */}
-            {loading ? (
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <ActivityIndicator size="large" color="#1a73e8" />
+            {/* Swipeable content */}
+            <Animated.ScrollView
+                horizontal
+                pagingEnabled
+                ref={r => { pagerRef.current = r; }}
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) => {
+                    const idx = Math.round(e.nativeEvent.contentOffset.x / screenW);
+                    setActiveTab(idx === 0 ? 'buy' : 'sell');
+                }}
+                onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                    { useNativeDriver: true }
+                )}
+                scrollEventThrottle={16}
+                style={{ flex: 1 }}
+            >
+                {/* Buy tab content */}
+                <View style={[styles.pagerPage, { width: screenW }]}>
+                    {renderMarketsList()}
                 </View>
-            ) : error ? (
-                <View style={{ padding: 20 }}>
-                    <Text style={{ color: '#fff' }}>Error: {error}</Text>
+
+                {/* Sell tab content - Investor Portfolios */}
+                <View style={[styles.pagerPage, { width: screenW }]}>
+                    {renderInvestorPortfolios()}
                 </View>
-            ) : (
-                <FlatList
-                    data={markets}
-                    keyExtractor={(i) => i._id ? String(i._id) : String(i.id)}
-                    style={styles.cardsList}
-                    contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
-                    renderItem={({ item }) => (
-                        <View style={styles.card}>
-                            <View style={styles.avatarWrap}>
-                                <View style={styles.avatarCircle} />
-                            </View>
-                            <View style={styles.cardBody}>
-                                <View style={styles.cardHeader}>
-                                    <Text style={styles.companyName}>{item.title || item.name}</Text>
-                                    <TouchableOpacity style={styles.iconBtn}><MaterialCommunityIcons name="bookmark-outline" size={18} color="#bfbfbf" /></TouchableOpacity>
-                                </View>
-                                <Text style={styles.personName}>{item.owner || item.person || ''}</Text>
-                                <Text style={styles.tagline}>{item.description || item.tagline || ''}</Text>
-                                <TouchableOpacity style={{ marginTop: 8 }} onPress={() => handleBuy(item._id || item.id)}>
-                                    <Text style={{ color: '#1a73e8', fontWeight: '700' }}>Buy</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    )}
-                />
-            )}
+            </Animated.ScrollView>
         </SafeAreaView>
     );
 };
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#070707' },
-    headerContainer: { paddingHorizontal: 12, paddingTop: 12 },
-    tabsRow: { flexDirection: 'row', paddingVertical: 8, justifyContent: 'center', gap: 12 },
-    tabButton: { width: 140, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2f2f2f' },
-    tabLeft: {},
-    tabRight: {},
-    tabText: { color: '#fff', fontWeight: '700' },
-    searchRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f0f0f', paddingVertical: 12, paddingHorizontal: 12, borderRadius: 24 },
-    searchInput: { marginLeft: 8, color: '#fff', flex: 1 },
-    bookmarkBtn: { marginLeft: 12, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f0f0f' },
-    filterRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, backgroundColor: '#0f0f0f', padding: 12, borderRadius: 12 },
-    filterLeft: { marginRight: 8 },
-    filterText: { color: '#fff', fontWeight: '600' },
-    sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 12, marginBottom: 8 },
-    cardsList: { flex: 1 },
-    card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f0f0f', marginVertical: 8, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: '#333333' },
-    avatarWrap: { marginRight: 12 },
-    avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222' },
-    cardBody: { flex: 1 },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    companyName: { color: '#fff', fontWeight: '700' },
-    personName: { color: '#bfbfbf', fontSize: 12, marginTop: 4 },
-    tagline: { color: '#bfbfbf', fontSize: 12, marginTop: 6 },
-    iconBtn: { padding: 6 },
-});
 
 export default Trading;

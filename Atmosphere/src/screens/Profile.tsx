@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 /* eslint-disable react-native/no-inline-styles */
-import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile, getFollowersCount, getFollowingCount, getStartupProfile } from '../lib/api';
@@ -116,25 +116,49 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     const routeStartupDetailsId = routeCtx?.params?.startupDetailsId || null;
     const viewingUserId = propUserId || routeUserId || null;
 
+    const getCacheKeys = (targetId: string | null) => {
+        const suffix = targetId ? targetId : 'ME';
+        return {
+            DATA: `ATMOSPHERE_PROFILE_DATA_${suffix}`,
+            POSTS: `ATMOSPHERE_PROFILE_POSTS_${suffix}`
+        };
+    };
+
+    const [refreshing, setRefreshing] = useState(false);
+    const [forceUpdate, setForceUpdate] = useState(0); // Trigger to re-run effects
+
+    // 1. Profile Data Effect
     useEffect(() => {
         let mounted = true;
         (async () => {
+            // Determine ID for cache key purposes
+            const targetId = viewingUserId || routeUserId || (routeStartupDetailsId ? `SD_${routeStartupDetailsId}` : null);
+            const { DATA: CACHE_KEY } = getCacheKeys(targetId);
+
+            setLoading(true);
+
+            // 1. Try Load Cache (only if not refreshing forcefully, but here we just load)
+            try {
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached && mounted && !refreshing) {
+                    const parsed = JSON.parse(cached);
+                    setData(parsed);
+                    setLoading(false);
+                }
+            } catch { /* ignore */ }
+
             try {
                 let profileData: any;
                 if (routeStartupDetailsId) {
-                    console.log('Profile: loading startup by startupDetailsId', routeStartupDetailsId);
                     profileData = await getStartupProfile(String(routeStartupDetailsId));
                 } else if (viewingUserId) {
-                    console.log('Profile: loading startup by viewingUserId', viewingUserId);
                     profileData = await getStartupProfile(String(viewingUserId));
                 } else {
-                    console.log('Profile: loading own profile');
                     profileData = await getProfile();
                 }
+
                 if (mounted) {
-                    console.log('Profile: route params', { routeUserId, routeStartupDetailsId, viewingUserId });
-                    console.log(profileData)
-                    // Ensure profileData.user is a full object; sometimes backend returns only user id
+                    // Ensure profileData.user is a full object
                     try {
                         if (profileData && profileData.user && typeof profileData.user === 'string') {
                             const api = await import('../lib/api');
@@ -142,42 +166,21 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                             if (fetched) profileData.user = fetched;
                         }
                     } catch { /* ignore */ }
-                    const normalized = normalizeProfile(profileData);
-                    setData(normalized || mockData);
-                    // Ensure posts and follower counts are fetched when viewing another user's profile
-                    try {
-                        if (viewingUserId) {
-                            const api = await import('../lib/api');
-                            // fetch posts explicitly (prefer server endpoint)
-                            try {
-                                if (typeof api.getPostsByUser === 'function') {
-                                    const userPosts = await api.getPostsByUser(String(viewingUserId));
-                                    if (mounted) setPosts(userPosts || []);
-                                } else {
-                                    const myPosts = await api.fetchStartupPosts();
-                                    if (mounted) setPosts((myPosts || []).filter((p: any) => String(p.userId || p.user?._id || p.user?.id) === String(viewingUserId)));
-                                }
-                            } catch { /* ignore for now */ }
 
-                            // fetch follower/following counts if not provided
-                            try {
-                                const f = await import('../lib/api');
-                                const [fCount, foCount] = await Promise.all([f.getFollowersCount(String(viewingUserId)), f.getFollowingCount(String(viewingUserId))]);
-                                if (mounted) {
-                                    setFollowersCount(Number(fCount || 0));
-                                    setFollowingCount(Number(foCount || 0));
-                                }
-                            } catch { /* ignore */ }
-                        }
-                    } catch { /* ignore */ }
-                    // cache own profile id for subsequent requests to avoid refetch
+                    const normalized = normalizeProfile(profileData);
+                    const finalData = normalized || mockData;
+                    setData(finalData);
+
+                    // Save to Cache
+                    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(finalData)).catch(() => { });
+
                     if (!viewingUserId) {
                         const derived = profileData?.user?._id || profileData?.user?.id || null;
                         if (derived) setOwnProfileId(String(derived));
                     }
                 }
             } catch {
-                if (mounted) setData(mockData);
+                if (mounted && !data) setData(mockData); // Only fallback if no data
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -186,7 +189,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
         return () => {
             mounted = false;
         };
-    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId, src]);
+    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId, forceUpdate, data, refreshing]);
 
     // format helpers removed (not used in mobile layout)
 
@@ -198,11 +201,25 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
     const [followLoading, setFollowLoading] = useState(false);
 
+    // 2. Posts Effect
     useEffect(() => {
         let mounted = true;
         (async () => {
+            const targetId = viewingUserId || routeUserId || null;
+            const { POSTS: CACHE_KEY } = getCacheKeys(targetId);
+
+            setPostsLoading(true);
+
+            // Try Cache
             try {
-                setPostsLoading(true);
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached && mounted && !refreshing) {
+                    setPosts(JSON.parse(cached));
+                    setPostsLoading(false);
+                }
+            } catch { /* ignore */ }
+
+            try {
                 const api = await import('../lib/api');
                 let all: any[] = [];
                 if (viewingUserId) {
@@ -215,15 +232,26 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                 } else {
                     all = await api.fetchMyPosts();
                 }
-                if (mounted) setPosts((all || []));
+                if (mounted) {
+                    setPosts((all || []));
+                    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(all || [])).catch(() => { });
+                }
             } catch {
-                if (mounted) setPosts([]);
+                if (mounted && posts.length === 0) setPosts([]);
             } finally {
                 if (mounted) setPostsLoading(false);
             }
         })();
         return () => { mounted = false; };
-    }, [viewingUserId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewingUserId, forceUpdate]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        setForceUpdate(prev => prev + 1);
+        // Wait a bit to simulate refresh since effects run asynchronously
+        setTimeout(() => setRefreshing(false), 1500);
+    };
 
     // fetch follower/following counts for the current logged in profile
     useEffect(() => {
@@ -301,7 +329,19 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
 
     return (
         <View style={{ flex: 1 }}>
-            <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={[styles.contentContainer]}>
+            <ScrollView
+                style={[styles.container, { backgroundColor: theme.background }]}
+                contentContainerStyle={[styles.contentContainer]}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={theme.primary}
+                        title="Release to Refresh"
+                        titleColor={theme.text}
+                    />
+                }
+            >
                 <ProfileHeader name={src.name} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={onCreatePost} onBack={onClose} theme={theme} />
 
                 {/* Setup is opened via parent navigation (LandingPage route 'setup') */}

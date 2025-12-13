@@ -1,4 +1,4 @@
-const { Asset, Portfolio, User } = require('../models');
+const { Asset, Portfolio, User, Trade } = require('../models');
 
 exports.getMarkets = async (req, res, next) => {
     try {
@@ -51,6 +51,242 @@ exports.placeOrder = async (req, res, next) => {
         await portfolio.save();
 
         return res.json({ message: 'order executed', side, asset: { id: asset._id, title: asset.title }, portfolio: { items: portfolio.items } });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Create a new trade
+exports.createTrade = async (req, res, next) => {
+    try {
+        if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const {
+            companyId,
+            companyName,
+            companyType,
+            companyAge,
+            revenueStatus,
+            description,
+            startupUsername,
+            sellingRangeMin,
+            sellingRangeMax,
+            selectedIndustries,
+            isManualEntry,
+            externalLinkHeading,
+            externalLinkUrl
+        } = req.body;
+
+        // Validation
+        if (!companyId || !companyName || !revenueStatus || sellingRangeMin == null || sellingRangeMax == null) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        if (selectedIndustries && selectedIndustries.length > 3) {
+            return res.status(400).json({ error: 'Maximum 3 industries allowed' });
+        }
+
+        const trade = new Trade({
+            user: req.user._id,
+            companyId,
+            companyName,
+            companyType: companyType || [],
+            companyAge,
+            revenueStatus,
+            description,
+            startupUsername,
+            sellingRangeMin,
+            sellingRangeMax,
+            selectedIndustries: selectedIndustries || [],
+            isManualEntry: isManualEntry || false,
+            externalLinkHeading,
+            externalLinkUrl,
+            videoUrl: '', // Placeholder for future
+            imageUrls: [] // Placeholder for future
+        });
+
+        await trade.save();
+
+        res.status(201).json({ trade });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Get all trades for the logged-in user
+exports.getMyTrades = async (req, res, next) => {
+    try {
+        if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const trades = await Trade.find({ user: req.user._id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.json({ trades });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Get all active trades (for BUY tab)
+exports.getAllTrades = async (req, res, next) => {
+    try {
+        const { limit = 20, skip = 0, q, type, revenueStatus, industries } = req.query;
+        const filter = {};
+
+        // Search text
+        if (q) {
+            filter.$or = [
+                { companyName: { $regex: q, $options: 'i' } },
+                { description: { $regex: q, $options: 'i' } },
+                { companyType: { $regex: q, $options: 'i' } }
+            ];
+        }
+
+        // Apply filters
+        if (revenueStatus) filter.revenueStatus = revenueStatus;
+        if (industries) {
+            const industryList = industries.split(',');
+            if (industryList.length > 0) {
+                filter.selectedIndustries = { $in: industryList };
+            }
+        }
+
+        const trades = await Trade.find(filter)
+            .populate('user', 'username displayName avatarUrl')
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit))
+            .skip(parseInt(skip))
+            .lean();
+
+        res.json({ trades });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Update a trade
+exports.updateTrade = async (req, res, next) => {
+    try {
+        if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { id } = req.params;
+        const trade = await Trade.findById(id);
+
+        if (!trade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+
+        // Check ownership
+        if (String(trade.user) !== String(req.user._id)) {
+            return res.status(403).json({ error: 'Not authorized to update this trade' });
+        }
+
+        const {
+            companyType,
+            companyAge,
+            revenueStatus,
+            description,
+            startupUsername,
+            sellingRangeMin,
+            sellingRangeMax,
+            selectedIndustries,
+            externalLinkHeading,
+            externalLinkUrl
+        } = req.body;
+
+        // Update fields
+        if (companyType !== undefined) trade.companyType = companyType;
+        if (companyAge !== undefined) trade.companyAge = companyAge;
+        if (revenueStatus !== undefined) trade.revenueStatus = revenueStatus;
+        if (description !== undefined) trade.description = description;
+        if (startupUsername !== undefined) trade.startupUsername = startupUsername;
+        if (sellingRangeMin !== undefined) trade.sellingRangeMin = sellingRangeMin;
+        if (sellingRangeMax !== undefined) trade.sellingRangeMax = sellingRangeMax;
+        if (selectedIndustries !== undefined) {
+            if (selectedIndustries.length > 3) {
+                return res.status(400).json({ error: 'Maximum 3 industries allowed' });
+            }
+            trade.selectedIndustries = selectedIndustries;
+        }
+        if (externalLinkHeading !== undefined) trade.externalLinkHeading = externalLinkHeading;
+        if (externalLinkUrl !== undefined) trade.externalLinkUrl = externalLinkUrl;
+
+        trade.isEdited = true;
+
+        await trade.save();
+
+        res.json({ trade });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Delete a trade
+exports.deleteTrade = async (req, res, next) => {
+    try {
+        if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { id } = req.params;
+        const trade = await Trade.findById(id);
+
+        if (!trade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+
+        // Check ownership
+        if (String(trade.user) !== String(req.user._id)) {
+            return res.status(403).json({ error: 'Not authorized to delete this trade' });
+        }
+
+        await Trade.findByIdAndDelete(id);
+
+        res.json({ message: 'Trade deleted successfully' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Increment view count
+exports.incrementViews = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const trade = await Trade.findByIdAndUpdate(
+            id,
+            { $inc: { views: 1 } },
+            { new: true }
+        );
+
+        if (!trade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+
+        res.json({ views: trade.views });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Toggle save (increment/decrement save count)
+exports.toggleSave = async (req, res, next) => {
+    try {
+        if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { id } = req.params;
+        const { saved } = req.body; // true to save, false to unsave
+
+        const trade = await Trade.findByIdAndUpdate(
+            id,
+            { $inc: { saves: saved ? 1 : -1 } },
+            { new: true }
+        );
+
+        if (!trade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+
+        res.json({ saves: trade.saves });
     } catch (err) {
         next(err);
     }

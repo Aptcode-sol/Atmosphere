@@ -22,4 +22,5 @@ module.exports = {
     AuditLog: require('./AuditLog'),
     Grant: require('./Grant'),
     Event: require('./Event'),
+    Trade: require('./Trade'),
 };

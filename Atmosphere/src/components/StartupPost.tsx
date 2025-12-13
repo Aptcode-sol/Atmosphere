@@ -93,7 +93,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
         try {
             // Determine if this is a startup card by structure (Home passes startups as `post` prop)
             const isStartupCard = Boolean((companyData as any).fundingRaised || (companyData as any).fundingNeeded || (companyData as any).stage);
-            const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
+            const id = String((companyData as any).originalId || (companyData as any).id || (companyData as any).userId || (companyData as any).user);
             if (isStartupCard) {
                 if (!prev) {
                     await likeStartup(id);
@@ -121,7 +121,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     const toggleCrown = async () => {
         if (!isInvestor) { Alert.alert('Not allowed', 'Only investors can crown profiles'); return; }
         if (crownLoading) return;
-        const id = String((companyData as any).id || (companyData as any).userId || (companyData as any).user);
+        const id = String((companyData as any).originalId || (companyData as any).id || (companyData as any).userId || (companyData as any).user);
         const prev = crowned;
         // optimistic update
         setCrowned(!prev);
@@ -160,7 +160,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                 <TouchableOpacity style={styles.headerLeftRow} activeOpacity={0.8} onPress={() => {
                     try {
                         const targetId = (companyData as any).userId || (companyData as any).user || null;
-                        const startupDetailsId = (companyData as any).startupDetailsId || (companyData as any).id || null;
+                        const startupDetailsId = (companyData as any).startupDetailsId || (companyData as any).originalId || (companyData as any).id || null;
                         const resolvedUserId = targetId ? String(targetId) : null;
                         const resolvedStartupId = startupDetailsId ? String(startupDetailsId) : null;
                         if (onOpenProfile && targetId) {
@@ -199,7 +199,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                             setFollowed(newState); // optimistic
                             setFollowLoading(true);
                             try {
-                                const targetId = (companyData as any).userId || (companyData as any).user || companyData.id;
+                                const targetId = (companyData as any).userId || (companyData as any).user || (companyData as any).originalId || companyData.id;
                                 if (!targetId) throw new Error('Missing target user id');
                                 if (newState) {
                                     await followUser(String(targetId));
@@ -229,7 +229,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
 
             {/* Comments overlay is used instead of inline input */}
             <CommentsOverlay
-                startupId={String((companyData as any).id || (companyData as any).userId || (companyData as any).user)}
+                startupId={String((companyData as any).originalId || (companyData as any).id || (companyData as any).userId || (companyData as any).user)}
                 visible={commentsOverlayVisible}
                 onClose={() => setCommentsOverlayVisible(false)}
                 onCommentAdded={(newCount?: number) => {

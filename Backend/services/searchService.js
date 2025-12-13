@@ -2,7 +2,7 @@ const { User, Post, Company } = require('../models');
 
 exports.searchAll = async (req, res, next) => {
     try {
-        const { q, type = 'all', limit = 10 } = req.query;
+        const { q, type = 'all', limit = 10, skip = 0 } = req.query;
         if (!q || q.trim() === '') return res.status(400).json({ error: 'Search query is required' });
 
         const searchQuery = q.trim();
@@ -12,7 +12,8 @@ exports.searchAll = async (req, res, next) => {
         if (type === 'all' || type === 'accounts') {
             const users = await User.find({ $or: [{ username: searchRegex }, { displayName: searchRegex }, { bio: searchRegex }] })
                 .select('username displayName avatarUrl bio verified roles')
-                .limit(parseInt(limit));
+                .limit(parseInt(limit))
+                .skip(parseInt(skip));
             results.accounts = users;
         }
 
@@ -20,14 +21,16 @@ exports.searchAll = async (req, res, next) => {
             const posts = await Post.find({ $or: [{ content: searchRegex }, { tags: searchRegex }], visibility: 'public' })
                 .populate('author', 'username displayName avatarUrl verified')
                 .sort({ createdAt: -1 })
-                .limit(parseInt(limit));
+                .limit(parseInt(limit))
+                .skip(parseInt(skip));
             results.posts = posts;
         }
 
         if (type === 'all' || type === 'companies') {
             const companies = await Company.find({ $or: [{ name: searchRegex }, { description: searchRegex }, { tags: searchRegex }] })
                 .populate('employees', 'username displayName avatarUrl verified')
-                .limit(parseInt(limit));
+                .limit(parseInt(limit))
+                .skip(parseInt(skip));
             results.companies = companies;
         }
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -13,23 +14,48 @@ const HottestStartups = () => {
     const [filterDay] = useState<'today' | '7days'>('today');
     const [loading, setLoading] = useState(true);
     const [topList, setTopList] = useState<StartupCard[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
     const { theme } = useContext(ThemeContext);
 
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            setLoading(true);
+    const CACHE_KEY = 'ATMOSPHERE_HOTTEST_STARTUPS_CACHE';
+
+    const loadStartups = async (isRefresh = false) => {
+        if (isRefresh) setLoading(true); // Optional: keep loading spinner for full refresh feel or just rely on RC
+
+        // Try cache first if not refreshing
+        if (!isRefresh) {
             try {
-                const startups = await api.fetchHottestStartups(10);
-                if (mounted) setTopList(startups || []);
-            } catch (e) {
-                console.warn('HottestStartups: failed to fetch/startups', e);
-            } finally {
-                if (mounted) setLoading(false);
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    setTopList(JSON.parse(cached));
+                    setLoading(false);
+                }
+            } catch (e) { console.warn('HottestStartups: failed cache', e); }
+        }
+
+        // Fetch fresh
+        try {
+            const startups = await api.fetchHottestStartups(10);
+            if (startups) {
+                setTopList(startups);
+                AsyncStorage.setItem(CACHE_KEY, JSON.stringify(startups)).catch(() => { });
             }
-        })();
-        return () => { mounted = false; };
+        } catch (e) {
+            console.warn('HottestStartups: failed to fetch', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadStartups();
     }, [filterDay]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadStartups(true); // Force fetch
+        setRefreshing(false);
+    };
 
     // legacy safe getters removed — using server-provided `weekCounts` now
 
@@ -161,6 +187,15 @@ const HottestStartups = () => {
             contentContainerStyle={styles.content}
             style={[styles.container, { backgroundColor: theme?.background || '#fff' }]}
             ListHeaderComponent={Header({ theme, renderPodium })}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor={theme?.primary || '#F59E0B'}
+                    title="Release to refresh"
+                    titleColor={theme?.text || '#888'}
+                />
+            }
         />
     );
 };

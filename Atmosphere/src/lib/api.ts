@@ -85,8 +85,8 @@ export async function register({ email, username, password, displayName, account
 }
 
 
-export async function fetchStartupPosts() {
-    const data = await request('/api/startup-details', {}, { method: 'GET' });
+export async function fetchStartupPosts(limit = 20, skip = 0) {
+    const data = await request('/api/startup-details', { limit, skip }, { method: 'GET' });
     return data.startups ?? [];
 }
 
@@ -314,6 +314,23 @@ export async function getUserByIdentifier(identifier: string) {
     } catch { return null; }
 }
 
+export async function fetchExplorePosts(limit = 20, skip = 0) {
+    const data = await request('/api/posts', { limit, skip }, { method: 'GET' });
+    return data.posts ?? [];
+}
+
+export async function searchEntities(query: string, type = 'all', limit = 20, skip = 0) {
+    const data = await request('/api/search', { q: query, type, limit, skip }, { method: 'GET' });
+    return data.results ?? {};
+}
+
+export async function searchUsers(query: string, role?: string, limit = 20, skip = 0) {
+    const params: any = { q: query, limit, skip };
+    if (role) params.role = role;
+    const data = await request('/api/search/users', params, { method: 'GET' });
+    return data.users ?? [];
+}
+
 // Trade APIs
 export async function fetchMarkets() {
     const data = await request('/api/trade/markets', {}, { method: 'GET' });
@@ -327,4 +344,66 @@ export async function fetchMyPortfolio() {
 
 export async function placeOrder(assetId: string, side: 'buy' | 'sell', quantity: number) {
     return request('/api/trade/order', { assetId, side, quantity }, { method: 'POST' });
+}
+
+// New Trade APIs for trading section
+export async function createTrade(tradeData: any) {
+    return request('/api/trade/trades', tradeData, { method: 'POST' });
+}
+
+export async function getMyTrades() {
+    const data = await request('/api/trade/trades/my', {}, { method: 'GET' });
+    return data.trades || [];
+}
+
+export async function getAllTrades(limit = 20, skip = 0, filters = {}) {
+    const data = await request('/api/trade/trades', { limit, skip, ...filters }, { method: 'GET' });
+    return data.trades || [];
+}
+
+export async function updateTrade(id: string, tradeData: any) {
+    return request(`/api/trade/trades/${id}`, tradeData, { method: 'PUT' });
+}
+
+export async function deleteTrade(id: string) {
+    return request(`/api/trade/trades/${id}`, {}, { method: 'DELETE' });
+}
+
+export async function incrementTradeViews(id: string) {
+    return request(`/api/trade/trades/${id}/view`, {}, { method: 'POST' });
+}
+
+export async function toggleTradeSave(id: string, saved: boolean) {
+    return request(`/api/trade/trades/${id}/save`, { saved }, { method: 'POST' });
+}
+
+// Investor APIs
+export async function fetchInvestors(params?: { limit?: number; skip?: number }) {
+    const data = await request('/api/investor-details', params || {}, { method: 'GET' });
+    return data.investors || [];
+}
+
+export async function getInvestorDetails(userId: string) {
+    try {
+        const data = await request(`/api/investor-details/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+        return data?.investorDetails || null;
+    } catch {
+        return null;
+    }
+}
+
+// Jobs, Grants, Events
+export async function fetchJobs(limit = 20, skip = 0) {
+    const data = await request('/api/jobs', { limit, skip }, { method: 'GET' });
+    return data.jobs || [];
+}
+
+export async function fetchGrants(limit = 20, skip = 0) {
+    const data = await request('/api/grants', { limit, skip }, { method: 'GET' });
+    return data || []; // backend returns array directly
+}
+
+export async function fetchEvents(limit = 20, skip = 0) {
+    const data = await request('/api/events', { limit, skip }, { method: 'GET' });
+    return data || []; // backend returns array directly
 }
