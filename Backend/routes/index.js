@@ -34,5 +34,6 @@ router.use('/events', require('events'));
 router.use('/opportunities', require('./opportunities'));
 router.use('/startup', require('./startup'));
 router.use('/trade', require('./trade'));
+router.use('/upload', require('./upload'));
 
 module.exports = router;

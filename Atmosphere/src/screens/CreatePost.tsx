@@ -14,6 +14,7 @@ import {
 import { ThemeContext } from '../contexts/ThemeContext';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { createPost } from '../lib/api';
+import { uploadImage } from '../lib/uploadImage';
 
 type Props = {
     onClose: () => void;
@@ -26,6 +27,7 @@ const CreatePost = ({ onClose, onSuccess }: Props) => {
     const [description, setDescription] = useState('');
     const [tags, setTags] = useState('');
     const [loading, setLoading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState<string>('');
 
     const handlePickImage = async () => {
         try {
@@ -61,11 +63,15 @@ const CreatePost = ({ onClose, onSuccess }: Props) => {
             };
 
             if (selectedImage) {
-                // For now, we'll pass the local URI - in production you'd upload to a server first
+                // Upload image to Cloudinary first
+                setUploadStatus('Uploading image...');
+                const cloudinaryUrl = await uploadImage(selectedImage.uri, selectedImage.type);
+
                 payload.media = [{
-                    url: selectedImage.uri,
+                    url: cloudinaryUrl,
                     type: 'image',
                 }];
+                setUploadStatus('Creating post...');
             }
 
             if (tags.trim()) {
@@ -81,6 +87,7 @@ const CreatePost = ({ onClose, onSuccess }: Props) => {
             Alert.alert('Error', error.message || 'Failed to create post');
         } finally {
             setLoading(false);
+            setUploadStatus('');
         }
     };
 
@@ -106,6 +113,16 @@ const CreatePost = ({ onClose, onSuccess }: Props) => {
                     )}
                 </TouchableOpacity>
             </View>
+
+            {/* Upload Status Indicator */}
+            {uploadStatus ? (
+                <View style={styles.uploadStatus}>
+                    <ActivityIndicator size="small" color="#0095f6" />
+                    <Text style={[styles.uploadStatusText, { color: theme.text }]}>
+                        {uploadStatus}
+                    </Text>
+                </View>
+            ) : null}
 
             <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
                 {/* Image Picker */}
@@ -263,6 +280,18 @@ const styles = StyleSheet.create({
         padding: 14,
         fontSize: 15,
         backgroundColor: '#0a0a0a',
+    },
+    uploadStatus: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        backgroundColor: 'rgba(0, 149, 246, 0.1)',
+    },
+    uploadStatusText: {
+        marginLeft: 8,
+        fontSize: 14,
+        fontWeight: '500',
     },
 });
 
