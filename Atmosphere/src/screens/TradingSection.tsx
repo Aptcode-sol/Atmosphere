@@ -161,15 +161,14 @@ const Trading = () => {
         let mounted = true;
         (async () => {
             try {
-                // Load Cache
+                // Load Cache first for instant display
                 const cached = await AsyncStorage.getItem('ATMOSPHERE_TRADES_BUY_CACHE');
                 if (cached && mounted) {
                     setBuyTrades(JSON.parse(cached));
-                    setBuyInitialLoadDone(true);
                 }
             } catch { /* ignore */ }
 
-            // Allow fetch to proceed if no cache or after cache load
+            // Signal that initial load is done (triggers fetch)
             if (mounted) setBuyInitialLoadDone(true);
         })();
         return () => { mounted = false; };
@@ -741,7 +740,7 @@ const Trading = () => {
             <FlatList
                 data={data}
 
-                keyExtractor={(item) => String(item._id || item.id)}
+                keyExtractor={(item, index) => `${String(item._id || item.id)}_${index}`}
                 contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
                 renderItem={({ item }) => {
                     const tradeId = item._id || item.id;
@@ -880,7 +879,7 @@ const Trading = () => {
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={(e) => {
                     const idx = Math.round(e.nativeEvent.contentOffset.x / screenW);
-                    setActiveTab(idx === 0 ? 'buy' : 'sell');
+                    setActiveTab(idx === 0 ? 'Buy' : 'Sell');
                 }}
                 onScroll={Animated.event(
                     [{ nativeEvent: { contentOffset: { x: scrollX } } }],

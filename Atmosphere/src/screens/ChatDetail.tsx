@@ -26,9 +26,10 @@ interface Message {
 interface ChatDetailProps {
     chatId: string;
     onBackPress?: () => void;
+    onProfileOpen?: (userId: string) => void;
 }
 
-const ChatDetail = ({ chatId, onBackPress }: ChatDetailProps) => {
+const ChatDetail = ({ chatId, onBackPress, onProfileOpen }: ChatDetailProps) => {
     const { theme } = useContext(ThemeContext);
     const flatListRef = useRef<FlatList>(null);
     const [messageText, setMessageText] = useState('');

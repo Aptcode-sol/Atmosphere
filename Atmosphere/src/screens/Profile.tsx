@@ -130,23 +130,24 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     // 1. Profile Data Effect
     useEffect(() => {
         let mounted = true;
+        let cachedData: any = null;
+
         (async () => {
             // Determine ID for cache key purposes
             const targetId = viewingUserId || routeUserId || (routeStartupDetailsId ? `SD_${routeStartupDetailsId}` : null);
             const { DATA: CACHE_KEY } = getCacheKeys(targetId);
 
-            setLoading(true);
-
-            // 1. Try Load Cache (only if not refreshing forcefully, but here we just load)
+            // 1. Try Load Cache first (only if not refreshing forcefully)
             try {
                 const cached = await AsyncStorage.getItem(CACHE_KEY);
                 if (cached && mounted && !refreshing) {
-                    const parsed = JSON.parse(cached);
-                    setData(parsed);
+                    cachedData = JSON.parse(cached);
+                    setData(cachedData);
                     setLoading(false);
                 }
             } catch { /* ignore */ }
 
+            // 2. Fetch fresh data from network
             try {
                 let profileData: any;
                 if (routeStartupDetailsId) {
@@ -169,10 +170,14 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
 
                     const normalized = normalizeProfile(profileData);
                     const finalData = normalized || mockData;
-                    setData(finalData);
 
-                    // Save to Cache
-                    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(finalData)).catch(() => { });
+                    // Only update if data is different to avoid re-render flicker
+                    const dataChanged = JSON.stringify(finalData) !== JSON.stringify(cachedData);
+                    if (dataChanged) {
+                        setData(finalData);
+                        // Save to Cache
+                        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(finalData)).catch(() => { });
+                    }
 
                     if (!viewingUserId) {
                         const derived = profileData?.user?._id || profileData?.user?.id || null;
@@ -180,7 +185,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     }
                 }
             } catch {
-                if (mounted && !data) setData(mockData); // Only fallback if no data
+                if (mounted && !data && !cachedData) setData(mockData); // Only fallback if no data
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -189,7 +194,8 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
         return () => {
             mounted = false;
         };
-    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId, forceUpdate, data, refreshing]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewingUserId, ownProfileId, routeUserId, routeStartupDetailsId, forceUpdate]);
 
     // format helpers removed (not used in mobile layout)
 

@@ -314,16 +314,12 @@ const Jobs = () => {
         let type = '';
         let loading = false;
 
-
         if (tabName === 'Jobs') {
             data = jobs; type = 'Job'; loading = jobsLoading && jobs.length === 0;
-            hasMore = jobsHasMore; skip = jobsSkip;
         } else if (tabName === 'Grants') {
             data = grants; type = 'Grant'; loading = grantsLoading && grants.length === 0;
-            hasMore = grantsHasMore; skip = grantsSkip;
         } else if (tabName === 'Events') {
             data = events; type = 'Event'; loading = eventsLoading && events.length === 0;
-            hasMore = eventsHasMore; skip = eventsSkip;
         }
 
         const loadMoreCurrent = () => {

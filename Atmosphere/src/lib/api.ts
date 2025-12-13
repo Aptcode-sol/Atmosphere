@@ -407,3 +407,22 @@ export async function fetchEvents(limit = 20, skip = 0) {
     const data = await request('/api/events', { limit, skip }, { method: 'GET' });
     return data || []; // backend returns array directly
 }
+
+// Settings APIs
+export async function getSettings() {
+    const data = await request('/api/settings', {}, { method: 'GET' });
+    return data.settings || {};
+}
+
+export async function updateSettings(payload: { displayName?: string; username?: string; phone?: string }) {
+    return request('/api/settings', payload, { method: 'PUT' });
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+    return request('/api/settings/password', { currentPassword, newPassword }, { method: 'PUT' });
+}
+
+export async function getSavedPosts() {
+    const data = await request('/api/saved', {}, { method: 'GET' });
+    return data || [];
+}

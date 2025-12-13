@@ -1,0 +1,125 @@
+
+> Atmosphere@0.0.1 lint
+> eslint .
+
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\components\ChatList.tsx
+  62:25  warning  Inline style: { fontWeight: "hasUnread ? '700' : '600'" }  react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\components\CreateGroupModal.tsx
+  110:30  warning  Inline style: { flex: 1 }                                                        react-native/no-inline-styles
+  116:21  warning  Inline style: { backgroundColor: "isSelected ? theme.primary : 'transparent'" }  react-native/no-inline-styles
+  118:49  warning  Inline style: { color: '#fff', fontSize: 12 }                                    react-native/no-inline-styles
+  130:38  warning  Inline style: { fontSize: 16 }                                                   react-native/no-inline-styles
+  143:47  warning  Inline style: { height: 60 }                                                     react-native/no-inline-styles
+  162:58  warning  Inline style: { textAlign: 'center', marginTop: 20 }                             react-native/no-inline-styles
+  168:54  warning  Inline style: { opacity: 'loading ? 0.7 : 1' }                                   react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\components\GroupInfoModal.tsx
+  42:38  warning  Inline style: { fontSize: 16 }  react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\components\GroupList.tsx
+  19:22  warning  Inline style: { flex: 1 }  react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\lib\image.ts
+  51:37  warning  'no-console' rule is disabled but never reported  eslint-comments/no-unused-disable
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\HottestStartups.tsx
+   74:49  warning  Inline style: { borderWidth: 3, borderColor: '#C0C0C0' }  react-native/no-inline-styles
+   81:54  warning  Inline style: { backgroundColor: '#E5E7EB' }              react-native/no-inline-styles
+   98:52  warning  Inline style: { borderColor: '#FBBF24', borderWidth: 4 }  react-native/no-inline-styles
+  105:60  warning  Inline style: { backgroundColor: '#FDE68A' }              react-native/no-inline-styles
+  122:49  warning  Inline style: { borderWidth: 3, borderColor: '#CD7F32' }  react-native/no-inline-styles
+  129:54  warning  Inline style: { backgroundColor: '#FED7AA' }              react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\Jobs.tsx
+   32:30   warning  Inline style: { flex: 1, marginRight: 8 }                                                                                                                                                                                                                                                                                                                                                                          react-native/no-inline-styles
+   42:26   warning  Inline style: { marginBottom: 12 }                                                                                                                                                                                                                                                                                                                                                                                 react-native/no-inline-styles
+   56:34   warning  Inline style: { fontSize: 14 }                                                                                                                                                                                                                                                                                                                                                                                     react-native/no-inline-styles
+   59:52   warning  Inline style: { marginLeft: 16 }                                                                                                                                                                                                                                                                                                                                                                                   react-native/no-inline-styles
+   60:38   warning  Inline style: { fontSize: 14 }                                                                                                                                                                                                                                                                                                                                                                                     react-native/no-inline-styles
+   78:51   warning  Inline style: { backgroundColor: "isDark ? '#111' : '#f9f9f9'" }                                                                                                                                                                                                                                                                                                                                                   react-native/no-inline-styles
+  341:30   warning  Inline style: { alignItems: 'center', marginTop: 40 }                                                                                                                                                                                                                                                                                                                                                              react-native/no-inline-styles
+  352:44   warning  Inline style: { paddingBottom: 80, paddingHorizontal: 16 }                                                                                                                                                                                                                                                                                                                                                         react-native/no-inline-styles
+  372:42   warning  Do not define components during render. React will see a new component type on every render and destroy the entire subtree’s DOM nodes and state (https://reactjs.org/docs/reconciliation.html#elements-of-different-types). Instead, move this component definition out of the parent component “Jobs” and pass data as props. If you want to allow component creation in props, set allowAsProps option to true  react/no-unstable-nested-components
+  374:63   warning  Inline style: { color: '#fff' }                                                                                                                                                                                                                                                                                                                                                                                    react-native/no-inline-styles
+  376:46   warning  Inline style: { fontSize: 14, fontWeight: 'bold' }                                                                                                                                                                                                                                                                                                                                                                 react-native/no-inline-styles
+  380:42   warning  Do not define components during render. React will see a new component type on every render and destroy the entire subtree’s DOM nodes and state (https://reactjs.org/docs/reconciliation.html#elements-of-different-types). Instead, move this component definition out of the parent component “Jobs” and pass data as props. If you want to allow component creation in props, set allowAsProps option to true  react/no-unstable-nested-components
+  382:96   warning  Inline style: { marginVertical: 20 }                                                                                                                                                                                                                                                                                                                                                                               react-native/no-inline-styles
+  392:41   warning  Inline style: { backgroundColor: '#000000' }                                                                                                                                                                                                                                                                                                                                                                       react-native/no-inline-styles
+  393:42   warning  Inline style: { backgroundColor: '#111' }                                                                                                                                                                                                                                                                                                                                                                          react-native/no-inline-styles
+  397:69   warning  Inline style: { backgroundColor: '#333' }                                                                                                                                                                                                                                                                                                                                                                          react-native/no-inline-styles
+  400:55   warning  Inline style: {
+  color: "activeTab === tab ? '#fff' : '#888'",
+  fontWeight: "activeTab === tab ? 'bold' : 'normal'"
+}                                                                                                                                                                                                                                                                                            react-native/no-inline-styles
+  443:107  warning  Inline style: { height: 60 }                                                                                                                                                                                                                                                                                                                                                                                       react-native/no-inline-styles
+  456:107  warning  Inline style: { height: 60 }                                                                                                                                                                                                                                                                                                                                                                                       react-native/no-inline-styles
+  468:107  warning  Inline style: { height: 60 }                                                                                                                                                                                                                                                                                                                                                                                       react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\Meetings.tsx
+  344:31  warning  Missing radix parameter  radix
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\Profile.tsx
+  192:8  error  React Hook useEffect has missing dependencies: 'data' and 'refreshing'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\Search.tsx
+  244:29  warning  Inline style: { height: 20 }  react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\SignUp.tsx
+  65:107  warning  Inline style: { justifyContent: 'center' }                                           react-native/no-inline-styles
+  69:38   warning  Inline style: { borderWidth: 1, borderRadius: 6, marginTop: 6, overflow: 'hidden' }  react-native/no-inline-styles
+  70:131  warning  Inline style: { padding: 10 }                                                        react-native/no-inline-styles
+  71:130  warning  Inline style: { padding: 10 }                                                        react-native/no-inline-styles
+  72:131  warning  Inline style: { padding: 10 }                                                        react-native/no-inline-styles
+  78:30   warning  Inline style: { flexDirection: 'row', marginTop: 8, gap: 8 }                         react-native/no-inline-styles
+  79:62   warning  Inline style: { flex: 1 }                                                            react-native/no-inline-styles
+  83:66   warning  Inline style: { paddingHorizontal: 12 }                                              react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\TradingSection.tsx
+  176:37   warning  'react-hooks/exhaustive-deps' rule is disabled but never reported                                                                                                                                                                                                                                                                                                                                                     eslint-comments/no-unused-disable
+  411:30   warning  Inline style: { flex: 1, alignItems: 'center', justifyContent: 'center' }                                                                                                                                                                                                                                                                                                                                             react-native/no-inline-styles
+  454:24   warning  Inline style: { flex: 1 }                                                                                                                                                                                                                                                                                                                                                                                             react-native/no-inline-styles
+  489:46   warning  Inline style: { flex: 1 }                                                                                                                                                                                                                                                                                                                                                                                             react-native/no-inline-styles
+  490:50   warning  Inline style: { flexDirection: 'row', alignItems: 'center' }                                                                                                                                                                                                                                                                                                                                                          react-native/no-inline-styles
+  543:34   warning  Inline style: { marginTop: 24 }                                                                                                                                                                                                                                                                                                                                                                                       react-native/no-inline-styles
+  566:54   warning  Inline style: { flex: 1 }                                                                                                                                                                                                                                                                                                                                                                                             react-native/no-inline-styles
+  567:58   warning  Inline style: { flexDirection: 'row', alignItems: 'center', gap: 8 }                                                                                                                                                                                                                                                                                                                                                  react-native/no-inline-styles
+  585:54   warning  Inline style: { flexDirection: 'row', gap: 8 }                                                                                                                                                                                                                                                                                                                                                                        react-native/no-inline-styles
+  648:78   warning  Inline style: { color: '#fff', textAlign: 'center' }                                                                                                                                                                                                                                                                                                                                                                  react-native/no-inline-styles
+  654:76   warning  Inline style: { width: '100%', height: '100%' }                                                                                                                                                                                                                                                                                                                                                                       react-native/no-inline-styles
+  674:84   warning  Inline style: { width: '100%' }                                                                                                                                                                                                                                                                                                                                                                                       react-native/no-inline-styles
+  675:89   warning  Inline style: { color: '#1a73e8' }                                                                                                                                                                                                                                                                                                                                                                                    react-native/no-inline-styles
+  676:89   warning  Inline style: { color: '#1a73e8' }                                                                                                                                                                                                                                                                                                                                                                                    react-native/no-inline-styles
+  703:28   warning  Do not define components during render. React will see a new component type on every render and destroy the entire subtree’s DOM nodes and state (https://reactjs.org/docs/reconciliation.html#elements-of-different-types). Instead, move this component definition out of the parent component “Trading” and pass data as props                                                                                     react/no-unstable-nested-components
+  734:30   warning  Inline style: { flex: 1, alignItems: 'center', justifyContent: 'center' }                                                                                                                                                                                                                                                                                                                                             react-native/no-inline-styles
+  767:38   warning  Do not define components during render. React will see a new component type on every render and destroy the entire subtree’s DOM nodes and state (https://reactjs.org/docs/reconciliation.html#elements-of-different-types). Instead, move this component definition out of the parent component “Trading” and pass data as props. If you want to allow component creation in props, set allowAsProps option to true  react/no-unstable-nested-components
+  767:131  warning  Inline style: { margin: 20 }                                                                                                                                                                                                                                                                                                                                                                                          react-native/no-inline-styles
+  890:24   warning  Inline style: { flex: 1 }                                                                                                                                                                                                                                                                                                                                                                                             react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\Trading\components\TradingForm.tsx
+   67:26  warning  Inline style: {
+  marginHorizontal: -16,
+  paddingHorizontal: 16,
+  borderTopWidth: 1,
+  borderColor: '#333',
+  marginBottom: -16,
+  paddingBottom: 24
+}  react-native/no-inline-styles
+  134:55  warning  Inline style: { flex: 1, marginRight: 8 }                                                                                                                 react-native/no-inline-styles
+  141:55  warning  Inline style: { flex: 1 }                                                                                                                                 react-native/no-inline-styles
+  163:55  warning  Inline style: { flex: 1, marginRight: 8 }                                                                                                                 react-native/no-inline-styles
+  170:55  warning  Inline style: { flex: 1 }                                                                                                                                 react-native/no-inline-styles
+
+C:\Users\sanke\Documents\AtmosphereApp\Atmosphere\src\screens\setup-steps\InvestorSetup.tsx
+  62:22   warning  Inline style: { padding: 20 }                                                   react-native/no-inline-styles
+  63:26   warning  Inline style: { fontSize: 18, fontWeight: '700', marginBottom: 12 }             react-native/no-inline-styles
+  64:89   warning  Inline style: { borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }  react-native/no-inline-styles
+  65:98   warning  Inline style: { borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }  react-native/no-inline-styles
+  66:138  warning  Inline style: { borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }  react-native/no-inline-styles
+  67:141  warning  Inline style: { borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }  react-native/no-inline-styles
+  68:59   warning  Inline style: { color: '#06f' }                                                 react-native/no-inline-styles
+
+✖ 79 problems (1 error, 78 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+
