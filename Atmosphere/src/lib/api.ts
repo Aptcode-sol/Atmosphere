@@ -407,3 +407,120 @@ export async function fetchEvents(limit = 20, skip = 0) {
     const data = await request('/api/events', { limit, skip }, { method: 'GET' });
     return data || []; // backend returns array directly
 }
+
+// Notifications
+export async function fetchNotifications(limit = 50, skip = 0) {
+    const data = await request('/api/notifications', { limit, skip }, { method: 'GET' });
+    return {
+        notifications: data.notifications || [],
+        unreadCount: data.unreadCount || 0
+    };
+}
+
+export async function markNotificationRead(notificationId: string) {
+    return request(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {}, { method: 'PUT' });
+}
+
+export async function markAllNotificationsRead() {
+    return request('/api/notifications/read-all', {}, { method: 'PUT' });
+}
+
+// Saved Posts
+export async function savePost(postId: string) {
+    return request('/api/saved', { postId }, { method: 'POST' });
+}
+
+export async function fetchSavedPosts() {
+    const data = await request('/api/saved', {}, { method: 'GET' });
+    return data || [];
+}
+
+export async function unsavePost(savedId: string) {
+    return request(`/api/saved/${encodeURIComponent(savedId)}`, {}, { method: 'DELETE' });
+}
+
+// Get single post by ID
+export async function getPostById(postId: string) {
+    const data = await request(`/api/posts/${encodeURIComponent(postId)}`, {}, { method: 'GET' });
+    return data.post || data || null;
+}
+
+// Reels API
+export async function fetchReels(limit = 20, skip = 0) {
+    const data = await request('/api/reels', { limit, skip }, { method: 'GET' });
+    return data.reels || [];
+}
+
+export async function createReel(payload: { videoUrl: string; thumbnailUrl?: string; caption?: string; tags?: string[]; duration?: number }) {
+    return request('/api/reels', payload, { method: 'POST' });
+}
+
+export async function getReel(reelId: string) {
+    const data = await request(`/api/reels/${encodeURIComponent(reelId)}`, {}, { method: 'GET' });
+    return data.reel || null;
+}
+
+export async function getUserReels(userId: string, limit = 20, skip = 0) {
+    const data = await request(`/api/reels/user/${encodeURIComponent(userId)}`, { limit, skip }, { method: 'GET' });
+    return data.reels || [];
+}
+
+export async function deleteReel(reelId: string) {
+    return request(`/api/reels/${encodeURIComponent(reelId)}`, {}, { method: 'DELETE' });
+}
+
+export async function likeReel(reelId: string) {
+    return request(`/api/reels/${encodeURIComponent(reelId)}/like`, {}, { method: 'POST' });
+}
+
+export async function unlikeReel(reelId: string) {
+    return request(`/api/reels/${encodeURIComponent(reelId)}/like`, {}, { method: 'DELETE' });
+}
+
+export async function getReelComments(reelId: string, limit = 50, skip = 0) {
+    const data = await request(`/api/reels/${encodeURIComponent(reelId)}/comments`, { limit, skip }, { method: 'GET' });
+    return data.comments || [];
+}
+
+export async function addReelComment(reelId: string, text: string, parent?: string) {
+    return request(`/api/reels/${encodeURIComponent(reelId)}/comments`, { text, parent }, { method: 'POST' });
+}
+
+export async function deleteReelComment(commentId: string) {
+    return request(`/api/reels/comments/${encodeURIComponent(commentId)}`, {}, { method: 'DELETE' });
+}
+
+// Upload video for reels
+export async function uploadVideo(videoUri: string): Promise<{ url: string; thumbnailUrl: string; duration: number }> {
+    const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
+    const token = await AsyncStorage.getItem('token');
+
+    const formData = new FormData();
+    formData.append('video', {
+        uri: videoUri,
+        type: 'video/mp4',
+        name: 'reel.mp4',
+    } as any);
+
+    const res = await fetch(`${base}/api/upload/video`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            // Don't set Content-Type - let fetch set it automatically with boundary for FormData
+        },
+        body: formData,
+    });
+
+    if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Video upload failed:', res.status, errorText);
+        throw new Error('Failed to upload video');
+    }
+
+    const data = await res.json();
+    return {
+        url: data.url,
+        thumbnailUrl: data.thumbnailUrl || data.url,
+        duration: data.duration || 0,
+    };
+}

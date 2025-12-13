@@ -48,3 +48,42 @@ exports.deleteImage = async (publicId) => {
         throw error;
     }
 };
+
+/**
+ * Upload a video buffer to Cloudinary
+ * @param {Buffer} fileBuffer - The video file buffer
+ * @param {string} folder - The Cloudinary folder to upload to
+ * @returns {Promise<{url: string, publicId: string, thumbnailUrl: string, duration: number}>}
+ */
+exports.uploadVideo = async (fileBuffer, folder = 'atmosphere/reels') => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                folder,
+                resource_type: 'video',
+                transformation: [
+                    { quality: 'auto:good' }
+                ]
+            },
+            (error, result) => {
+                if (error) {
+                    console.error('Cloudinary video upload error:', error);
+                    reject(error);
+                } else {
+                    // Generate thumbnail URL from video
+                    const thumbnailUrl = result.secure_url.replace(/\.[^.]+$/, '.jpg');
+                    resolve({
+                        url: result.secure_url,
+                        publicId: result.public_id,
+                        thumbnailUrl,
+                        duration: result.duration || 0
+                    });
+                }
+            }
+        );
+
+        // Write buffer to the upload stream
+        uploadStream.end(fileBuffer);
+    });
+};
+

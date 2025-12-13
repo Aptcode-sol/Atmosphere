@@ -16,14 +16,18 @@ import Jobs from './Jobs';
 import Meetings from './Meetings';
 import SetupProfile from './SetupProfile';
 import CreatePost from './CreatePost';
+import CreateReel from './CreateReel';
+import SavedPosts from './SavedPosts';
+import CreateMenu from '../components/CreateMenu';
 
-type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail' | 'createPost';
+type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail' | 'createPost' | 'createReel' | 'saved';
 
 const LandingPage = () => {
     const [route, setRoute] = useState<RouteKey>('home');
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [showCreateMenu, setShowCreateMenu] = useState(false);
     const { theme } = useContext(ThemeContext);
 
     const handlePostPress = (postId: string) => {
@@ -67,7 +71,7 @@ const LandingPage = () => {
             case 'reels':
                 return <Reels />;
             case 'profile':
-                return <Profile onNavigate={(r: RouteKey) => setRoute(r)} onCreatePost={() => setRoute('createPost')} onPostPress={handlePostPress} />;
+                return <Profile onNavigate={(r: RouteKey) => setRoute(r)} onCreatePost={() => setShowCreateMenu(true)} onPostPress={handlePostPress} />;
             case 'setup':
                 return <SetupProfile onDone={() => setRoute('profile')} onClose={() => setRoute('profile')} />;
             case 'topstartups':
@@ -91,6 +95,10 @@ const LandingPage = () => {
                 ) : null;
             case 'createPost':
                 return <CreatePost onClose={() => setRoute('profile')} onSuccess={() => setRoute('profile')} />;
+            case 'createReel':
+                return <CreateReel onClose={() => setRoute('profile')} onSuccess={() => setRoute('reels')} />;
+            case 'saved':
+                return <SavedPosts onClose={() => setRoute('profile')} onPostPress={handlePostPress} />;
             default:
                 return null;
         }
@@ -127,6 +135,8 @@ const LandingPage = () => {
             meetings: 'Meetings',
             chatDetail: 'Messages',
             createPost: 'Profile',
+            createReel: 'Profile',
+            saved: 'Profile',
         };
         return rev[r] || 'Home';
     };
@@ -135,6 +145,14 @@ const LandingPage = () => {
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             {renderContent()}
             {!selectedPostId && !selectedChatId && <BottomNav activeRoute={mapRouteToBottom(route)} onRouteChange={(r) => setRoute(mapBottomToRoute(r))} />}
+
+            {/* Create Menu Modal */}
+            <CreateMenu
+                visible={showCreateMenu}
+                onClose={() => setShowCreateMenu(false)}
+                onSelectPost={() => setRoute('createPost')}
+                onSelectReel={() => setRoute('createReel')}
+            />
         </View>
     );
 };

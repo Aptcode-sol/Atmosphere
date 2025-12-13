@@ -3,7 +3,7 @@ import React, { useState, useContext } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { NavigationContext } from '@react-navigation/native';
-import { followUser, unfollowUser, likePost, unlikePost, likeStartup, unlikeStartup } from '../lib/api';
+import { followUser, unfollowUser, likePost, unlikePost, likeStartup, unlikeStartup, savePost, unsavePost } from '../lib/api';
 import { getImageSource } from '../lib/image';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
@@ -42,6 +42,9 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     const [likeLoading, setLikeLoading] = useState(false);
     const [followed, setFollowed] = useState(Boolean((companyData as any).isFollowing));
     const [followLoading, setFollowLoading] = useState(false);
+    const [saved, setSaved] = useState(Boolean((companyData as any).isSaved));
+    const [savedId, setSavedId] = useState<string | null>((companyData as any).savedId || null);
+    const [saveLoading, setSaveLoading] = useState(false);
 
     useEffect(() => {
         // follow and liked state are provided by the feed as flags (likedByCurrentUser, isFollowing)
@@ -78,6 +81,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
         if (typeof (companyData as any).likedByCurrentUser === 'boolean') setLiked((companyData as any).likedByCurrentUser);
         if (typeof (companyData as any).crownedByCurrentUser === 'boolean') setCrowned((companyData as any).crownedByCurrentUser);
         if (typeof (companyData as any).isFollowing === 'boolean') setFollowed((companyData as any).isFollowing);
+        if (typeof (companyData as any).isSaved === 'boolean') setSaved((companyData as any).isSaved);
     }, [companyData]);
 
     const navigation = useContext(NavigationContext) as any | undefined;
@@ -140,6 +144,29 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
             setCrownsCount(c => prev ? c + 1 : Math.max(0, c - 1));
         } finally {
             setCrownLoading(false);
+        }
+    };
+
+    const toggleSave = async () => {
+        if (saveLoading) return;
+        setSaveLoading(true);
+        const prevSaved = saved;
+        const prevSavedId = savedId;
+        setSaved(!prevSaved);
+        try {
+            const postId = String((companyData as any).originalId || (companyData as any).id || (companyData as any).userId || (companyData as any).user);
+            if (!prevSaved) {
+                const result = await savePost(postId);
+                if (result?._id) setSavedId(result._id);
+            } else if (prevSavedId) {
+                await unsavePost(prevSavedId);
+                setSavedId(null);
+            }
+        } catch (err) {
+            setSaved(prevSaved);
+            setSavedId(prevSavedId);
+        } finally {
+            setSaveLoading(false);
         }
     };
 
@@ -272,6 +299,9 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                         </TouchableOpacity>
                     </View>
                     <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>📤</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.shares}</Text></View>
+                    <TouchableOpacity style={styles.statItem} onPress={toggleSave}>
+                        <Text style={[styles.statIcon, { color: saved ? '#3b82f6' : '#ddd' }]}>{saved ? '🔖' : '📑'}</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
 
