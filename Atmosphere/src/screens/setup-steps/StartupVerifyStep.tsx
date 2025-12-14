@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import StartupPortfolioStep from './StartupPortfolioStep';
 import InvestorPortfolioStep from './InvestorPortfolioStep';
 import KycScreen from '../KycScreen';
-import { getProfile } from '../../lib/api';
+import { getProfile, updateProfile } from '../../lib/api';
 
 export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
     const [showPortfolio, setShowPortfolio] = useState(false);
     const [showKyc, setShowKyc] = useState(false);
     const [kycCompleted, setKycCompleted] = useState(false);
+    const [portfolioCompleted, setPortfolioCompleted] = useState(false);
     /* eslint-disable react-native/no-inline-styles */
     const [userRole, setUserRole] = useState<'startup' | 'investor' | 'personal' | null>(null);
 
@@ -16,9 +17,13 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
         (async () => {
             try {
                 const profile = await getProfile();
-                console.log(profile)
-                const acct = profile?.user?.roles[0] || (Array.isArray(profile?.user?.roles) && profile.user.roles.length > 0 ? profile.user.roles[0] : 'personal');
+                console.log(profile);
+                const roles = profile?.user?.roles || ['personal'];
+                const acct = roles[0] || 'personal';
                 setUserRole(acct);
+                // Check existing verification status
+                setKycCompleted(profile?.user?.isKycVerified || false);
+                setPortfolioCompleted(profile?.user?.portfolioComplete || false);
             } catch {
                 setUserRole('personal');
             }
@@ -30,25 +35,81 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
         return (
             <KycScreen
                 onBack={() => setShowKyc(false)}
-                onComplete={() => {
+                onComplete={async () => {
                     setKycCompleted(true);
                     setShowKyc(false);
+                    // Save KYC status
+                    try {
+                        await updateProfile({ userData: { isKycVerified: true } });
+                    } catch {
+                        // ignore
+                    }
                 }}
             />
         );
     }
 
     if (showPortfolio) {
-        console.log(userRole)
+        console.log(userRole);
         if (userRole === 'investor') {
-            return <InvestorPortfolioStep onBack={() => setShowPortfolio(false)} onDone={onDone} />;
+            return (
+                <InvestorPortfolioStep
+                    onBack={() => setShowPortfolio(false)}
+                    onDone={async () => {
+                        setPortfolioCompleted(true);
+                        setShowPortfolio(false);
+                        try {
+                            await updateProfile({ userData: { portfolioComplete: true } });
+                        } catch {
+                            // ignore
+                        }
+                    }}
+                />
+            );
         }
         if (userRole === 'startup') {
-            return <StartupPortfolioStep onBack={() => setShowPortfolio(false)} onDone={onDone} />;
+            return (
+                <StartupPortfolioStep
+                    onBack={() => setShowPortfolio(false)}
+                    onDone={async () => {
+                        setPortfolioCompleted(true);
+                        setShowPortfolio(false);
+                        try {
+                            await updateProfile({ userData: { portfolioComplete: true } });
+                        } catch {
+                            // ignore
+                        }
+                    }}
+                />
+            );
         }
     }
 
-    const completedCount = (kycCompleted ? 1 : 0) + (showPortfolio ? 0 : 0);
+    // Calculate completion for display
+    const totalSteps = userRole === 'personal' ? 1 : 2;
+    const completedCount = (kycCompleted ? 1 : 0) + (portfolioCompleted ? 1 : 0);
+    const allDone = userRole === 'personal' ? kycCompleted : (kycCompleted && portfolioCompleted);
+
+    // Handle complete setup
+    const handleComplete = async () => {
+        if (!allDone) {
+            Alert.alert('Incomplete', 'Please complete all required steps.');
+            return;
+        }
+        try {
+            await updateProfile({
+                userData: {
+                    isKycVerified: kycCompleted,
+                    portfolioComplete: portfolioCompleted,
+                    verified: true,
+                    profileSetupComplete: true
+                }
+            });
+            onDone();
+        } catch {
+            Alert.alert('Error', 'Failed to complete setup');
+        }
+    };
 
     return (
         <View style={{ flex: 1, padding: 20, backgroundColor: '#000' }}>
@@ -86,9 +147,22 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
                 </TouchableOpacity>
 
                 {userRole !== 'personal' && (
-                    <TouchableOpacity onPress={() => setShowPortfolio(true)} style={{ borderWidth: 1, borderColor: '#222', padding: 18, borderRadius: 16, marginBottom: 12, backgroundColor: '#070707' }}>
+                    <TouchableOpacity
+                        onPress={() => setShowPortfolio(true)}
+                        style={{
+                            borderWidth: 1,
+                            borderColor: portfolioCompleted ? '#22c55e' : '#222',
+                            padding: 18,
+                            borderRadius: 16,
+                            marginBottom: 12,
+                            backgroundColor: '#070707'
+                        }}
+                    >
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ color: '#fff', fontWeight: '600' }}>Portfolio</Text>
+                            <View>
+                                <Text style={{ color: '#fff', fontWeight: '600' }}>Portfolio</Text>
+                                {portfolioCompleted && <Text style={{ color: '#22c55e', fontSize: 12, marginTop: 4 }}>Completed ✓</Text>}
+                            </View>
                             <Text style={{ color: '#fff' }}>›</Text>
                         </View>
                     </TouchableOpacity>
@@ -97,10 +171,25 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
 
             <View style={{ flex: 1 }} />
 
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-                <Text style={{ color: '#999' }}>{completedCount}/2 done</Text>
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ color: '#999' }}>{completedCount}/{totalSteps} done</Text>
             </View>
+
+            {/* Complete Setup button - only shows when all steps done */}
+            <TouchableOpacity
+                onPress={handleComplete}
+                disabled={!allDone}
+                style={{
+                    backgroundColor: allDone ? '#22c55e' : '#333',
+                    paddingVertical: 14,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    marginBottom: 20,
+                    opacity: allDone ? 1 : 0.5
+                }}
+            >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Complete Setup</Text>
+            </TouchableOpacity>
         </View>
     );
 }
-

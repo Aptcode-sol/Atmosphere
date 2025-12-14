@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, Animated, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Alert, Animated, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { saveStartupProfile, getProfile, getStartupProfile } from '../../lib/api';
+import { saveStartupProfile, getProfile, getStartupProfile, uploadDocument } from '../../lib/api';
+import { pick, types } from '@react-native-documents/picker';
 
 function CollapsibleSection({ title, open, onPress, children }: any) {
     const [contentHeight, setContentHeight] = useState(0);
@@ -57,17 +58,20 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
     const [investorDoc, setInvestorDoc] = useState('');
     const [roundType, setRoundType] = useState('');
     const [requiredCapital, setRequiredCapital] = useState('');
+    const [uploadUrl, setUploadUrl] = useState('');
+    const [uploadingDoc, setUploadingDoc] = useState(false);
+    const [investorDocUrl, setInvestorDocUrl] = useState('');
+    const [uploadingInvestorDoc, setUploadingInvestorDoc] = useState(false);
 
     useEffect(() => {
         (async () => {
             try {
                 const profile = await getProfile();
-                Alert.alert('Debug', `getProfile() response: ${JSON.stringify(profile)}`);
                 console.log('getProfile() response:', profile);
                 const userId = profile?.user?._id;
                 console.log('Fetched userId:', userId);
                 if (!userId) {
-                    Alert.alert('Debug', 'No userId found in profile');
+                    console.log('No userId found in profile');
                     return;
                 }
                 try {
@@ -75,7 +79,7 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                     console.log('Fetched startup profile response:', res);
                     const data = res?.startupDetails;
                     if (data) {
-                        Alert.alert('Debug', `Fetched startup data: ${JSON.stringify(data)}`);
+                        console.log('Fetched startup data:', data);
                         setCompanyProfile(data.companyName || '');
                         setAbout(data.about || '');
                         setLocation(data.location || '');
@@ -96,26 +100,87 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                         setRequiredCapital(data.requiredCapital ? String(data.requiredCapital) : '');
                         setUploadName(data.documents || '');
                     } else {
-                        Alert.alert('Debug', 'No startup data found for user');
+                        console.log('No startup data found for user');
                     }
-                } catch (err) {
+                } catch (err: any) {
                     if (err?.message && err.message.toLowerCase().includes('not found')) {
-                        Alert.alert('Info', 'No startup profile found yet. Please fill out your details.');
+                        console.log('No startup profile found yet');
                     } else {
-                        Alert.alert('Debug', `Error fetching startup profile: ${err?.message || err}`);
-                        console.log('Error fetching startup profile:', err);
+                        console.log('Error fetching startup profile:', err?.message || err);
                     }
                 }
-            } catch (err) {
-                Alert.alert('Debug', `Error fetching user profile: ${err?.message || err}`);
-                console.log('Error fetching user profile:', err);
+            } catch (err: any) {
+                console.log('Error fetching user profile:', err?.message || err);
             }
         })();
     }, []);
 
     const uploadDoc = async () => {
-        setUploadName('sample-document.pdf');
-        Alert.alert('Upload', 'Pretend uploaded sample-document.pdf');
+        try {
+            // Allow all document types
+            const result = await pick({
+                type: [types.allFiles],
+            });
+
+            if (!result || result.length === 0) return;
+
+            const doc = result[0];
+            if (doc && doc.uri) {
+                setUploadingDoc(true);
+                try {
+                    const url = await uploadDocument(
+                        doc.uri,
+                        doc.name || 'document',
+                        doc.type || 'application/octet-stream'
+                    );
+                    setUploadName(doc.name || 'document');
+                    setUploadUrl(url);
+                } catch (uploadErr: any) {
+                    Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document');
+                } finally {
+                    setUploadingDoc(false);
+                }
+            }
+        } catch (err: any) {
+            // User cancelled or error
+            if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
+                Alert.alert('Error', err.message || 'Failed to pick document');
+            }
+        }
+    };
+
+    const pickInvestorDoc = async () => {
+        try {
+            // Allow all document types
+            const result = await pick({
+                type: [types.allFiles],
+            });
+
+            if (!result || result.length === 0) return;
+
+            const doc = result[0];
+            if (doc && doc.uri) {
+                setUploadingInvestorDoc(true);
+                try {
+                    const url = await uploadDocument(
+                        doc.uri,
+                        doc.name || 'document',
+                        doc.type || 'application/octet-stream'
+                    );
+                    setInvestorDoc(doc.name || 'document');
+                    setInvestorDocUrl(url);
+                } catch (uploadErr: any) {
+                    Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document');
+                } finally {
+                    setUploadingInvestorDoc(false);
+                }
+            }
+        } catch (err: any) {
+            // User cancelled or error
+            if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
+                Alert.alert('Error', err.message || 'Failed to pick document');
+            }
+        }
     };
 
     const sendForVerification = async () => {
@@ -133,11 +198,11 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                     fundingMethod,
                     fundingAmount: raisedAmount,
                     investorName: fundingMethod === 'Capital Raised' ? investorName : undefined,
-                    investorDoc: fundingMethod === 'Capital Raised' ? investorDoc : undefined,
+                    investorDoc: fundingMethod === 'Capital Raised' ? investorDocUrl : undefined,
                 },
                 roundType,
                 requiredCapital,
-                documents: uploadName,
+                documents: uploadUrl,
             };
             await saveStartupProfile(payload);
             Alert.alert('Sent', 'Documents sent for verification');
@@ -248,8 +313,12 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                                 />
                             </View>
                             <View style={styles.uploadWrap}>
-                                <TouchableOpacity onPress={() => setInvestorDoc('investor-proof.pdf')} style={styles.uploadBtn}>
-                                    <Text style={styles.uploadText}>{investorDoc || 'Upload investor proof'}</Text>
+                                <TouchableOpacity onPress={pickInvestorDoc} style={styles.uploadBtn} disabled={uploadingInvestorDoc}>
+                                    {uploadingInvestorDoc ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <Text style={styles.uploadText}>{investorDoc || 'Upload investor proof'}</Text>
+                                    )}
                                 </TouchableOpacity>
                             </View>
                         </>
@@ -294,8 +363,12 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             </CollapsibleSection>
 
             <View style={styles.uploadWrap}>
-                <TouchableOpacity onPress={uploadDoc} style={styles.uploadBtn}>
-                    <Text style={styles.uploadText}>{uploadName || 'Upload documents for verification'}</Text>
+                <TouchableOpacity onPress={uploadDoc} style={styles.uploadBtn} disabled={uploadingDoc}>
+                    {uploadingDoc ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                        <Text style={styles.uploadText}>{uploadName || 'Upload documents for verification'}</Text>
+                    )}
                 </TouchableOpacity>
             </View>
             <View style={styles.consentRow}>
@@ -308,7 +381,7 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             </View>
 
             <TouchableOpacity onPress={sendForVerification} disabled={!consent} style={[styles.btn, styles.btnSend, consent && styles.btnSendActive]}>
-                <Text style={[styles.btnText, consent ? styles.btnTextEnabled : styles.btnTextDisabled]}>Send for Verification</Text>
+                <Text style={[styles.btnText, consent ? styles.btnTextEnabled : styles.btnTextDisabled]}>Update Details</Text>
             </TouchableOpacity>
             <Text style={styles.infoText}>All submitted documents will be reviewed and updated automatically.</Text>
         </ScrollView>

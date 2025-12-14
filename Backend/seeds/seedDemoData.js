@@ -9,7 +9,7 @@ const DEMO_USERS = [
         password: 'investor123',
         username: 'bablu_investor',
         displayName: 'Bablu Investor',
-        accountType: 'investor',
+        roles: ['investor'],
         isVerified: true
     },
     {
@@ -17,7 +17,7 @@ const DEMO_USERS = [
         password: 'startup123',
         username: 'greencharge',
         displayName: 'Green Charge',
-        accountType: 'startup',
+        roles: ['startup'],
         isVerified: true
     },
     {
@@ -25,7 +25,7 @@ const DEMO_USERS = [
         password: 'airbound@example.com', // password same as email per prompt? or prompt said "pass:airbound@example.com"
         username: 'airbound',
         displayName: 'Airbound Logistics',
-        accountType: 'startup',
+        roles: ['startup'],
         isVerified: false
     }
 ];
@@ -46,7 +46,7 @@ async function seedDemoData() {
                 username: u.username,
                 password: hashedPassword,
                 displayName: u.displayName,
-                accountType: u.accountType,
+                roles: u.roles,
                 verified: u.isVerified,
                 avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.displayName)}&background=random`
             });
@@ -107,7 +107,7 @@ async function seedDemoData() {
             messages: []
         });
         await group.save();
-        
+
         const msg = new Message({
             chat: group._id,
             sender: bablu._id,
@@ -137,7 +137,7 @@ async function ensureDirectChat(u1, u2, initialMsg) {
             participants: [u1._id, u2._id]
         });
         await chat.save();
-        
+
         const msg = new Message({
             chat: chat._id,
             sender: u1._id,

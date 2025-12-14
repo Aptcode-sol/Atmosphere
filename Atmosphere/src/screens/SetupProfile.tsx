@@ -7,6 +7,8 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
 import InvestorSetup from './setup-steps/InvestorSetup';
 import PersonalSetup from './setup-steps/PersonalSetup';
+import InvestorPortfolioStep from './setup-steps/InvestorPortfolioStep';
+import StartupPortfolioStep from './setup-steps/StartupPortfolioStep';
 
 const makeLocalStyles = (theme: any) => StyleSheet.create({
     fullPage: { flex: 1 },
@@ -61,25 +63,44 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
     const [verificationCode, setVerificationCode] = useState('');
     const [verified, setVerified] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [roleStep, setRoleStep] = useState<'startup' | 'investor' | 'personal' | null>(null);
+    const [roleStep, setRoleStep] = useState<'startup' | 'investor' | 'personal' | 'portfolio_investor' | 'portfolio_startup' | null>(null);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [pendingAvatarUri, setPendingAvatarUri] = useState<string | null>(null); // Local URI before upload
     const [pendingAvatarMeta, setPendingAvatarMeta] = useState<{ fileName: string; type: string } | null>(null);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [accountType, setAccountType] = useState<'startup' | 'investor' | 'personal' | null>(null);
+    const [isKycVerified, setIsKycVerified] = useState(false);
+    const [portfolioComplete, setPortfolioComplete] = useState(false);
 
     useEffect(() => {
         (async () => {
             try {
                 const profile = await getProfile();
                 if (profile?.user) {
-                    // profile data fetched (not stored to avoid unused var)
                     setUsername(profile.user.username || '');
                     setDisplayName(profile.user.displayName || profile.user.fullName || '');
                     setBio(profile.user.bio || '');
                     setEmail(profile.user.email || '');
                     setInitialEmail(profile.user.email || '');
                     setAvatarUrl(profile.user.avatarUrl || null);
-                    // accountType handled at signup; we'll use it after save
+                    if (profile.user.profileSetupComplete) setIsEditMode(true);
+                    // Get account type from roles array (first role or default to personal)
+                    const roles = profile.user.roles || ['personal'];
+                    const primaryRole = roles[0] || 'personal';
+                    setAccountType(primaryRole as 'startup' | 'investor' | 'personal');
+                    // Get KYC and portfolio status
+                    setIsKycVerified(profile.user.isKycVerified || false);
+                    setPortfolioComplete(profile.user.portfolioComplete || false);
+                    // Debug log
+                    console.log('[SetupProfile] Loaded user state:', {
+                        roles: profile.user.roles,
+                        primaryRole,
+                        profileSetupComplete: profile.user.profileSetupComplete,
+                        isEditMode: !!profile.user.profileSetupComplete,
+                        isKycVerified: profile.user.isKycVerified,
+                        portfolioComplete: profile.user.portfolioComplete
+                    });
                 }
             } catch {
                 // ignore
@@ -158,6 +179,9 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                 }
             });
             Alert.alert('Success', 'Profile saved successfully!');
+            if (isEditMode) {
+                if (onClose) onClose();
+            }
         } catch (err: any) {
             const msg = err && err.message ? err.message : 'Unable to save profile';
             Alert.alert('Error', msg);
@@ -188,8 +212,21 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
             <View style={localStyles.header}>
                 <TouchableOpacity onPress={() => onClose && onClose()} style={localStyles.headerLeft}><Text style={localStyles.headerIcon}>{'←'}</Text></TouchableOpacity>
                 <View style={localStyles.headerCenter}>
-                    <Text style={[localStyles.headerTitle, localStyles.headerTitleColor]}>Setup Profile</Text>
-                    <Text style={localStyles.smallText}>Step 1 of 3</Text>
+                    <Text style={[localStyles.headerTitle, localStyles.headerTitleColor]}>
+                        {isEditMode ? 'Edit Profile' : 'Setup Profile'}
+                    </Text>
+                    {/* Show step info only in setup mode, or edit mode for non-personal accounts */}
+                    {(() => {
+                        if (isEditMode && accountType === 'personal' && isKycVerified) {
+                            return null; // No step info for personal with verified KYC in edit mode
+                        }
+                        if (isEditMode) {
+                            return null; // No step info in edit mode
+                        }
+                        // Setup mode: show step counts
+                        const totalSteps = accountType === 'personal' && isKycVerified ? 1 : 2;
+                        return <Text style={localStyles.smallText}>Step 1 of {totalSteps}</Text>;
+                    })()}
                 </View>
                 <View style={localStyles.headerRight}>
                     <TouchableOpacity onPress={submit} style={{ padding: 8 }}><Text style={localStyles.saveText}>{saving ? 'Saving...' : 'Save'}</Text></TouchableOpacity>
@@ -251,22 +288,63 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                 <Text style={[localStyles.label, { color: theme.placeholder }]}>Quick Bio</Text>
                 <TextInput placeholder="Tell us about yourself" value={bio} onChangeText={setBio} multiline numberOfLines={3} style={localStyles.textarea} placeholderTextColor={theme.placeholder} />
 
-                <TouchableOpacity onPress={() => setRoleStep('startup')} style={{ marginTop: 12, paddingVertical: 14, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center' }}>
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>Next</Text>
-                </TouchableOpacity>
+                {/* Button Logic:
+                    - Personal + Edit mode -> No button (just Save)
+                    - Personal + Setup mode -> Next to KYC
+                    - Investor/Startup + Edit mode -> Update to Portfolio directly
+                    - Investor/Startup + Setup mode -> Next to Verification page
+                */}
+                {(() => {
+                    // Personal accounts - no second page in edit mode, go to KYC in setup
+                    if (accountType === 'personal') {
+                        if (isEditMode) {
+                            return null; // No second page for personal in edit mode
+                        }
+                        // Setup mode - go to verification/KYC
+                        return (
+                            <TouchableOpacity
+                                onPress={() => setRoleStep('personal')}
+                                style={{ marginTop: 12, paddingVertical: 14, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center' }}
+                            >
+                                <Text style={{ color: '#fff', fontWeight: '700' }}>Next</Text>
+                            </TouchableOpacity>
+                        );
+                    }
+
+                    // Investor/Startup - always show Next button, but route differently based on mode
+                    // In edit mode, use portfolio_ prefix to go directly to portfolio
+                    const targetStep = isEditMode ? `portfolio_${accountType}` : accountType;
+                    return (
+                        <TouchableOpacity
+                            onPress={() => setRoleStep(targetStep as any)}
+                            style={{ marginTop: 12, paddingVertical: 14, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center' }}
+                        >
+                            <Text style={{ color: '#fff', fontWeight: '700' }}>Next</Text>
+                        </TouchableOpacity>
+                    );
+                })()}
 
             </ScrollView>
 
             {roleStep && (
                 <View style={[localStyles.fullPage, { backgroundColor: theme.background, position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 10 }]}>
+                    {/* Setup mode - full verification flow */}
                     {roleStep === 'startup' && (
                         <StartupVerifyStep onBack={() => setRoleStep(null)} onDone={() => { setRoleStep(null); onDone(); if (onClose) onClose(); }} />
                     )}
                     {roleStep === 'investor' && (
-                        <InvestorSetup onDone={() => { setRoleStep(null); onDone(); if (onClose) onClose(); }} />
+                        <StartupVerifyStep onBack={() => setRoleStep(null)} onDone={() => { setRoleStep(null); onDone(); if (onClose) onClose(); }} />
                     )}
                     {roleStep === 'personal' && (
-                        <PersonalSetup onDone={() => { setRoleStep(null); onDone(); if (onClose) onClose(); }} />
+                        <StartupVerifyStep onBack={() => setRoleStep(null)} onDone={() => { setRoleStep(null); onDone(); if (onClose) onClose(); }} />
+                    )}
+
+                    {/* Edit mode - direct to portfolio */}
+                    {roleStep === 'portfolio_investor' && (
+                        <InvestorPortfolioStep onBack={() => setRoleStep(null)} onDone={() => { setRoleStep(null); if (onClose) onClose(); }} />
+                    )}
+                    {roleStep === 'portfolio_startup' && (
+                        <StartupPortfolioStep onBack={() => setRoleStep(null)} onDone={() => { setRoleStep(null); if (onClose) onClose(); }} />
                     )}
                 </View>
             )}

@@ -16,7 +16,7 @@ export default function KycScreen({ onBack, onComplete }: Props) {
     const { theme } = useContext(ThemeContext);
     const [error, setError] = useState(false);
     const [initialLoad, setInitialLoad] = useState(true);
-    const [permissionGranted, setPermissionGranted] = useState(false);
+    const [_permissionGranted, setPermissionGranted] = useState(false);
     const webViewRef = useRef<WebView>(null);
 
     // Request camera permission on mount

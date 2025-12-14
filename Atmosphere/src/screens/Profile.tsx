@@ -453,7 +453,9 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                             </TouchableOpacity>
                         ) : (
                             <TouchableOpacity style={[styles.setupPill, { borderColor: theme.border }]} onPress={() => onNavigate ? onNavigate('setup') : null}>
-                                <Text style={[styles.setupPillText, { color: theme.text }]}>Setup Profile</Text>
+                                <Text style={[styles.setupPillText, { color: theme.text }]}>
+                                    {src?.profileSetupComplete ? 'Edit Profile' : 'Setup Profile'}
+                                </Text>
                             </TouchableOpacity>
                         )}
 

@@ -29,10 +29,10 @@ router.get('/follows/:userId', authMiddleware, adminOnly, async (req, res, next)
 // Mark profile setup complete for matching users (admin only)
 router.post('/users/mark-setup', authMiddleware, adminOnly, async (req, res, next) => {
     try {
-        // optional filter: { accountType: 'startup' } or { emailDomain: 'example.com' }
-        const { accountType } = req.body || {};
+        // optional filter: { role: 'startup' } to filter by role
+        const { role } = req.body || {};
         const filter = {};
-        if (accountType) filter.accountType = accountType;
+        if (role) filter.roles = role; // Filter by role in roles array
         // update users matching filter
         const { User } = require('../models');
         const result = await User.updateMany(filter, { $set: { profileSetupComplete: true, onboardingStep: 4 } });

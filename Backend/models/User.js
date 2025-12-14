@@ -12,8 +12,7 @@ const UserSchema = new Schema(
         displayName: { type: String },
         bio: { type: String },
         avatarUrl: { type: String },
-        accountType: { type: String, enum: ['investor', 'startup', 'personal'], default: 'personal' },
-        roles: { type: [String], default: ['personal'] },
+        roles: { type: [String], default: ['personal'], enum: ['investor', 'startup', 'personal'] },
         otpVerified: { type: Boolean, default: false },
         verified: { type: Boolean, default: false },
         profileSetupComplete: { type: Boolean, default: false },
@@ -21,6 +20,8 @@ const UserSchema = new Schema(
         deletedAt: { type: Date, default: null },
         kycCompleted: { type: Boolean, default: false },
         kycCompletedAt: { type: Date },
+        isKycVerified: { type: Boolean, default: false }, // KYC verification status
+        portfolioComplete: { type: Boolean, default: false }, // For investor portfolio step
         links: {
             website: String,
             linkedin: String,

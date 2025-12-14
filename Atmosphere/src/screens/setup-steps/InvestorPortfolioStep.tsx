@@ -1,8 +1,9 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Animated, Alert } from 'react-native';
-import { updateProfile, getProfile } from '../../lib/api';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Animated, Alert, ActivityIndicator } from 'react-native';
+import { updateProfile, getProfile, uploadDocument } from '../../lib/api';
 import CustomCalendar from '../../components/CustomCalendar';
+import { pick, types } from '@react-native-documents/picker';
 
 function Collapsible({ title, open, onToggle, children }: any) {
     const [measuredHeight, setMeasuredHeight] = useState(0);
@@ -60,7 +61,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
     const [maxCheck, setMaxCheck] = useState('12345');
 
     // Holdings state & add form
-    const [holdings, setHoldings] = useState<Array<{ name: string; date: string; amount: number; companyId?: string }>>([]);
+    const [holdings, setHoldings] = useState<Array<{ name: string; date: string; amount: number; companyId?: string; docUrl?: string }>>([]);
     const [addingHolding, setAddingHolding] = useState(false);
     const [companyName, setCompanyName] = useState('ldnlk');
     const [companyId, setCompanyId] = useState('123123');
@@ -70,9 +71,45 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
 
     const [amount, setAmount] = useState('123');
     const [docName, setDocName] = useState('');
+    const [docUrl, setDocUrl] = useState('');
+    const [uploadingDoc, setUploadingDoc] = useState(false);
 
     const resetForm = () => {
-        setCompanyName(''); setCompanyId(''); setDate(''); setAmount(''); setDocName('');
+        setCompanyName(''); setCompanyId(''); setDate(''); setAmount(''); setDocName(''); setDocUrl('');
+    };
+
+    const pickDocument = async () => {
+        try {
+            // Allow all document types
+            const result = await pick({
+                type: [types.allFiles],
+            });
+
+            if (!result || result.length === 0) return;
+
+            const doc = result[0];
+            if (doc && doc.uri) {
+                setUploadingDoc(true);
+                try {
+                    const url = await uploadDocument(
+                        doc.uri,
+                        doc.name || 'document',
+                        doc.type || 'application/octet-stream'
+                    );
+                    setDocName(doc.name || 'document');
+                    setDocUrl(url);
+                } catch (uploadErr: any) {
+                    Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document');
+                } finally {
+                    setUploadingDoc(false);
+                }
+            }
+        } catch (err: any) {
+            // User cancelled or error
+            if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
+                Alert.alert('Error', err.message || 'Failed to pick document');
+            }
+        }
     };
 
     useEffect(() => {
@@ -104,7 +141,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                         setHoldings(mapped);
                     }
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.warn('Could not load profile for investor step', err && err.message);
             }
         })();
@@ -119,7 +156,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
             return;
         }
         const amt = parseFloat(amount) || 0;
-        const newHolding = { name: companyName, date: date || new Date().toLocaleDateString(), amount: amt };
+        const newHolding = { name: companyName, date: date || new Date().toLocaleDateString(), amount: amt, docUrl };
         setHoldings((prev) => {
             const updated = [...prev, newHolding];
             // persist updated holdings immediately
@@ -133,7 +170,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
     async function saveInvestorDetails(overrides: any = {}) {
         // Compose details payload from current state + overrides
         const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-        let pending = {};
+        let pending: any = {};
         try {
             const raw = await AsyncStorage.getItem('pending.investor.details');
             if (raw) pending = JSON.parse(raw || '{}');
@@ -153,7 +190,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                 min: minCheck ? Number(minCheck) : (pending.checkSize ? pending.checkSize.min : undefined),
                 max: maxCheck ? Number(maxCheck) : (pending.checkSize ? pending.checkSize.max : undefined),
             },
-            previousInvestments: holdings.map(h => ({ companyName: h.name, companyId: (h as any).companyId || undefined, date: h.date, amount: h.amount, docs: [] })),
+            previousInvestments: holdings.map(h => ({ companyName: h.name, companyId: h.companyId || undefined, date: h.date, amount: h.amount, docs: h.docUrl ? [h.docUrl] : [] })),
             ...overrides,
         };
 
@@ -270,8 +307,12 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                                 <TextInput value={amount} onChangeText={setAmount} placeholder="0.00" placeholderTextColor="#777" keyboardType="numeric" style={localStyles.input} />
 
                                 <Text style={localStyles.formLabel}>Upload Documents</Text>
-                                <TouchableOpacity style={localStyles.chooseFile} onPress={() => setDocName('sample-document.pdf')}>
-                                    <Text style={{ color: docName ? '#fff' : '#777' }}>{docName || 'Choose file'}</Text>
+                                <TouchableOpacity style={localStyles.chooseFile} onPress={pickDocument} disabled={uploadingDoc}>
+                                    {uploadingDoc ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <Text style={{ color: docName ? '#fff' : '#777' }}>{docName || 'Choose file'}</Text>
+                                    )}
                                 </TouchableOpacity>
 
                                 <View style={localStyles.formActions}>
@@ -357,7 +398,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                 )}
 
                 <TouchableOpacity onPress={async () => { await saveInvestorDetails(); onDone(); }} style={localStyles.doneBtn}>
-                    <Text style={localStyles.doneBtnText}>Complete Setup</Text>
+                    <Text style={localStyles.doneBtnText}>Update Details</Text>
                 </TouchableOpacity>
             </ScrollView>
         </View>
@@ -404,7 +445,7 @@ const localStyles = StyleSheet.create({
     holdingDate: { color: '#bbb', fontSize: 12 },
     holdingRight: { width: 120, alignItems: 'flex-end' },
     holdingAmount: { color: '#fff', fontWeight: '700' },
-    addHoldingsBtn: { marginTop: 8, padding: 14, borderRadius: 12, backgroundColor: '#1a1a1a', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#222' },
+    addHoldingsBtn: { marginTop: 8, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, backgroundColor: '#1a1a1a', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#222', minWidth: '100%' },
     addHoldingsPlus: { color: '#fff', fontSize: 20, marginRight: 8 },
     addHoldingsText: { color: '#fff', fontWeight: '700' },
     addForm: { marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#0f0f0f', borderWidth: 1, borderColor: '#222' },

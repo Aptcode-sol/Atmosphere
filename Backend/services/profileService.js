@@ -1,7 +1,7 @@
 const { User, StartupDetails, InvestorDetails, Follow } = require('../models');
 
 /**
- * Get user profile based on accountType
+ * Get user profile based on roles
  * @param {String} userId - User ID
  * @returns {Object} Profile data with user and role-specific details
  */
@@ -10,8 +10,9 @@ async function getProfile(userId) {
     if (!user) throw new Error('User not found');
 
     let roleDetails = null;
-    const isStartup = user.accountType === 'startup' || (Array.isArray(user.roles) && user.roles.includes('startup'));
-    const isInvestor = user.accountType === 'investor' || (Array.isArray(user.roles) && user.roles.includes('investor'));
+    const roles = Array.isArray(user.roles) ? user.roles : ['personal'];
+    const isStartup = roles.includes('startup');
+    const isInvestor = roles.includes('investor');
 
     if (isStartup) {
         roleDetails = await StartupDetails.findOne({ user: userId });
@@ -67,8 +68,9 @@ async function getProfile(userId) {
             displayName: user.displayName,
             bio: user.bio,
             avatarUrl: user.avatarUrl,
-            accountType: user.accountType,
             roles: user.roles,
+            isKycVerified: user.isKycVerified,
+            portfolioComplete: user.portfolioComplete,
             otpVerified: user.otpVerified,
             verified: user.verified,
             profileSetupComplete: user.profileSetupComplete,
@@ -85,7 +87,7 @@ async function getProfile(userId) {
 }
 
 /**
- * Update user profile based on accountType
+ * Update user profile based on roles
  * @param {String} userId - User ID
  * @param {Object} data - Profile data to update
  * @returns {Object} Updated profile
@@ -93,7 +95,7 @@ async function getProfile(userId) {
 async function updateProfile(userId, data) {
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
-    console.log('updateProfile: user.accountType =', user.accountType);
+    console.log('updateProfile: user.roles =', user.roles);
 
     // Update user fields
     const { userData, detailsData } = data;
@@ -107,7 +109,7 @@ async function updateProfile(userId, data) {
     }
 
     if (userData) {
-        const allowedUserFields = ['username', 'email', 'fullName', 'displayName', 'bio', 'avatarUrl', 'otpVerified', 'profileSetupComplete', 'onboardingStep', 'links'];
+        const allowedUserFields = ['username', 'email', 'fullName', 'displayName', 'bio', 'avatarUrl', 'otpVerified', 'verified', 'profileSetupComplete', 'onboardingStep', 'links', 'isKycVerified', 'portfolioComplete'];
         allowedUserFields.forEach(field => {
             if (userData[field] !== undefined) {
                 user[field] = userData[field];
@@ -116,10 +118,10 @@ async function updateProfile(userId, data) {
         await user.save();
     }
 
-    // Update role-specific details
     let roleDetails = null;
-    const isStartup = user.accountType === 'startup' || (Array.isArray(user.roles) && user.roles.includes('startup'));
-    const isInvestor = user.accountType === 'investor' || (Array.isArray(user.roles) && user.roles.includes('investor'));
+    const roles = Array.isArray(user.roles) ? user.roles : ['personal'];
+    const isStartup = roles.includes('startup');
+    const isInvestor = roles.includes('investor');
     if (detailsData) {
         if (isStartup) {
             try {

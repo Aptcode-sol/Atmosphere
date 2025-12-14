@@ -162,7 +162,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                 await unsavePost(prevSavedId);
                 setSavedId(null);
             }
-        } catch (err) {
+        } catch {
             setSaved(prevSaved);
             setSavedId(prevSavedId);
         } finally {

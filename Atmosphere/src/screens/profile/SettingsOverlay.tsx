@@ -95,7 +95,7 @@ export default function SettingsOverlay({ src, theme, onClose }: Props) {
         }).start();
     }, [slideAnim]);
 
-    const openEditModal = (field: string, value: string) => {
+    const _openEditModal = (field: string, value: string) => {
         setEditModal({ visible: true, field, value });
     };
 
@@ -171,44 +171,7 @@ export default function SettingsOverlay({ src, theme, onClose }: Props) {
                     </View>
                 ) : (
                     <>
-                        <Text style={[styles.sectionLabel, { color: theme.placeholder }]}>ACCOUNT INFORMATION</Text>
-                        <View style={[styles.sectionCard, { borderColor: theme.border }]}>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => openEditModal('Name', settings.displayName)}>
-                                <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Name</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]} numberOfLines={2}>{settings.displayName || 'Not set'}</Text>
-                                </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => openEditModal('Username', settings.username)}>
-                                <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Username</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>@{settings.username || 'Not set'}</Text>
-                                </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => setPasswordModal(true)}>
-                                <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Password</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>Change your password</Text>
-                                </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
-                                <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Email</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>{settings.email || 'Not set'}</Text>
-                                </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => openEditModal('Phone', settings.phone)}>
-                                <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Phone</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>{settings.phone || 'Not set'}</Text>
-                                </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
-                            </TouchableOpacity>
-                        </View>
+
 
                         <Text style={[styles.sectionLabel, { color: theme.placeholder }]}>CONTENT</Text>
                         <View style={[styles.sectionCard, { borderColor: theme.border }]}>

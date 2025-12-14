@@ -6,12 +6,10 @@ import {
     TouchableOpacity,
     StyleSheet,
     Modal,
-    Dimensions,
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 
-const { width } = Dimensions.get('window');
 
 type CreateMenuProps = {
     visible: boolean;
