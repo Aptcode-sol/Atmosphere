@@ -38,10 +38,14 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
         try {
             const data = await register({ email, username, password, displayName: username || email, accountType });
             if (data && data.token) {
-                await AsyncStorage.setItem('token', data.token);
-                await AsyncStorage.setItem('user', JSON.stringify(data.user || {}));
+                // Do NOT store token yet as verified = false
+                // Or store it but don't navigate to home yet.
+                // The backend now returns { token, user: { ..., verified: false } }
+
+                setVerifyMessage('Registration successful! Sending OTP...');
+                setVerifyStatus('sent');
+                setShowOtpInput(true);
             }
-            if (onSignedUp) onSignedUp();
         } catch (err: any) {
             Alert.alert('Sign up failed', err.message || 'Unknown error');
         } finally {
@@ -49,6 +53,7 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
         }
     };
 
+    // This is now "Resend" effectively if they are already on the OTP screen
     const handleRequestVerify = async () => {
         if (!email) {
             setVerifyStatus('error');
@@ -58,12 +63,18 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
         setVerifyStatus('sending');
         setVerifyMessage('Sending verification code...');
 
-        // Simulate sending (in real app, call API)
-        setTimeout(() => {
+        try {
+            // Import resendOtp dynamically or use the one we just added
+            const { resendOtp } = require('../lib/api');
+            await resendOtp(email);
+
             setShowOtpInput(true);
             setVerifyStatus('sent');
             setVerifyMessage('Code sent! Check your email');
-        }, 1000);
+        } catch (err: any) {
+            setVerifyStatus('error');
+            setVerifyMessage(err.message || 'Failed to send OTP');
+        }
     };
 
     const handleVerifyCode = async () => {
@@ -77,10 +88,31 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
 
         try {
             const api = require('../lib/api');
+            // Backend endpoint needs email if not authenticated.
             await api.verifyEmail(otp, email);
+
             setVerifyStatus('verified');
             setVerifyMessage('Email verified successfully! ✓');
-            setTimeout(() => setShowOtpInput(false), 1500);
+
+            // Now log the user in / save token
+            // We need to re-login or use the token we got from register if we saved it?
+            // Actually, usually we login after verification or just use the token we got from register.
+            // But register gave us a token. If we use that token with verifyEmail, backend handles it.
+            // If we didn't save the token, we might need to login.
+            // Let's assume we need to auto-login.
+
+            const { login } = require('../lib/api');
+            const loginData = await login(email, password);
+            if (loginData && loginData.token) {
+                await AsyncStorage.setItem('token', loginData.token);
+                await AsyncStorage.setItem('user', JSON.stringify(loginData.user || {}));
+            }
+
+            setTimeout(() => {
+                setShowOtpInput(false);
+                if (onSignedUp) onSignedUp();
+            }, 1000);
+
         } catch (err: any) {
             setVerifyStatus('error');
             setVerifyMessage(err.message || 'Invalid code. Please try again.');
@@ -166,20 +198,7 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
 
                     {/* Verification Section */}
                     {!showOtpInput ? (
-                        <TouchableOpacity
-                            style={[styles.verifyButton, verifyStatus === 'sending' && styles.verifyButtonActive]}
-                            onPress={handleRequestVerify}
-                            disabled={verifyStatus === 'sending'}
-                        >
-                            {verifyStatus === 'sending' ? (
-                                <View style={styles.verifyLoading}>
-                                    <ActivityIndicator size="small" color="#fff" />
-                                    <Text style={styles.verifyButtonText}>Sending...</Text>
-                                </View>
-                            ) : (
-                                <Text style={styles.verifyButtonText}>Send Verification Code</Text>
-                            )}
-                        </TouchableOpacity>
+                        null
                     ) : (
                         <View style={styles.otpSection}>
                             <View style={styles.otpRow}>
@@ -205,6 +224,11 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
                                     )}
                                 </TouchableOpacity>
                             </View>
+                            <TouchableOpacity onPress={handleRequestVerify} disabled={verifyStatus === 'sending'}>
+                                <Text style={{ color: '#0095f6', textAlign: 'center', fontSize: 13, marginTop: 8 }}>
+                                    {verifyStatus === 'sending' ? 'Sending...' : 'Resend Code'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
                     )}
 
@@ -217,18 +241,20 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
                         </View>
                     ) : null}
 
-                    {/* Sign Up Button */}
-                    <TouchableOpacity
-                        style={[styles.signupButton, (!email || !username || !password) && styles.signupButtonDisabled]}
-                        onPress={handleSignUp}
-                        disabled={loading || !email || !username || !password}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={styles.signupButtonText}>Sign up</Text>
-                        )}
-                    </TouchableOpacity>
+                    {/* Sign Up Button - Hide if OTP sent (user already created) */}
+                    {!showOtpInput && (
+                        <TouchableOpacity
+                            style={[styles.signupButton, (!email || !username || !password) && styles.signupButtonDisabled]}
+                            onPress={handleSignUp}
+                            disabled={loading || !email || !username || !password}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.signupButtonText}>Sign up</Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
 
                     {/* Terms */}
                     <Text style={styles.termsText}>
