@@ -158,6 +158,10 @@ export async function verifyEmail(code: string, email?: string) {
     return request('/api/auth/verify-email', { code, email }, { method: 'POST' });
 }
 
+export async function resendOtp(email: string) {
+    return request('/api/auth/resend-otp', { email }, { method: 'POST' });
+}
+
 export async function saveStartupProfile(payload: any) {
     return request('/api/startup/profile', payload, { method: 'POST' });
 }
