@@ -110,6 +110,39 @@ export async function updateProfile(payload: any) {
     return request('/api/profile', payload, { method: 'PUT' });
 }
 
+/**
+ * Upload profile picture to S3 and update user's avatarUrl
+ */
+export async function uploadProfilePicture(imageUri: string, fileName: string, mimeType: string) {
+    const baseUrl = await getBaseUrl();
+    const token = await AsyncStorage.getItem('token');
+
+    // Create form data
+    const formData = new FormData();
+    formData.append('image', {
+        uri: imageUri,
+        name: fileName || 'profile.jpg',
+        type: mimeType || 'image/jpeg',
+    } as any);
+
+    // Upload to S3
+    const uploadRes = await fetch(`${baseUrl}/api/upload`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to upload image');
+    }
+
+    const uploadData = await uploadRes.json();
+    return uploadData.url;
+}
+
 export async function fetchMyPosts() {
     // call the authenticated endpoint that returns only posts authored by current user
     const data = await request('/api/posts/me', {}, { method: 'GET' });

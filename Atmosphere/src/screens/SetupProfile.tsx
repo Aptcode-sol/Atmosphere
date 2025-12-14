@@ -1,8 +1,9 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { updateProfile, getProfile, verifyEmail } from '../lib/api';
+import { updateProfile, getProfile, verifyEmail, uploadProfilePicture } from '../lib/api';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
 import InvestorSetup from './setup-steps/InvestorSetup';
 import PersonalSetup from './setup-steps/PersonalSetup';
@@ -14,7 +15,7 @@ const makeLocalStyles = (theme: any) => StyleSheet.create({
     headerRight: { width: 48, alignItems: 'flex-end' },
     headerTitle: { fontSize: 18, fontWeight: '700' },
     scrollContent: { padding: 20, paddingBottom: 60 },
-    avatarPlaceholder: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#333', alignItems: 'center', justifyContent: 'center' },
+    avatarPlaceholder: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#333', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
     label: { marginBottom: 6, fontSize: 13, fontWeight: '600' },
     input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12, borderColor: theme.border, color: theme.text },
     textarea: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12, minHeight: 80, borderColor: theme.border, color: theme.text },
@@ -42,6 +43,9 @@ const makeLocalStyles = (theme: any) => StyleSheet.create({
     verifiedText: { color: '#22c55e', marginLeft: 8 },
     verificationBlock: { marginBottom: 12 },
     verificationRowInner: { flexDirection: 'row', alignItems: 'center' },
+    avatarImage: { width: 96, height: 96, borderRadius: 48 },
+    avatarUploadOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 4, alignItems: 'center' },
+    avatarUploadText: { color: '#fff', fontSize: 10, fontWeight: '600' },
 });
 
 export default function SetupProfile({ onDone, onClose }: { onDone: () => void; onClose?: () => void }) {
@@ -58,6 +62,10 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
     const [verified, setVerified] = useState(false);
     const [saving, setSaving] = useState(false);
     const [roleStep, setRoleStep] = useState<'startup' | 'investor' | 'personal' | null>(null);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [pendingAvatarUri, setPendingAvatarUri] = useState<string | null>(null); // Local URI before upload
+    const [pendingAvatarMeta, setPendingAvatarMeta] = useState<{ fileName: string; type: string } | null>(null);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -70,6 +78,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     setBio(profile.user.bio || '');
                     setEmail(profile.user.email || '');
                     setInitialEmail(profile.user.email || '');
+                    setAvatarUrl(profile.user.avatarUrl || null);
                     // accountType handled at signup; we'll use it after save
                 }
             } catch {
@@ -78,6 +87,34 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
         })();
     }, []);
 
+    const pickAvatar = async () => {
+        try {
+            const image = await ImageCropPicker.openPicker({
+                width: 400,
+                height: 400,
+                cropping: true,
+                cropperCircleOverlay: true, // Circular crop overlay
+                compressImageQuality: 0.8,
+                mediaType: 'photo',
+                cropperToolbarTitle: 'Crop Profile Photo',
+            });
+
+            if (!image.path) return;
+
+            // Store local URI for preview - will upload on Save
+            setPendingAvatarUri(image.path);
+            setPendingAvatarMeta({
+                fileName: image.filename || 'profile.jpg',
+                type: image.mime || 'image/jpeg',
+            });
+        } catch (err: any) {
+            // User cancelled or error
+            if (err.code !== 'E_PICKER_CANCELLED') {
+                console.error('Image picker error:', err);
+            }
+        }
+    };
+
     const submit = async () => {
         if (!username || !displayName || !email) {
             Alert.alert('Missing fields', 'Please fill username, full name and email');
@@ -85,8 +122,41 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
         }
         setSaving(true);
         try {
-            await updateProfile({ userData: { username, displayName, fullName: displayName, bio, profileSetupComplete: true, onboardingStep: 4, email } });
-            // Just show success alert and stay on page
+            let finalAvatarUrl = avatarUrl;
+
+            // Upload pending avatar if exists
+            if (pendingAvatarUri && pendingAvatarMeta) {
+                setUploadingAvatar(true);
+                try {
+                    finalAvatarUrl = await uploadProfilePicture(
+                        pendingAvatarUri,
+                        pendingAvatarMeta.fileName,
+                        pendingAvatarMeta.type
+                    );
+                    setAvatarUrl(finalAvatarUrl);
+                    setPendingAvatarUri(null);
+                    setPendingAvatarMeta(null);
+                } catch (uploadErr: any) {
+                    Alert.alert('Upload failed', uploadErr.message || 'Failed to upload profile picture');
+                    setSaving(false);
+                    setUploadingAvatar(false);
+                    return;
+                }
+                setUploadingAvatar(false);
+            }
+
+            await updateProfile({
+                userData: {
+                    username,
+                    displayName,
+                    fullName: displayName,
+                    bio,
+                    profileSetupComplete: true,
+                    onboardingStep: 4,
+                    email,
+                    ...(finalAvatarUrl && { avatarUrl: finalAvatarUrl })
+                }
+            });
             Alert.alert('Success', 'Profile saved successfully!');
         } catch (err: any) {
             const msg = err && err.message ? err.message : 'Unable to save profile';
@@ -128,9 +198,28 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
 
             <ScrollView contentContainerStyle={localStyles.scrollContent}>
                 <View style={localStyles.avatarRow}>
-                    <View style={localStyles.avatarPlaceholder}>
-                        <Text style={localStyles.avatarText}>📷</Text>
-                    </View>
+                    <TouchableOpacity onPress={pickAvatar} disabled={uploadingAvatar || saving}>
+                        <View style={localStyles.avatarPlaceholder}>
+                            {(pendingAvatarUri || avatarUrl) ? (
+                                <Image
+                                    source={{ uri: pendingAvatarUri || avatarUrl || '' }}
+                                    style={localStyles.avatarImage}
+                                />
+                            ) : (
+                                <Text style={localStyles.avatarText}>📷</Text>
+                            )}
+                            {uploadingAvatar && (
+                                <View style={[localStyles.avatarUploadOverlay, { top: 0, bottom: 0, justifyContent: 'center' }]}>
+                                    <ActivityIndicator size="small" color="#fff" />
+                                </View>
+                            )}
+                            <View style={localStyles.avatarUploadOverlay}>
+                                <Text style={localStyles.avatarUploadText}>
+                                    {uploadingAvatar ? 'Uploading...' : 'Edit'}
+                                </Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
                     <Text style={localStyles.avatarLabel}>Profile Photo</Text>
                 </View>
                 <Text style={[localStyles.label, { color: theme.placeholder }]}>Username</Text>

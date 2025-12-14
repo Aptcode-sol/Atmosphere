@@ -13,7 +13,7 @@ const getS3Client = () => {
             console.error('Required: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET');
             throw new Error('AWS credentials not configured');
         }
-        
+
         s3Client = new S3Client({
             region: process.env.AWS_REGION || 'ap-south-1',
             credentials: {
@@ -39,13 +39,13 @@ const generateFileName = (originalName, prefix = 'upload') => {
 };
 
 /**
- * Upload an image to S3
+ * Upload an image to S3 and return a presigned URL for viewing
  */
 exports.uploadImage = async (fileBuffer, mimetype = 'image/jpeg', originalName = 'image.jpg') => {
     const client = getS3Client();
     const bucket = getBucketName();
     const key = generateFileName(originalName, 'images');
-    
+
     const command = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -55,8 +55,14 @@ exports.uploadImage = async (fileBuffer, mimetype = 'image/jpeg', originalName =
 
     await client.send(command);
 
-    const url = `https://${bucket}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${key}`;
-    
+    // Generate presigned URL for viewing (valid for 7 days)
+    const getCommand = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+    });
+
+    const url = await getSignedUrl(client, getCommand, { expiresIn: 604800 }); // 7 days
+
     return { url, key };
 };
 
@@ -67,7 +73,7 @@ exports.uploadVideo = async (fileBuffer, mimetype = 'video/mp4', originalName = 
     const client = getS3Client();
     const bucket = getBucketName();
     const key = generateFileName(originalName, 'reels');
-    
+
     const command = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -82,10 +88,10 @@ exports.uploadVideo = async (fileBuffer, mimetype = 'video/mp4', originalName = 
         Bucket: bucket,
         Key: key,
     });
-    
+
     const url = await getSignedUrl(client, getCommand, { expiresIn: 604800 }); // 7 days
     const thumbnailUrl = url; // Use same URL as thumbnail for now
-    
+
     return { url, key, thumbnailUrl };
 };
 
@@ -94,11 +100,11 @@ exports.uploadVideo = async (fileBuffer, mimetype = 'video/mp4', originalName = 
  */
 exports.deleteFile = async (key) => {
     if (!key) return;
-    
+
     try {
         const client = getS3Client();
         const bucket = getBucketName();
-        
+
         const command = new DeleteObjectCommand({
             Bucket: bucket,
             Key: key,
@@ -117,7 +123,7 @@ exports.getPresignedUploadUrl = async (fileName, fileType, folder = 'uploads') =
     const client = getS3Client();
     const bucket = getBucketName();
     const key = generateFileName(fileName, folder);
-    
+
     const command = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -126,7 +132,7 @@ exports.getPresignedUploadUrl = async (fileName, fileType, folder = 'uploads') =
 
     const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
     const fileUrl = `https://${bucket}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${key}`;
-    
+
     return { uploadUrl, fileUrl, key };
 };
 
