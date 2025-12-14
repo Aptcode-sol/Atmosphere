@@ -17,8 +17,8 @@ const lightTheme: Theme = {
     border: '#dddddd',
     text: '#111111',
     placeholder: '#9e9e9e',
-    primary: '#1DA1F2',
-    accent: '#1877F2',
+    primary: '#404040',
+    accent: '#555555',
 };
 
 const darkTheme: Theme = {
@@ -27,8 +27,8 @@ const darkTheme: Theme = {
     border: '#262626',
     text: '#f2f2f2',
     placeholder: '#8a8a8a',
-    primary: '#1DA1F2',
-    accent: '#1877F2',
+    primary: '#404040',
+    accent: '#555555',
 };
 
 type ThemeContextValue = {

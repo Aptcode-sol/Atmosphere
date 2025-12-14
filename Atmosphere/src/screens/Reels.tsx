@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { fetchReels } from '../lib/api';
+import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Video from 'react-native-video';
 
 const { width, height } = Dimensions.get('window');
-const ITEM_HEIGHT = height - 80;
+const ITEM_HEIGHT = height - BOTTOM_NAV_HEIGHT;
 
 interface ReelItem {
     _id: string;

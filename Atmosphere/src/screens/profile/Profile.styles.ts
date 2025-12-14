@@ -28,7 +28,7 @@ export default StyleSheet.create({
     backdrop: { position: 'absolute', left: 0, top: 0, bottom: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
     leftDrawer: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 300, padding: 16, borderRightWidth: 1 },
     drawerTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-    fullPage: {},
+    fullPage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
     settingsHeader: { height: 56, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#111' },
     headerBack: { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
     settingsTitle: { fontSize: 18, fontWeight: '700' },

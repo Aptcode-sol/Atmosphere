@@ -1,9 +1,12 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from './Profile.styles';
 import { clearToken } from '../../lib/auth';
 import { getSettings, updateSettings, changePassword } from '../../lib/api';
+
+const SETTINGS_CACHE_KEY = 'ATMOSPHERE_SETTINGS_CACHE';
 
 type Props = {
     src: any;
@@ -43,17 +46,29 @@ export default function SettingsOverlay({ src, theme, onClose }: Props) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [saving, setSaving] = useState(false);
 
-    // Fetch settings on mount
+    // Fetch settings on mount with caching
     useEffect(() => {
         (async () => {
             try {
+                // Load from cache first for instant display
+                const cached = await AsyncStorage.getItem(SETTINGS_CACHE_KEY);
+                if (cached) {
+                    const cachedData = JSON.parse(cached);
+                    setSettings(cachedData);
+                    setLoading(false);
+                }
+
+                // Fetch fresh data from API
                 const data = await getSettings();
-                setSettings({
+                const newSettings = {
                     displayName: data.displayName || src?.name || '',
                     username: data.username || src?.username?.replace('@', '') || '',
                     email: data.email || '',
                     phone: data.phone || '',
-                });
+                };
+                setSettings(newSettings);
+                // Update cache
+                await AsyncStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(newSettings));
             } catch (err) {
                 console.warn('Failed to fetch settings:', err);
             } finally {
@@ -255,26 +270,27 @@ export default function SettingsOverlay({ src, theme, onClose }: Props) {
                                 <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
                             </TouchableOpacity>
                         </View>
+                        <View style={{ height: 24 }} />
+                        <TouchableOpacity
+                            style={[styles.logoutBtn]}
+                            onPress={async () => {
+                                await clearToken();
+                                // Clear settings cache on logout
+                                await AsyncStorage.removeItem(SETTINGS_CACHE_KEY);
+                                onClose();
+                                try {
+                                    const { DevSettings } = require('react-native');
+                                    if (DevSettings && typeof DevSettings.reload === 'function') DevSettings.reload();
+                                } catch {
+                                    // ignore
+                                }
+                            }}
+                        >
+                            <Text style={styles.logoutText}>Log Out</Text>
+                        </TouchableOpacity>
+                        <View style={{ height: 48 }} />
                     </>
                 )}
-
-                <View style={{ height: 24 }} />
-                <TouchableOpacity
-                    style={[styles.logoutBtn]}
-                    onPress={async () => {
-                        await clearToken();
-                        onClose();
-                        try {
-                            const { DevSettings } = require('react-native');
-                            if (DevSettings && typeof DevSettings.reload === 'function') DevSettings.reload();
-                        } catch {
-                            // ignore
-                        }
-                    }}
-                >
-                    <Text style={styles.logoutText}>Log Out</Text>
-                </TouchableOpacity>
-                <View style={{ height: 48 }} />
             </ScrollView>
 
             {/* Edit Field Modal */}

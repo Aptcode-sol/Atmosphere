@@ -86,12 +86,8 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
         setSaving(true);
         try {
             await updateProfile({ userData: { username, displayName, fullName: displayName, bio, profileSetupComplete: true, onboardingStep: 4, email } });
-            // refresh profile to detect accountType for next steps
-            const refreshed = await getProfile();
-            const acct = refreshed?.user?.accountType || 'personal';
-            if (acct === 'startup') setRoleStep('startup');
-            else if (acct === 'investor') setRoleStep('investor');
-            else setRoleStep('personal');
+            // Just show success alert and stay on page
+            Alert.alert('Success', 'Profile saved successfully!');
         } catch (err: any) {
             const msg = err && err.message ? err.message : 'Unable to save profile';
             Alert.alert('Error', msg);

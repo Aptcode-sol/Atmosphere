@@ -104,6 +104,8 @@ const Trading = () => {
         if (reset) {
             setBuyLoading(true);
             setBuySkip(0);
+            // Clear existing data to avoid showing stale cache while loading
+            setBuyTrades([]);
         }
 
         const currentSkip = reset ? 0 : buySkip;
@@ -156,23 +158,9 @@ const Trading = () => {
 
     // ... existing load active trades logic ...
 
-    // BUY TAB: Load Cache & Initial Fetch
+    // BUY TAB: Signal initial load done to trigger fetch
     useEffect(() => {
-        let mounted = true;
-        (async () => {
-            try {
-                // Load Cache first for instant display
-                const cached = await AsyncStorage.getItem('ATMOSPHERE_TRADES_BUY_CACHE');
-                if (cached && mounted) {
-                    setBuyTrades(JSON.parse(cached));
-                }
-            } catch { /* ignore */ }
-
-            // Signal that initial load is done (triggers fetch)
-            if (mounted) setBuyInitialLoadDone(true);
-        })();
-        return () => { mounted = false; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        setBuyInitialLoadDone(true);
     }, []);
 
     // Fetch Investors (Sell Tab)
@@ -216,6 +204,8 @@ const Trading = () => {
     // Trigger fetch on initial load or filter change
     useEffect(() => {
         if (!buyInitialLoadDone) return;
+        // Prevent fetching if already loading
+        if (buyLoading) return;
 
         // Debounce only if searching
         if (searchValue) {
@@ -881,10 +871,16 @@ const Trading = () => {
                     const idx = Math.round(e.nativeEvent.contentOffset.x / screenW);
                     setActiveTab(idx === 0 ? 'Buy' : 'Sell');
                 }}
-                onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-                    { useNativeDriver: true }
-                )}
+                onScroll={(e) => {
+                    const x = e.nativeEvent.contentOffset.x;
+                    // Update tab state during scrolling for smoother transitions
+                    const newTab = x > screenW / 2 ? 'Sell' : 'Buy';
+                    if (newTab !== activeTab) {
+                        setActiveTab(newTab);
+                    }
+                    // Update animated value
+                    scrollX.setValue(x);
+                }}
                 scrollEventThrottle={16}
                 style={{ flex: 1 }}
             >

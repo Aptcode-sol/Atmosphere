@@ -1,22 +1,39 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, ScrollView, Animated } from 'react-native';
 import Logo from '../components/Logo';
 import { register } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 
+type AccountType = 'personal' | 'startup' | 'investor';
+
+const ACCOUNT_TYPES: { value: AccountType; label: string; description: string }[] = [
+    { value: 'personal', label: 'Personal', description: 'For individual users' },
+    { value: 'startup', label: 'Startup', description: 'For startups and founders' },
+    { value: 'investor', label: 'Investor', description: 'For investors and VCs' },
+];
+
+type VerifyStatus = 'idle' | 'sending' | 'sent' | 'verifying' | 'verified' | 'error';
+
 const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: () => void }) => {
     const [email, setEmail] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [accountType, setAccountType] = useState<'personal' | 'startup' | 'investor'>('personal');
-    const [showAccountPicker, setShowAccountPicker] = useState(false);
+    const [accountType, setAccountType] = useState<AccountType>('personal');
+    const [showDropdown, setShowDropdown] = useState(false);
     const [otp, setOtp] = useState('');
     const [showOtpInput, setShowOtpInput] = useState(false);
-
     const [loading, setLoading] = useState(false);
+    const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
+    const [verifyMessage, setVerifyMessage] = useState('');
+
+    const { theme } = useContext(ThemeContext);
 
     const handleSignUp = async () => {
+        if (!email || !username || !password) {
+            Alert.alert('Missing fields', 'Please fill all required fields');
+            return;
+        }
         setLoading(true);
         try {
             const data = await register({ email, username, password, displayName: username || email, accountType });
@@ -33,83 +50,483 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
     };
 
     const handleRequestVerify = async () => {
-        // In a real flow we'd send OTP to email. For dev, we just toggle OTP input.
-        if (!email) return Alert.alert('Email required', 'Please enter your email to verify');
-        setShowOtpInput(true);
-        Alert.alert('Verification', 'Enter code 1234 to verify (dev)');
+        if (!email) {
+            setVerifyStatus('error');
+            setVerifyMessage('Please enter your email first');
+            return;
+        }
+        setVerifyStatus('sending');
+        setVerifyMessage('Sending verification code...');
+
+        // Simulate sending (in real app, call API)
+        setTimeout(() => {
+            setShowOtpInput(true);
+            setVerifyStatus('sent');
+            setVerifyMessage('Code sent! Check your email');
+        }, 1000);
     };
 
     const handleVerifyCode = async () => {
-        if (!otp) return Alert.alert('Code required', 'Enter the verification code');
+        if (!otp) {
+            setVerifyStatus('error');
+            setVerifyMessage('Please enter the verification code');
+            return;
+        }
+        setVerifyStatus('verifying');
+        setVerifyMessage('Verifying...');
+
         try {
-            // call verify endpoint with email so backend can locate user in unauthenticated flow
-            // dev stub accepts 1234
-             
             const api = require('../lib/api');
             await api.verifyEmail(otp, email);
-            Alert.alert('Verified', 'Email verified successfully');
-            setShowOtpInput(false);
+            setVerifyStatus('verified');
+            setVerifyMessage('Email verified successfully! ✓');
+            setTimeout(() => setShowOtpInput(false), 1500);
         } catch (err: any) {
-            Alert.alert('Verification failed', err.message || 'Invalid code');
+            setVerifyStatus('error');
+            setVerifyMessage(err.message || 'Invalid code. Please try again.');
         }
     };
 
-    const { theme } = useContext(ThemeContext);
+    const selectedType = ACCOUNT_TYPES.find(t => t.value === accountType);
+
+    const getStatusColor = () => {
+        switch (verifyStatus) {
+            case 'sending':
+            case 'verifying':
+                return '#8e8e8e';
+            case 'sent':
+                return '#4ade80';
+            case 'verified':
+                return '#22c55e';
+            case 'error':
+                return '#ef4444';
+            default:
+                return '#8e8e8e';
+        }
+    };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <Logo size={42} />
-            <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-                <TextInput style={[styles.input, { backgroundColor: theme.cardBackground, color: theme.text, borderColor: theme.border }]} placeholder="Email" placeholderTextColor={theme.placeholder} value={email} onChangeText={setEmail} />
-                <View>
-                    <TouchableOpacity onPress={() => setShowAccountPicker(s => !s)} style={[styles.input, { justifyContent: 'center', backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-                        <Text style={{ color: theme.text }}>{accountType === 'personal' ? 'Personal' : accountType === 'startup' ? 'Startup' : 'Investor'}</Text>
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+            >
+                {/* Logo */}
+                <View style={styles.logoSection}>
+                    <Logo size={44} />
+                </View>
+
+                {/* Form Card */}
+                <View style={styles.formCard}>
+                    {/* Email Input */}
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Email"
+                        placeholderTextColor="#8e8e8e"
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                    />
+
+                    {/* Username Input */}
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Username"
+                        placeholderTextColor="#8e8e8e"
+                        value={username}
+                        onChangeText={setUsername}
+                        autoCapitalize="none"
+                    />
+
+                    {/* Password Input */}
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Password"
+                        placeholderTextColor="#8e8e8e"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry
+                    />
+
+                    {/* Account Type Dropdown */}
+                    <TouchableOpacity
+                        style={styles.dropdownButton}
+                        onPress={() => setShowDropdown(true)}
+                    >
+                        <View>
+                            <Text style={styles.dropdownLabel}>Account Type</Text>
+                            <Text style={styles.dropdownValue}>{selectedType?.label}</Text>
+                        </View>
+                        <Text style={styles.dropdownArrow}>▼</Text>
                     </TouchableOpacity>
-                    {showAccountPicker ? (
-                        <View style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 6, marginTop: 6, overflow: 'hidden' }}>
-                            <TouchableOpacity onPress={() => { setAccountType('personal'); setShowAccountPicker(false); }} style={{ padding: 10 }}><Text style={{ color: theme.text }}>Personal</Text></TouchableOpacity>
-                            <TouchableOpacity onPress={() => { setAccountType('startup'); setShowAccountPicker(false); }} style={{ padding: 10 }}><Text style={{ color: theme.text }}>Startup</Text></TouchableOpacity>
-                            <TouchableOpacity onPress={() => { setAccountType('investor'); setShowAccountPicker(false); }} style={{ padding: 10 }}><Text style={{ color: theme.text }}>Investor</Text></TouchableOpacity>
+
+                    {/* Verification Section */}
+                    {!showOtpInput ? (
+                        <TouchableOpacity
+                            style={[styles.verifyButton, verifyStatus === 'sending' && styles.verifyButtonActive]}
+                            onPress={handleRequestVerify}
+                            disabled={verifyStatus === 'sending'}
+                        >
+                            {verifyStatus === 'sending' ? (
+                                <View style={styles.verifyLoading}>
+                                    <ActivityIndicator size="small" color="#fff" />
+                                    <Text style={styles.verifyButtonText}>Sending...</Text>
+                                </View>
+                            ) : (
+                                <Text style={styles.verifyButtonText}>Send Verification Code</Text>
+                            )}
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.otpSection}>
+                            <View style={styles.otpRow}>
+                                <TextInput
+                                    style={[styles.input, styles.otpInput]}
+                                    placeholder="Enter code"
+                                    placeholderTextColor="#8e8e8e"
+                                    value={otp}
+                                    onChangeText={setOtp}
+                                    keyboardType="numeric"
+                                />
+                                <TouchableOpacity
+                                    style={[styles.otpVerifyBtn, verifyStatus === 'verified' && styles.otpVerifySuccess]}
+                                    onPress={handleVerifyCode}
+                                    disabled={verifyStatus === 'verifying' || verifyStatus === 'verified'}
+                                >
+                                    {verifyStatus === 'verifying' ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : verifyStatus === 'verified' ? (
+                                        <Text style={styles.otpVerifyText}>✓</Text>
+                                    ) : (
+                                        <Text style={styles.otpVerifyText}>Verify</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Status Message */}
+                    {verifyMessage ? (
+                        <View style={styles.statusContainer}>
+                            <Text style={[styles.statusMessage, { color: getStatusColor() }]}>
+                                {verifyMessage}
+                            </Text>
                         </View>
                     ) : null}
-                </View>
-                <TextInput style={[styles.input, { backgroundColor: theme.cardBackground, color: theme.text, borderColor: theme.border }]} placeholder="Username" placeholderTextColor={theme.placeholder} value={username} onChangeText={setUsername} />
-                <TextInput style={[styles.input, { backgroundColor: theme.cardBackground, color: theme.text, borderColor: theme.border }]} placeholder="Password" placeholderTextColor={theme.placeholder} value={password} secureTextEntry onChangeText={setPassword} />
-                <View style={{ flexDirection: 'row', marginTop: 8, gap: 8 }}>
-                    <TouchableOpacity style={[styles.button, { backgroundColor: theme.secondary || '#666', flex: 1 }]} onPress={handleRequestVerify}>
-                        <Text style={styles.buttonText}>Send Verify</Text>
-                    </TouchableOpacity>
-                    {showOtpInput ? (
-                        <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary, paddingHorizontal: 12 }]} onPress={() => handleVerifyCode()}>
-                            <Text style={styles.buttonText}>Verify</Text>
-                        </TouchableOpacity>
-                    ) : null}
-                </View>
-                {showOtpInput ? (
-                    <TextInput style={[styles.input, { backgroundColor: theme.cardBackground, color: theme.text, borderColor: theme.border }]} placeholder="Enter code" placeholderTextColor={theme.placeholder} value={otp} onChangeText={setOtp} keyboardType="numeric" />
-                ) : null}
-                <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary }]} onPress={handleSignUp} disabled={loading}>
-                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign up</Text>}
-                </TouchableOpacity>
 
-                <View style={styles.signinRow}>
-                    <Text style={[styles.signinText, { color: theme.text }]}>Have an account? <Text style={[styles.signinLink, { color: theme.primary }]} onPress={() => { if (onSignIn) onSignIn(); }}>Sign in</Text></Text>
+                    {/* Sign Up Button */}
+                    <TouchableOpacity
+                        style={[styles.signupButton, (!email || !username || !password) && styles.signupButtonDisabled]}
+                        onPress={handleSignUp}
+                        disabled={loading || !email || !username || !password}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={styles.signupButtonText}>Sign up</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* Terms */}
+                    <Text style={styles.termsText}>
+                        By signing up, you agree to our Terms, Privacy Policy and Cookies Policy.
+                    </Text>
                 </View>
-            </View>
-        </View>
+
+                {/* Sign In Link */}
+                <View style={styles.signinCard}>
+                    <Text style={styles.signinText}>
+                        Have an account?{' '}
+                        <Text style={styles.signinLink} onPress={() => { if (onSignIn) onSignIn(); }}>
+                            Log in
+                        </Text>
+                    </Text>
+                </View>
+            </ScrollView>
+
+            {/* Account Type Modal */}
+            <Modal
+                visible={showDropdown}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowDropdown(false)}
+            >
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowDropdown(false)}
+                >
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Select Account Type</Text>
+                        {ACCOUNT_TYPES.map((type) => (
+                            <TouchableOpacity
+                                key={type.value}
+                                style={[
+                                    styles.modalOption,
+                                    accountType === type.value && styles.modalOptionActive
+                                ]}
+                                onPress={() => {
+                                    setAccountType(type.value);
+                                    setShowDropdown(false);
+                                }}
+                            >
+                                <View style={styles.modalOptionContent}>
+                                    <Text style={[
+                                        styles.modalOptionLabel,
+                                        accountType === type.value && styles.modalOptionLabelActive
+                                    ]}>
+                                        {type.label}
+                                    </Text>
+                                    <Text style={styles.modalOptionDesc}>{type.description}</Text>
+                                </View>
+                                {accountType === type.value && (
+                                    <Text style={styles.checkmark}>✓</Text>
+                                )}
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={styles.modalCancel}
+                            onPress={() => setShowDropdown(false)}
+                        >
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+        </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#050505', alignItems: 'center', justifyContent: 'center', padding: 16 },
-    logo: { fontSize: 42, fontFamily: 'Pacifico', color: '#f2f2f2', marginBottom: 12 },
-    card: { width: '100%', maxWidth: 360, borderWidth: 1, borderColor: '#262626', padding: 20, borderRadius: 8, backgroundColor: '#0b0b0b' },
-    input: { height: 44, borderColor: '#262626', borderWidth: 1, borderRadius: 6, paddingHorizontal: 12, marginTop: 10, fontSize: 14, backgroundColor: '#050505', color: '#f2f2f2' },
-    button: { backgroundColor: '#404040', height: 44, borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
-    buttonText: { color: '#fff', fontWeight: '700' },
-    signinRow: { marginTop: 12, alignItems: 'center' },
-    signinText: {},
-    signinLink: { fontWeight: '700' },
+    container: {
+        flex: 1,
+        backgroundColor: '#000',
+    },
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        paddingHorizontal: 32,
+        paddingVertical: 40,
+    },
+    logoSection: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    subtitle: {
+        color: '#8e8e8e',
+        fontSize: 15,
+        textAlign: 'center',
+        marginTop: 16,
+        lineHeight: 22,
+    },
+    formCard: {
+        backgroundColor: '#121212',
+        borderRadius: 8,
+        padding: 30,
+        paddingBottom: 50,
+        paddingTop: 50,
+    },
+    input: {
+        height: 48,
+        backgroundColor: '#1c1c1c',
+        borderRadius: 6,
+        paddingHorizontal: 16,
+        marginBottom: 12,
+        fontSize: 15,
+        color: '#fff',
+        borderWidth: 1,
+        borderColor: '#2a2a2a',
+    },
+    dropdownButton: {
+        height: 56,
+        backgroundColor: '#1c1c1c',
+        borderRadius: 6,
+        paddingHorizontal: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#2a2a2a',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    dropdownLabel: {
+        color: '#8e8e8e',
+        fontSize: 12,
+        marginBottom: 2,
+    },
+    dropdownValue: {
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    dropdownArrow: {
+        color: '#8e8e8e',
+        fontSize: 12,
+    },
+    verifyButton: {
+        height: 44,
+        backgroundColor: '#2a2a2a',
+        borderRadius: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    verifyButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    otpRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 12,
+    },
+    otpInput: {
+        flex: 1,
+        marginBottom: 0,
+    },
+    otpVerifyBtn: {
+        backgroundColor: '#404040',
+        paddingHorizontal: 20,
+        borderRadius: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    otpVerifyText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    verifyButtonActive: {
+        backgroundColor: '#3a3a3a',
+    },
+    verifyLoading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    otpSection: {
+        marginBottom: 0,
+    },
+    otpVerifySuccess: {
+        backgroundColor: '#22c55e',
+    },
+    statusContainer: {
+        paddingVertical: 8,
+        marginBottom: 4,
+    },
+    statusMessage: {
+        fontSize: 13,
+        textAlign: 'center',
+    },
+    signupButton: {
+        backgroundColor: '#3a3a3a',
+        height: 48,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 4,
+    },
+    signupButtonDisabled: {
+        backgroundColor: '#2a2a2a',
+        opacity: 0.7,
+    },
+    signupButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+    termsText: {
+        color: '#8e8e8e',
+        fontSize: 12,
+        textAlign: 'center',
+        marginTop: 16,
+        lineHeight: 18,
+    },
+    signinCard: {
+        borderTopWidth: 1,
+        borderTopColor: '#262626',
+        paddingVertical: 20,
+        marginTop: 24,
+        alignItems: 'center',
+    },
+    signinText: {
+        color: '#8e8e8e',
+        fontSize: 14,
+    },
+    signinLink: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+    },
+    modalContent: {
+        backgroundColor: '#1c1c1c',
+        borderRadius: 12,
+        width: '100%',
+        maxWidth: 340,
+        padding: 20,
+    },
+    modalTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    modalOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        marginBottom: 8,
+        backgroundColor: '#2a2a2a',
+    },
+    modalOptionActive: {
+        backgroundColor: '#0064a8',
+        borderColor: '#0095f6',
+        borderWidth: 1,
+    },
+    modalOptionContent: {
+        flex: 1,
+    },
+    modalOptionLabel: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    modalOptionLabelActive: {
+        color: '#fff',
+    },
+    modalOptionDesc: {
+        color: '#8e8e8e',
+        fontSize: 13,
+        marginTop: 2,
+    },
+    checkmark: {
+        color: '#0095f6',
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    modalCancel: {
+        marginTop: 12,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        color: '#8e8e8e',
+        fontSize: 15,
+        fontWeight: '600',
+    },
 });
 
 export default SignUp;
