@@ -1,6 +1,7 @@
 const Reel = require('../models/Reel');
 const ReelLike = require('../models/ReelLike');
 const ReelComment = require('../models/ReelComment');
+const ReelShare = require('../models/ReelShare');
 
 // Create a new reel
 exports.createReel = async (req, res) => {
@@ -246,5 +247,84 @@ exports.deleteComment = async (req, res) => {
     } catch (error) {
         console.error('Delete comment error:', error);
         res.status(500).json({ error: 'Failed to delete comment' });
+    }
+};
+
+// Share a reel with followers (one share per user)
+exports.shareReel = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { followerIds } = req.body;
+
+        // Check if already shared
+        const existing = await ReelShare.findOne({ reel: id, user: req.user.id });
+        if (existing) {
+            // Update existing share with new recipients
+            existing.sharedWith = [...new Set([...existing.sharedWith.map(id => id.toString()), ...(followerIds || [])])];
+            await existing.save();
+            const reel = await Reel.findById(id);
+            return res.json({ 
+                message: 'Share updated',
+                shareId: existing._id,
+                sharesCount: reel?.sharesCount || 0,
+                alreadyShared: true
+            });
+        }
+
+        // Create new share
+        const share = await ReelShare.create({
+            reel: id,
+            user: req.user.id,
+            sharedWith: followerIds || []
+        });
+
+        // Increment share count only for new shares
+        await Reel.findByIdAndUpdate(id, { $inc: { sharesCount: 1 } });
+        const reel = await Reel.findById(id);
+
+        res.status(201).json({ 
+            share,
+            sharesCount: reel?.sharesCount || 1
+        });
+    } catch (error) {
+        console.error('Share reel error:', error);
+        res.status(500).json({ error: 'Failed to share reel' });
+    }
+};
+
+// Update share recipients
+exports.updateReelShare = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { followerIds } = req.body;
+
+        const share = await ReelShare.findOne({ reel: id, user: req.user.id });
+        if (!share) {
+            return res.status(404).json({ error: 'Share not found' });
+        }
+
+        share.sharedWith = followerIds || [];
+        await share.save();
+
+        res.json({ share, message: 'Share updated' });
+    } catch (error) {
+        console.error('Update share error:', error);
+        res.status(500).json({ error: 'Failed to update share' });
+    }
+};
+
+// Check if user has shared a reel
+exports.checkReelShared = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const share = await ReelShare.findOne({ reel: id, user: req.user.id });
+        res.json({ 
+            shared: !!share,
+            shareId: share?._id || null,
+            sharedWith: share?.sharedWith || []
+        });
+    } catch (error) {
+        console.error('Check shared error:', error);
+        res.status(500).json({ error: 'Failed to check share status' });
     }
 };

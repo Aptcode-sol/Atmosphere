@@ -26,4 +26,9 @@ router.delete('/:id/like', authMiddleware, reelService.unlikeReel);
 router.post('/:id/comments', authMiddleware, reelService.addComment);
 router.delete('/comments/:commentId', authMiddleware, reelService.deleteComment);
 
+// Share routes
+router.post('/:id/share', authMiddleware, reelService.shareReel);
+router.put('/:id/share', authMiddleware, reelService.updateReelShare);
+router.get('/:id/share/check', authMiddleware, reelService.checkReelShared);
+
 module.exports = router;

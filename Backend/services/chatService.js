@@ -131,11 +131,9 @@ exports.getMessages = async (req, res, next) => {
             { isRead: true, readAt: new Date() }
         );
 
-        const unreadCount = chat.unreadCount.get(req.user._id.toString()) || 0;
-        if (unreadCount > 0) {
-            chat.unreadCount.set(req.user._id.toString(), 0);
-            await chat.save();
-        }
+        await Chat.findByIdAndUpdate(id, {
+            $set: { [`unreadCounts.${req.user._id}`]: 0 }
+        }, { timestamps: false });
 
         res.json({ messages: messages.reverse() });
     } catch (err) {
