@@ -252,11 +252,11 @@ exports.createOrUpdateStartup = async (req, res, next) => {
     try {
         console.log('createOrUpdateStartup called with req.user._id:', req.user && req.user._id, 'req.body:', req.body);
         const data = req.body;
-        // Map fundingRaised, fundingNeeded, investorName from payload if present
+        // Map frontend field names to backend schema fields
+        if (data.roundType) data.stage = data.roundType;
+        if (data.requiredCapital) data.fundingNeeded = Number(data.requiredCapital) || 0;
         if (data.financialProfile) {
-            if (data.financialProfile.fundingAmount) data.fundingRaised = data.financialProfile.fundingAmount;
-            if (data.requiredCapital) data.fundingNeeded = data.requiredCapital;
-            if (data.financialProfile.investorName) data.investorName = data.financialProfile.investorName;
+            if (data.financialProfile.fundingAmount) data.fundingRaised = Number(data.financialProfile.fundingAmount) || 0;
         }
         let startupDetails = await StartupDetails.findOne({ user: req.user._id });
         if (startupDetails) {

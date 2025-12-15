@@ -31,6 +31,7 @@ const StartupDetailsSchema = new Schema(
         fundingRaised: { type: Number, default: 0 },
         fundingNeeded: { type: Number, default: 0 },
         likesCount: { type: Number, default: 0 },
+        documents: String, // URL to verification documents
         meta: { type: Schema.Types.Mixed },
     },
     { timestamps: true }

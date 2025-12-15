@@ -37,6 +37,23 @@ const videoUpload = multer({
     },
 });
 
+// Document upload configuration (pdf, docx, text, etc.)
+const docUpload = multer({
+    storage,
+    limits: {
+        fileSize: 20 * 1024 * 1024, // 20MB limit for documents
+    },
+    fileFilter: (req, file, cb) => {
+        // allow common document mime types and images as fallback
+        const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+        if (file.mimetype.startsWith('image/') || allowed.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image/video/document files are allowed'), false);
+        }
+    },
+});
+
 /**
  * POST /api/upload
  * Upload an image to S3
@@ -95,6 +112,34 @@ router.post('/video', authMiddleware, videoUpload.single('video'), async (req, r
 });
 
 /**
+ * POST /api/upload/document
+ * Upload a document (pdf/docx/txt) to S3
+ * Requires authentication
+ */
+router.post('/document', authMiddleware, docUpload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No document file provided' });
+        }
+
+        const result = await s3Service.uploadDocument(
+            req.file.buffer,
+            req.file.mimetype,
+            req.file.originalname
+        );
+
+        res.json({
+            success: true,
+            url: result.url,
+            key: result.key,
+        });
+    } catch (error) {
+        console.error('Document upload error:', error);
+        res.status(500).json({ error: 'Failed to upload document' });
+    }
+});
+
+/**
  * POST /api/upload/presigned
  * Get a presigned URL for direct upload from client
  * This allows faster uploads by bypassing the server
@@ -107,7 +152,10 @@ router.post('/presigned', authMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'fileName and fileType are required' });
         }
 
-        const folderPath = folder === 'video' ? 'reels' : 'images';
+        // allow folder override to place documents in documents folder
+        let folderPath = 'images';
+        if (folder === 'video') folderPath = 'reels';
+        if (folder === 'documents' || folder === 'uploads') folderPath = 'documents';
         const result = await s3Service.getPresignedUploadUrl(fileName, fileType, folderPath);
 
         res.json({
@@ -131,7 +179,7 @@ router.post('/presigned', authMiddleware, async (req, res) => {
 router.delete('/', authMiddleware, async (req, res) => {
     try {
         const { key } = req.body;
-        
+
         if (!key) {
             return res.status(400).json({ error: 'File key is required in body' });
         }

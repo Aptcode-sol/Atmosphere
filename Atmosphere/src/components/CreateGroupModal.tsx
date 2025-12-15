@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, Image, Alert, FlatList, ActivityIndicator } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { createGroup, getFollowersList } from '../lib/api';
@@ -22,6 +22,13 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ visible, onClose, o
     const [followers, setFollowers] = useState<any[]>([]);
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
     const [fetchingFollowers, setFetchingFollowers] = useState(false);
+
+    // Memoized styles
+    const checkboxCheckmarkStyle = useMemo(() => ({ color: '#fff', fontSize: 12 }), []);
+    const cancelButtonTextStyle = useMemo(() => ({ color: theme.primary, fontSize: 16 }), [theme.primary]);
+    const descriptionInputStyle = useMemo(() => ({ height: 60 }), []);
+    const emptyListTextStyle = useMemo(() => ({ textAlign: 'center', color: theme.placeholder, marginTop: 20 }), [theme.placeholder]);
+    const createButtonOpacityStyle = useMemo(() => ({ opacity: loading ? 0.7 : 1 }), [loading]);
 
     useEffect(() => {
         if (visible) {
@@ -115,7 +122,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ visible, onClose, o
                     styles.checkbox,
                     { borderColor: theme.primary, backgroundColor: isSelected ? theme.primary : 'transparent' }
                 ]}>
-                    {isSelected && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    {isSelected && <Text style={checkboxCheckmarkStyle}>✓</Text>}
                 </View>
             </TouchableOpacity>
         );
@@ -127,7 +134,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ visible, onClose, o
                 <View style={styles.header}>
                     <Text style={[styles.title, { color: theme.text }]}>New Group</Text>
                     <TouchableOpacity onPress={onClose}>
-                        <Text style={{ color: theme.primary, fontSize: 16 }}>Cancel</Text>
+                        <Text style={cancelButtonTextStyle}>Cancel</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -140,7 +147,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ visible, onClose, o
                         onChangeText={setName}
                     />
                     <TextInput
-                        style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.cardBackground, height: 60 }]}
+                        style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.cardBackground, ...descriptionInputStyle }]}
                         placeholder="Description"
                         placeholderTextColor={theme.placeholder}
                         value={description}
@@ -159,13 +166,13 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ visible, onClose, o
                         keyExtractor={(item) => (item.follower?._id || item._id)}
                         renderItem={renderFollower}
                         contentContainerStyle={styles.list}
-                        ListEmptyComponent={<Text style={{ textAlign: 'center', color: theme.placeholder, marginTop: 20 }}>No followers found</Text>}
+                        ListEmptyComponent={<Text style={emptyListTextStyle}>No followers found</Text>}
                     />
                 )}
 
                 <View style={[styles.footer, { borderTopColor: theme.border, backgroundColor: theme.background }]}>
                     <TouchableOpacity
-                        style={[styles.createButton, { backgroundColor: theme.primary, opacity: loading ? 0.7 : 1 }]}
+                        style={[styles.createButton, { backgroundColor: theme.primary, ...createButtonOpacityStyle }]}
                         onPress={handleCreate}
                         disabled={loading}
                     >

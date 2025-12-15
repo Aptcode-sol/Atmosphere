@@ -11,7 +11,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { fetchSavedPosts, unsavePost, getPostById } from '../lib/api';
+import { fetchSavedPosts, unsavePost } from '../lib/api';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const { width } = Dimensions.get('window');

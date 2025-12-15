@@ -48,7 +48,7 @@ export function getImageSource(url: any, placeholder?: any) {
         return { uri: 'https://via.placeholder.com/400x400.png?text=Image' };
     } catch (e) {
         // defensive fallback
-        // eslint-disable-next-line no-console
+         
         console.warn('getImageSource error for url:', url, e);
         if (placeholder) return placeholder;
         return { uri: 'https://via.placeholder.com/400x400.png?text=Image' };

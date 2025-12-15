@@ -96,6 +96,33 @@ exports.uploadVideo = async (fileBuffer, mimetype = 'video/mp4', originalName = 
 };
 
 /**
+ * Upload a document (pdf/docx/txt) to S3 and return a presigned URL for viewing
+ */
+exports.uploadDocument = async (fileBuffer, mimetype = 'application/pdf', originalName = 'document.pdf') => {
+    const client = getS3Client();
+    const bucket = getBucketName();
+    const key = generateFileName(originalName, 'documents');
+
+    const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: mimetype,
+    });
+
+    await client.send(command);
+
+    const getCommand = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+    });
+
+    const url = await getSignedUrl(client, getCommand, { expiresIn: 604800 }); // 7 days
+
+    return { url, key };
+};
+
+/**
  * Delete a file from S3
  */
 exports.deleteFile = async (key) => {

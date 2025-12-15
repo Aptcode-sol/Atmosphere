@@ -341,7 +341,7 @@ const Meetings = () => {
                     title,
                     description,
                     scheduledAt: new Date(scheduledAt).toISOString(),
-                    duration: parseInt(duration) || 60,
+                    duration: parseInt(duration, 10) || 60,
                     meetingLink,
                     location,
                 }),

@@ -15,6 +15,12 @@ async function start() {
     app.use(morgan('dev'));
     app.use(middleware.requestLogger);
 
+    app.get('/', (req, res) => {
+        const uptime = process.uptime();
+        const version = process.env.npm_package_version || '0.0.0';
+        res.json({ status: 'ok', uptime, version });
+    });
+
     app.use('/api', routes);
 
     app.use(middleware.notFound);

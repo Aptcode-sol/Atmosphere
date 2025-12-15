@@ -1,15 +1,13 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     FlatList,
     Dimensions,
-    TouchableOpacity,
     Image,
     ActivityIndicator,
 } from 'react-native';
-import { ThemeContext } from '../contexts/ThemeContext';
 import { fetchReels } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -34,7 +32,7 @@ interface ReelItem {
 }
 
 const Reels = () => {
-    const { theme } = useContext(ThemeContext) as any;
+    // theme not required here
     const [reels, setReels] = useState<ReelItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -57,11 +55,6 @@ const Reels = () => {
     const renderReel = ({ item, index }: { item: ReelItem; index: number }) => {
         const isActive = index === currentIndex;
         const displayName = item.author?.displayName || item.author?.username || 'User';
-
-        console.log('=== REEL RENDER ===');
-        console.log('Index:', index, 'Current:', currentIndex, 'Active:', isActive);
-        console.log('Video URL:', item.videoUrl);
-        console.log('Thumbnail URL:', item.thumbnailUrl);
 
         return (
             <View style={styles.reelContainer}>
@@ -92,7 +85,7 @@ const Reels = () => {
                 {/* Overlay Content */}
                 <View style={styles.overlay}>
                     <View style={styles.info}>
-                        <Text style={styles.username}>@{item.author.username}</Text>
+                        <Text style={styles.username}>@{displayName}</Text>
                         {item.caption && (
                             <Text style={styles.caption} numberOfLines={2}>
                                 {item.caption}

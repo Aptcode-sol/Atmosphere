@@ -79,7 +79,8 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                 try {
                     const res = await getStartupProfile(userId);
                     console.log('Fetched startup profile response:', res);
-                    const data = res?.startupDetails;
+                    // API may return { details: {...} } or { startupDetails: {...} }
+                    const data = res?.details || res?.startupDetails || res;
                     if (data) {
                         console.log('Fetched startup data:', data);
                         setCompanyProfile(data.companyName || '');
@@ -97,10 +98,20 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                             setRaisedAmount(data.financialProfile.fundingAmount ? String(data.financialProfile.fundingAmount) : '');
                             setInvestorName(data.financialProfile.investorName || '');
                             setInvestorDoc(data.financialProfile.investorDoc || '');
+                            // Also populate the URL if available
+                            if (data.financialProfile.investorDoc) {
+                                setInvestorDocUrl(data.financialProfile.investorDoc);
+                            }
                         }
-                        setRoundType(data.roundType || '');
-                        setRequiredCapital(data.requiredCapital ? String(data.requiredCapital) : '');
-                        setUploadName(data.documents || '');
+                        // Load round/stage (backend stores as 'stage', frontend uses 'roundType')
+                        setRoundType(data.roundType || data.stage || '');
+                        // Load required capital (backend stores as 'fundingNeeded', frontend uses 'requiredCapital')
+                        setRequiredCapital(data.requiredCapital || data.fundingNeeded ? String(data.requiredCapital || data.fundingNeeded) : '');
+                        // Populate documents URL
+                        if (data.documents) {
+                            setUploadName(typeof data.documents === 'string' ? data.documents.split('/').pop() || 'document' : 'document');
+                            setUploadUrl(data.documents);
+                        }
                     } else {
                         console.log('No startup data found for user');
                     }

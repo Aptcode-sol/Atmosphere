@@ -1,15 +1,13 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import Logo from '../components/Logo';
 import { login } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemeContext } from '../contexts/ThemeContext';
 
 const SignIn = ({ onSignUp, onSignedIn }: { onSignUp?: () => void; onSignedIn?: () => void }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const { theme } = useContext(ThemeContext);
 
     const handleLogin = async () => {
         setLoading(true);

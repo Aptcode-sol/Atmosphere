@@ -1,5 +1,5 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from './Profile.styles';
@@ -154,86 +154,94 @@ export default function SettingsOverlay({ src, theme, onClose }: Props) {
         }
     };
 
+    const animatedContainerStyle = useMemo(() => ({ backgroundColor: theme.background, transform: [{ translateX: slideAnim }] }), [theme.background, slideAnim]);
+    const themeTextStyle = useMemo(() => ({ color: theme.text }), [theme.text]);
+    const themePlaceholderStyle = useMemo(() => ({ color: theme.placeholder }), [theme.placeholder]);
+    const themeBorderStyle = useMemo(() => ({ borderColor: theme.border }), [theme.border]);
+    const centerPaddingStyle = useMemo(() => ({ padding: 40, alignItems: 'center' }), []);
+    const spacerWidthStyle = useMemo(() => ({ width: 40 }), []);
+    const spacerHeightStyle = useMemo(() => ({ height: 24 }), []);
+
     return (
-        <Animated.View style={[styles.fullPage, { backgroundColor: theme.background, transform: [{ translateX: slideAnim }] }]}>
+        <Animated.View style={[styles.fullPage, animatedContainerStyle]}>
             <View style={styles.settingsHeader}>
                 <TouchableOpacity onPress={handleClose} style={styles.headerBack}>
                     <Text style={{ color: theme.text }}>{'←'}</Text>
                 </TouchableOpacity>
-                <Text style={[styles.settingsTitle, { color: theme.text }]}>Settings</Text>
-                <View style={{ width: 40 }} />
+                <Text style={[styles.settingsTitle, themeTextStyle]}>Settings</Text>
+                <View style={spacerWidthStyle} />
             </View>
 
             <ScrollView contentContainerStyle={[styles.settingsContent, { paddingBottom: 48 }]}>
                 {loading ? (
-                    <View style={{ padding: 40, alignItems: 'center' }}>
+                    <View style={centerPaddingStyle}>
                         <ActivityIndicator size="large" color={theme.primary} />
                     </View>
                 ) : (
                     <>
 
 
-                        <Text style={[styles.sectionLabel, { color: theme.placeholder }]}>CONTENT</Text>
-                        <View style={[styles.sectionCard, { borderColor: theme.border }]}>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
+                        <Text style={[styles.sectionLabel, themePlaceholderStyle]}>CONTENT</Text>
+                        <View style={[styles.sectionCard, themeBorderStyle]}>
+                            <TouchableOpacity style={styles.settingRow} onPress={() => { _openEditModal('Name', settings.displayName); }}>
                                 <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Professional Dashboard</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>View analytics and insights</Text>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>Professional Dashboard</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>View analytics and insights</Text>
                                 </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
                                 <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Saved Content</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>Access your saved posts and startups</Text>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>Saved Content</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Access your saved posts and startups</Text>
                                 </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
                                 <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Content Preference</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>Customize your feed</Text>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>Content Preference</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Customize your feed</Text>
                                 </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <Text style={[styles.sectionLabel, { color: theme.placeholder }]}>PRIVACY</Text>
-                        <View style={[styles.sectionCard, { borderColor: theme.border }]}>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
-                                <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Comments</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>Control who can comment on your posts</Text>
-                                </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
-                                <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Connect</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>Manage direct message permissions</Text>
-                                </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={[styles.sectionLabel, { color: theme.placeholder }]}>HELP</Text>
-                        <View style={[styles.sectionCard, { borderColor: theme.border }]}>
+                        <Text style={[styles.sectionLabel, themePlaceholderStyle]}>PRIVACY</Text>
+                        <View style={[styles.sectionCard, themeBorderStyle]}>
                             <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
                                 <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>Support</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>Get help or contact us</Text>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>Comments</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Control who can comment on your posts</Text>
                                 </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
                                 <View style={styles.settingLeft}>
-                                    <Text style={[styles.settingTitle, { color: theme.text }]}>About</Text>
-                                    <Text style={[styles.settingSubtitle, { color: theme.placeholder }]}>Version 1.0.0</Text>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>Connect</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Manage direct message permissions</Text>
                                 </View>
-                                <Text style={[styles.chev, { color: theme.placeholder }]}>{'›'}</Text>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
                         </View>
-                        <View style={{ height: 24 }} />
+
+                        <Text style={[styles.sectionLabel, themePlaceholderStyle]}>HELP</Text>
+                        <View style={[styles.sectionCard, themeBorderStyle]}>
+                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
+                                <View style={styles.settingLeft}>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>Support</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Get help or contact us</Text>
+                                </View>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
+                                <View style={styles.settingLeft}>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>About</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Version 1.0.0</Text>
+                                </View>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={spacerHeightStyle} />
                         <TouchableOpacity
                             style={[styles.logoutBtn]}
                             onPress={async () => {

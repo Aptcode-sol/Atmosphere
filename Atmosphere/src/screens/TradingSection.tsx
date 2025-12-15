@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, fetchInvestors } from '../lib/api';
@@ -60,6 +60,30 @@ const Trading = () => {
     const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
     const pagerRef = useRef<any>(null);
     const scrollX = useRef(new Animated.Value(0)).current;
+
+    // Memoized style objects to avoid inline styles in JSX (reduces eslint warnings)
+    const centeredLoaderStyle = useMemo(() => ({ flex: 1, alignItems: 'center', justifyContent: 'center' }), []);
+    const flexOneStyle = useMemo(() => ({ flex: 1 }), []);
+    const rowCenterStyle = useMemo(() => ({ flexDirection: 'row', alignItems: 'center' }), []);
+    const rowCenterGap8 = useMemo(() => ({ flexDirection: 'row', alignItems: 'center', gap: 8 }), []);
+    const rightButtonsRow = useMemo(() => ({ flexDirection: 'row', gap: 8 }), []);
+    const previewImageFull = useMemo(() => ({ width: '100%', height: '100%' }), []);
+    const fullWidthCard = useMemo(() => ({ width: '100%' }), []);
+    const statLabelBlue = useMemo(() => ({ color: '#1a73e8' }), []);
+    const statValueBlue = useMemo(() => ({ color: '#1a73e8' }), []);
+    const footerLoaderStyle = useMemo(() => ({ margin: 20 }), []);
+    const videoPlayerTextStyle = useMemo(() => ({ color: '#fff', textAlign: 'center' }), []);
+    const activeTradesTopStyle = useMemo(() => ({ marginTop: 24 }), []);
+    const pagerPageWidth = useMemo(() => ({ width: screenW }), []);
+    const animatedIndicatorStyle = useMemo(() => ([
+        styles.tabIndicator,
+        {
+            width: screenW / 2,
+            transform: [{
+                translateX: scrollX.interpolate({ inputRange: [0, screenW], outputRange: [0, screenW / 2] })
+            }]
+        }
+    ]), [scrollX]);
 
     // SELL tab - Portfolio form state
     const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
@@ -397,7 +421,7 @@ const Trading = () => {
     const renderInvestorPortfolios = () => {
         if (investorsLoading) {
             return (
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={centeredLoaderStyle}>
                     <ActivityIndicator size="large" color="#1a73e8" />
                 </View>
             );
@@ -440,7 +464,7 @@ const Trading = () => {
 
         return (
             <ScrollView
-                style={{ flex: 1 }}
+                style={flexOneStyle}
                 contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
                 refreshControl={
                     <RefreshControl
@@ -475,8 +499,8 @@ const Trading = () => {
                                     }
                                 }}
                             >
-                                <View style={{ flex: 1 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={flexOneStyle}>
+                                    <View style={rowCenterStyle}>
                                         <Text style={styles.portfolioCompanyName}>
                                             {item.companyName}
                                         </Text>
@@ -529,7 +553,7 @@ const Trading = () => {
 
                 {/* Active Trades Section */}
                 {activeTrades.length > 0 && (
-                    <View style={{ marginTop: 24 }}>
+                    <View style={activeTradesTopStyle}>
                         <Text style={styles.portfolioHeader}>Active Trades</Text>
                         {activeTrades.map((trade) => {
                             const tradeId = trade._id || trade.id;
@@ -552,8 +576,8 @@ const Trading = () => {
                                             </Text>
                                         </View>
 
-                                        <View style={{ flex: 1 }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <View style={flexOneStyle}>
+                                            <View style={rowCenterGap8}>
                                                 <Text style={styles.tradeCompanyName}>{trade.companyName}</Text>
                                                 <View style={styles.tradeBadge}>
                                                     <Text style={styles.tradeBadgeText}>Trade</Text>
@@ -571,7 +595,7 @@ const Trading = () => {
                                             )}
                                         </View>
 
-                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                        <View style={rightButtonsRow}>
                                             <TouchableOpacity
                                                 style={styles.tradeActionButton}
                                                 onPress={(e) => {
@@ -634,13 +658,13 @@ const Trading = () => {
                                                     <View style={styles.tradeMediaContainer}>
                                                         {trade.videoUrl ? (
                                                             <View style={styles.tradeMedia}>
-                                                                <Text style={{ color: '#fff', textAlign: 'center' }}>Video Player</Text>
+                                                                <Text style={videoPlayerTextStyle}>Video Player</Text>
                                                             </View>
                                                         ) : (
                                                             <View style={styles.tradeMedia}>
                                                                 <RNImage
                                                                     source={{ uri: trade.imageUrls[photoIndex] }}
-                                                                    style={{ width: '100%', height: '100%' }}
+                                                                    style={previewImageFull}
                                                                     resizeMode="cover"
                                                                 />
                                                             </View>
@@ -660,9 +684,9 @@ const Trading = () => {
                                                         <Text style={styles.statLabel}>Company Age</Text>
                                                         <Text style={styles.statValue}>{trade.companyAge || 'N/A'}</Text>
                                                     </View>
-                                                    <View style={[styles.statCard, { width: '100%' }]}>
-                                                        <Text style={[styles.statLabel, { color: '#1a73e8' }]}>Selling Range</Text>
-                                                        <Text style={[styles.statValue, { color: '#1a73e8' }]}>
+                                                    <View style={[styles.statCard, fullWidthCard]}>
+                                                        <Text style={[styles.statLabel, statLabelBlue]}>Selling Range</Text>
+                                                        <Text style={[styles.statValue, statValueBlue]}>
                                                             {trade.sellingRangeMin}% - {trade.sellingRangeMax}%
                                                         </Text>
                                                     </View>
@@ -720,7 +744,7 @@ const Trading = () => {
 
         if (buyLoading && data.length === 0) {
             return (
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={centeredLoaderStyle}>
                     <ActivityIndicator size="large" color="#1a73e8" />
                 </View>
             );
@@ -753,7 +777,7 @@ const Trading = () => {
                 ListHeaderComponent={ListHeader}
                 onEndReached={handleLoadMoreBuy}
                 onEndReachedThreshold={0.5}
-                ListFooterComponent={() => buyLoading && data.length > 0 ? <ActivityIndicator size="small" color="#1a73e8" style={{ margin: 20 }} /> : null}
+                ListFooterComponent={() => buyLoading && data.length > 0 ? <ActivityIndicator size="small" color="#1a73e8" style={footerLoaderStyle} /> : null}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -797,20 +821,7 @@ const Trading = () => {
                     </TouchableOpacity>
 
                     {/* Animated underline indicator */}
-                    <Animated.View
-                        style={[
-                            styles.tabIndicator,
-                            {
-                                width: screenW / 2,
-                                transform: [{
-                                    translateX: scrollX.interpolate({
-                                        inputRange: [0, screenW],
-                                        outputRange: [0, screenW / 2]
-                                    })
-                                }]
-                            }
-                        ]}
-                    />
+                    <Animated.View style={animatedIndicatorStyle} />
                 </View>
 
                 {/* Show search/filters only on Buy tab */}
@@ -882,15 +893,15 @@ const Trading = () => {
                     scrollX.setValue(x);
                 }}
                 scrollEventThrottle={16}
-                style={{ flex: 1 }}
+                style={flexOneStyle}
             >
                 {/* Buy tab content */}
-                <View style={[styles.pagerPage, { width: screenW }]}>
+                <View style={[styles.pagerPage, pagerPageWidth]}>
                     {renderMarketsList()}
                 </View>
 
                 {/* Sell tab content - Investor Portfolios */}
-                <View style={[styles.pagerPage, { width: screenW }]}>
+                <View style={[styles.pagerPage, pagerPageWidth]}>
                     {renderInvestorPortfolios()}
                 </View>
             </Animated.ScrollView>

@@ -1,12 +1,10 @@
-/* eslint-disable react-native/no-inline-styles */
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { updateProfile, getProfile, verifyEmail, uploadProfilePicture } from '../lib/api';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
-import InvestorSetup from './setup-steps/InvestorSetup';
-import PersonalSetup from './setup-steps/PersonalSetup';
+// InvestorSetup and PersonalSetup are not used in this screen
 import InvestorPortfolioStep from './setup-steps/InvestorPortfolioStep';
 import StartupPortfolioStep from './setup-steps/StartupPortfolioStep';
 
@@ -15,6 +13,7 @@ const makeLocalStyles = (theme: any) => StyleSheet.create({
     header: { height: 84, paddingTop: 28, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
     headerLeft: { width: 48 },
     headerRight: { width: 48, alignItems: 'flex-end' },
+    headerSaveBtn: { padding: 8 },
     headerTitle: { fontSize: 18, fontWeight: '700' },
     scrollContent: { padding: 20, paddingBottom: 60 },
     avatarPlaceholder: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#333', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
@@ -53,6 +52,11 @@ const makeLocalStyles = (theme: any) => StyleSheet.create({
 export default function SetupProfile({ onDone, onClose }: { onDone: () => void; onClose?: () => void }) {
     const { theme } = useContext(ThemeContext);
     const localStyles = makeLocalStyles(theme);
+    const themePlaceholderStyle = useMemo(() => ({ color: theme.placeholder }), [theme.placeholder]);
+    const primaryButtonStyle = useMemo(() => ({ marginTop: 12, paddingVertical: 14, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center' }), [theme.primary]);
+    const primaryButtonTextStyle = useMemo(() => ({ color: '#fff', fontWeight: '700' }), []);
+    const avatarUploadCenterOverlay = useMemo(() => ({ top: 0, bottom: 0, justifyContent: 'center' }), []);
+    const roleOverlayStyle = useMemo(() => ({ backgroundColor: theme.background, position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 10 }), [theme.background]);
     const [username, setUsername] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [bio, setBio] = useState('');
@@ -71,7 +75,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
     const [isEditMode, setIsEditMode] = useState(false);
     const [accountType, setAccountType] = useState<'startup' | 'investor' | 'personal' | null>(null);
     const [isKycVerified, setIsKycVerified] = useState(false);
-    const [portfolioComplete, setPortfolioComplete] = useState(false);
+    // portfolioComplete state not used directly here
 
     useEffect(() => {
         (async () => {
@@ -229,7 +233,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     })()}
                 </View>
                 <View style={localStyles.headerRight}>
-                    <TouchableOpacity onPress={submit} style={{ padding: 8 }}><Text style={localStyles.saveText}>{saving ? 'Saving...' : 'Save'}</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={submit} style={localStyles.headerSaveBtn}><Text style={localStyles.saveText}>{saving ? 'Saving...' : 'Save'}</Text></TouchableOpacity>
                 </View>
             </View>
 
@@ -246,7 +250,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                                 <Text style={localStyles.avatarText}>📷</Text>
                             )}
                             {uploadingAvatar && (
-                                <View style={[localStyles.avatarUploadOverlay, { top: 0, bottom: 0, justifyContent: 'center' }]}>
+                                <View style={[localStyles.avatarUploadOverlay, avatarUploadCenterOverlay]}>
                                     <ActivityIndicator size="small" color="#fff" />
                                 </View>
                             )}
@@ -259,13 +263,13 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     </TouchableOpacity>
                     <Text style={localStyles.avatarLabel}>Profile Photo</Text>
                 </View>
-                <Text style={[localStyles.label, { color: theme.placeholder }]}>Username</Text>
+                <Text style={[localStyles.label, themePlaceholderStyle]}>Username</Text>
                 <TextInput placeholder="Username" value={username} onChangeText={setUsername} style={localStyles.input} placeholderTextColor={theme.placeholder} />
 
-                <Text style={[localStyles.label, { color: theme.placeholder }]}>Full Name</Text>
+                <Text style={[localStyles.label, themePlaceholderStyle]}>Full Name</Text>
                 <TextInput placeholder="Enter your full name" value={displayName} onChangeText={setDisplayName} style={localStyles.input} placeholderTextColor={theme.placeholder} />
 
-                <Text style={[localStyles.label, { color: theme.placeholder }]}>Email</Text>
+                <Text style={[localStyles.label, themePlaceholderStyle]}>Email</Text>
                 <View style={localStyles.verificationRow}>
                     <TextInput placeholder="Email" value={email} onChangeText={(v) => { setEmail(v); setEmailChanged(v !== initialEmail); setVerified(false); }} style={localStyles.inputFlex} placeholderTextColor={theme.placeholder} />
                     {emailChanged && !verified && (
@@ -304,9 +308,9 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                         return (
                             <TouchableOpacity
                                 onPress={() => setRoleStep('personal')}
-                                style={{ marginTop: 12, paddingVertical: 14, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center' }}
+                                style={primaryButtonStyle as any}
                             >
-                                <Text style={{ color: '#fff', fontWeight: '700' }}>Next</Text>
+                                <Text style={primaryButtonTextStyle}>Next</Text>
                             </TouchableOpacity>
                         );
                     }
@@ -317,9 +321,9 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     return (
                         <TouchableOpacity
                             onPress={() => setRoleStep(targetStep as any)}
-                            style={{ marginTop: 12, paddingVertical: 14, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center' }}
+                            style={primaryButtonStyle as any}
                         >
-                            <Text style={{ color: '#fff', fontWeight: '700' }}>Next</Text>
+                            <Text style={primaryButtonTextStyle}>Next</Text>
                         </TouchableOpacity>
                     );
                 })()}
@@ -327,7 +331,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
             </ScrollView>
 
             {roleStep && (
-                <View style={[localStyles.fullPage, { backgroundColor: theme.background, position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 10 }]}>
+                <View style={[localStyles.fullPage, roleOverlayStyle as any]}>
                     {/* Setup mode - full verification flow */}
                     {roleStep === 'startup' && (
                         <StartupVerifyStep onBack={() => setRoleStep(null)} onDone={() => { setRoleStep(null); onDone(); if (onClose) onClose(); }} />

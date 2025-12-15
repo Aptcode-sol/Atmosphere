@@ -150,62 +150,35 @@ export async function uploadDocument(fileUri: string, fileName: string, mimeType
     const baseUrl = await getBaseUrl();
     const token = await AsyncStorage.getItem('token');
 
-    // If it's an image, use existing server endpoint (keeps behaviour for images)
-    if (mimeType && mimeType.startsWith('image/')) {
-        const formData = new FormData();
-        formData.append('image', {
-            uri: fileUri,
-            name: fileName || 'document.jpg',
-            type: mimeType || 'image/jpeg',
-        } as any);
+    // Use FormData upload for all file types (more reliable in React Native)
+    const formData = new FormData();
 
-        const uploadRes = await fetch(`${baseUrl}/api/upload`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-            body: formData,
-        });
+    // Determine the field name and endpoint based on file type
+    const isImage = mimeType && mimeType.startsWith('image/');
+    const fieldName = isImage ? 'image' : 'file';
+    const endpoint = isImage ? '/api/upload' : '/api/upload/document';
 
-        if (!uploadRes.ok) {
-            const err = await uploadRes.json().catch(() => ({}));
-            throw new Error(err.error || 'Failed to upload document');
-        }
+    formData.append(fieldName, {
+        uri: fileUri,
+        name: fileName || (isImage ? 'image.jpg' : 'document.pdf'),
+        type: mimeType || (isImage ? 'image/jpeg' : 'application/pdf'),
+    } as any);
 
-        const uploadData = await uploadRes.json();
-        return uploadData.url;
-    }
-
-    // For non-image files (pdfs, docs) use presigned upload flow
-    // 1) request presigned URL from server
-    const presignedRes = await request('/api/upload/presigned', { fileName: fileName || 'document', fileType: mimeType || 'application/octet-stream', folder: 'uploads' }, { method: 'POST' });
-    const uploadUrl = presignedRes.uploadUrl;
-    const fileUrl = presignedRes.fileUrl;
-    if (!uploadUrl) throw new Error('Failed to get upload URL');
-
-    // 2) fetch the local file and upload to presigned URL
-    // In React Native we can fetch the local file uri and get a blob/arrayBuffer
-    const fileResp = await fetch(fileUri);
-    let body: any;
-    try {
-        body = await fileResp.blob();
-    } catch {
-        // blob may not be supported; fallback to arrayBuffer
-        const ab = await fileResp.arrayBuffer();
-        body = ab;
-    }
-
-    const putRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': mimeType || 'application/octet-stream' },
-        body,
+    const uploadRes = await fetch(`${baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
     });
 
-    if (!putRes.ok) {
-        throw new Error('Failed to upload file to storage');
+    if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to upload document');
     }
 
-    return fileUrl;
+    const uploadData = await uploadRes.json();
+    return uploadData.url;
 }
 
 export async function fetchMyPosts() {

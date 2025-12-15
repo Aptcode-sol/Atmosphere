@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { updateProfile } from '../../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -58,14 +58,20 @@ export default function InvestorSetup({ onDone }: { onDone: () => void }) {
         }
     };
 
+    // Memoized styles to avoid inline style warnings
+    const containerStyle = useMemo(() => ({ padding: 20 }), []);
+    const titleStyle = useMemo(() => ({ fontSize: 18, fontWeight: '700', marginBottom: 12 }), []);
+    const inputStyle = useMemo(() => ({ borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }), []);
+    const saveButtonTextStyle = useMemo(() => ({ color: '#06f' }), []);
+
     return (
-        <View style={{ padding: 20 }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Investor Setup</Text>
-            <TextInput placeholder="About" value={about} onChangeText={setAbout} style={{ borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }} />
-            <TextInput placeholder="Location" value={location} onChangeText={setLocation} style={{ borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }} />
-            <TextInput placeholder="Investment Focus (comma separated)" value={investmentFocus} onChangeText={setInvestmentFocus} style={{ borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }} />
-            <TextInput placeholder="Interested Rounds (comma separated)" value={interestedRounds} onChangeText={setInterestedRounds} style={{ borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 8 }} />
-            <TouchableOpacity onPress={save}><Text style={{ color: '#06f' }}>Save Investor Details</Text></TouchableOpacity>
+        <View style={containerStyle}>
+            <Text style={titleStyle}>Investor Setup</Text>
+            <TextInput placeholder="About" value={about} onChangeText={setAbout} style={inputStyle} />
+            <TextInput placeholder="Location" value={location} onChangeText={setLocation} style={inputStyle} />
+            <TextInput placeholder="Investment Focus (comma separated)" value={investmentFocus} onChangeText={setInvestmentFocus} style={inputStyle} />
+            <TextInput placeholder="Interested Rounds (comma separated)" value={interestedRounds} onChangeText={setInterestedRounds} style={inputStyle} />
+            <TouchableOpacity onPress={save}><Text style={saveButtonTextStyle}>Save Investor Details</Text></TouchableOpacity>
         </View>
     );
 }

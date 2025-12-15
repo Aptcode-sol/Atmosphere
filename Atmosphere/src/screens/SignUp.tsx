@@ -1,9 +1,8 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, ScrollView, Animated } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, ScrollView } from 'react-native';
 import Logo from '../components/Logo';
 import { register } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ThemeContext } from '../contexts/ThemeContext';
 
 type AccountType = 'personal' | 'startup' | 'investor';
 
@@ -27,7 +26,7 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
     const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
     const [verifyMessage, setVerifyMessage] = useState('');
 
-    const { theme } = useContext(ThemeContext);
+    // theme not used here
 
     const handleSignUp = async () => {
         if (!email || !username || !password) {
@@ -225,7 +224,7 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
                                 </TouchableOpacity>
                             </View>
                             <TouchableOpacity onPress={handleRequestVerify} disabled={verifyStatus === 'sending'}>
-                                <Text style={{ color: '#0095f6', textAlign: 'center', fontSize: 13, marginTop: 8 }}>
+                                <Text style={styles.resendText}>
                                     {verifyStatus === 'sending' ? 'Sending...' : 'Resend Code'}
                                 </Text>
                             </TouchableOpacity>
@@ -420,6 +419,12 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    resendText: {
+        color: '#0095f6',
+        textAlign: 'center',
+        fontSize: 13,
+        marginTop: 8,
     },
     otpVerifyText: {
         color: '#fff',

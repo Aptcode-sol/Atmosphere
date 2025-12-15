@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,11 +25,17 @@ function OpportunityCard({ item, type, onExpand, expanded }: { item: any, type: 
     const applyBtnBg = '#333';
     const applyBtnText = '#fff';
 
+    // Memoized styles to avoid inline style warnings
+    const titleRowStyle = useMemo(() => ({ flex: 1, marginRight: 8 }), []);
+    const metaItemLeftStyle = useMemo(() => ({ fontSize: 14, color: subTextColor }), [subTextColor]);
+    const metaItemRightStyle = useMemo(() => ({ marginLeft: 16, fontSize: 14, color: subTextColor }), [subTextColor]);
+    const expandedBgStyle = useMemo(() => ({ backgroundColor: isDark ? '#111' : '#f9f9f9', borderColor }), [isDark, borderColor]);
+
     return (
         <View style={[styles.card, { backgroundColor: cardBg, borderColor: borderColor }]}>
             {/* Row 1: Title and Badge */}
             <View style={styles.cardHeaderRow}>
-                <View style={{ flex: 1, marginRight: 8 }}>
+                <View style={titleRowStyle}>
                     <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>{item.title || item.roleTitle}</Text>
                     <Text style={[styles.cardCompany, { color: subTextColor }]}>{item.poster?.displayName || item.startupName || item.organization || 'Unknown Organization'}</Text>
                 </View>
@@ -53,11 +59,11 @@ function OpportunityCard({ item, type, onExpand, expanded }: { item: any, type: 
             {/* Row 3: Meta (Location, Date) */}
             <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
-                    <Text style={{ fontSize: 14, color: subTextColor }}>📍 {item.locationType || item.location || 'Remote'}</Text>
+                    <Text style={metaItemLeftStyle}>📍 {item.locationType || item.location || 'Remote'}</Text>
                 </View>
                 {item.deadline || item.date ? (
                     <View style={[styles.metaItem, { marginLeft: 16 }]}>
-                        <Text style={{ fontSize: 14, color: subTextColor }}>📅 {item.deadline || item.date}</Text>
+                        <Text style={metaItemRightStyle}>📅 {item.deadline || item.date}</Text>
                     </View>
                 ) : null}
             </View>
@@ -75,7 +81,7 @@ function OpportunityCard({ item, type, onExpand, expanded }: { item: any, type: 
 
             {/* Expanded Section */}
             {expanded && (
-                <View style={[styles.expandedBox, { backgroundColor: isDark ? '#111' : '#f9f9f9', borderColor: borderColor }]}>
+                <View style={[styles.expandedBox, expandedBgStyle]}>
                     <Text style={[styles.expandedTitle, { color: textColor }]}>Application</Text>
                     <Text style={[styles.expandedText, { color: subTextColor }]}>Answer custom questions and upload resume (UI coming soon)</Text>
                     <TouchableOpacity style={styles.sendBtn} onPress={() => Alert.alert('Application sent!')}>
@@ -127,6 +133,17 @@ const Jobs = () => {
     const [refreshing, setRefreshing] = useState(false);
 
     const JOBS_LIMIT = 20;
+
+    // Memoized styles to avoid inline style warnings
+    const emptyLoaderStyle = useMemo(() => ({ width: Dimensions.get('window').width, alignItems: 'center', marginTop: 40 }), []);
+    const flatListContentStyle = useMemo(() => ({ paddingBottom: 80, paddingHorizontal: 16 }), []);
+    const filterButtonTextStyle = useMemo(() => ({ fontSize: 14, fontWeight: 'bold' }), []);
+    const loadMoreLoaderStyle = useMemo(() => ({ marginVertical: 20 }), []);
+    const containerBgStyle = useMemo(() => ({ backgroundColor: '#000000' }), []);
+    const tabBarBgStyle = useMemo(() => ({ backgroundColor: '#111' }), []);
+    const tabBtnActiveStyle = useMemo(() => ({ backgroundColor: '#333' }), []);
+    const tabTextActiveStyle = useMemo(() => ({ color: '#fff', fontWeight: 'bold' }), []);
+    const tabTextInactiveStyle = useMemo(() => ({ color: '#888', fontWeight: 'normal' }), []);
 
     // API Helpers import
     const api = require('../lib/api');
@@ -338,7 +355,7 @@ const Jobs = () => {
 
         if (loading) {
             return (
-                <View style={{ width, alignItems: 'center', marginTop: 40 }}>
+                <View style={emptyLoaderStyle}>
                     <ActivityIndicator size="large" color={theme.primary} />
                 </View>
             );
@@ -349,7 +366,7 @@ const Jobs = () => {
                 <FlatList
                     data={data}
                     keyExtractor={(item) => String(item._id || item.id)}
-                    contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 16 }}
+                    contentContainerStyle={flatListContentStyle}
                     renderItem={({ item }) => (
                         <OpportunityCard
                             item={item}
@@ -373,13 +390,13 @@ const Jobs = () => {
                         <View style={styles.listHeader}>
                             <Text style={[styles.resultCount, { color: '#fff' }]}>Total {type.toLowerCase()}s: {data.length}</Text>
                             <TouchableOpacity>
-                                <Text style={{ fontSize: 14, color: theme.primary, fontWeight: 'bold' }}>Filter</Text>
+                                <Text style={[filterButtonTextStyle, { color: theme.primary }]}>Filter</Text>
                             </TouchableOpacity>
                         </View>
                     )}
                     ListFooterComponent={() => {
                         const isLoadingMore = (tabName === 'Jobs' && jobsLoading) || (tabName === 'Grants' && grantsLoading) || (tabName === 'Events' && eventsLoading);
-                        if (isLoadingMore && data.length > 0) return <ActivityIndicator style={{ marginVertical: 20 }} color={theme.primary} />;
+                        if (isLoadingMore && data.length > 0) return <ActivityIndicator style={loadMoreLoaderStyle} color={theme.primary} />;
                         if (data.length === 0) return <Text style={styles.emptyText}>No {type.toLowerCase()}s found.</Text>;
                         return null;
                     }}
@@ -389,15 +406,15 @@ const Jobs = () => {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: '#000000' }]}>
-            <View style={[styles.tabBar, { backgroundColor: '#111' }]}>
+        <View style={[styles.container, containerBgStyle]}>
+            <View style={[styles.tabBar, tabBarBgStyle]}>
                 {TABS.map((tab, index) => (
                     <TouchableOpacity
                         key={tab}
-                        style={[styles.tabBtn, activeTab === tab && { backgroundColor: '#333' }]}
+                        style={[styles.tabBtn, activeTab === tab && tabBtnActiveStyle]}
                         onPress={() => handleTabPress(tab, index)}
                     >
-                        <Text style={[styles.tabText, { color: activeTab === tab ? '#fff' : '#888', fontWeight: activeTab === tab ? 'bold' : 'normal' }]}>{tab}</Text>
+                        <Text style={[styles.tabText, activeTab === tab ? tabTextActiveStyle : tabTextInactiveStyle]}>{tab}</Text>
                     </TouchableOpacity>
                 ))}
             </View>
