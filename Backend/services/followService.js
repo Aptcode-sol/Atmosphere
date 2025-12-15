@@ -1,4 +1,4 @@
-const { Follow, User } = require('../models');
+const { Follow, User, Notification } = require('../models');
 
 exports.followUser = async (req, res, next) => {
     try {
@@ -15,6 +15,17 @@ exports.followUser = async (req, res, next) => {
 
         const follow = new Follow({ follower: req.user._id, following: targetId });
         await follow.save();
+        // Create notification for the followed user
+        try {
+            await Notification.create({
+                user: targetId,
+                actor: req.user._id,
+                type: 'follow',
+                payload: {}
+            });
+        } catch (notifErr) {
+            console.warn('Failed to create follow notification:', notifErr.message);
+        }
         // return updated followers count for the target user
         const followersCount = await Follow.countDocuments({ following: targetId });
         res.status(201).json({ message: 'Successfully followed user', follow, followersCount });

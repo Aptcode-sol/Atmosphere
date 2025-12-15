@@ -1,5 +1,6 @@
 const Like = require('../models/Like');
 const Post = require('../models/Post');
+const Notification = require('../models/Notification');
 
 exports.listLikesForPost = async (req, res, next) => {
   try {
@@ -24,6 +25,19 @@ exports.likePost = async (req, res, next) => {
     const existing = await Like.findOne({ post: post._id, user: req.user._id });
     if (!existing) {
       await Like.create({ post: post._id, user: req.user._id });
+      // Create notification for post author (if not self)
+      if (post.author && post.author.toString() !== req.user._id.toString()) {
+        try {
+          await Notification.create({
+            user: post.author,
+            actor: req.user._id,
+            type: 'like',
+            payload: { postId: post._id, postContent: post.content?.substring(0, 50) }
+          });
+        } catch (notifErr) {
+          console.warn('Failed to create like notification:', notifErr.message);
+        }
+      }
       try {
         const updated = await Post.findOneAndUpdate(
           { _id: post._id },

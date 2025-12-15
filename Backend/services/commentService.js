@@ -1,4 +1,4 @@
-const { Comment, Post } = require('../models');
+const { Comment, Post, Notification } = require('../models');
 
 exports.createComment = async (req, res, next) => {
     try {
@@ -38,6 +38,20 @@ exports.createComment = async (req, res, next) => {
             post.meta = post.meta || {};
             post.meta.commentsCount = (post.meta.commentsCount || 0) + 1;
             await post.save();
+        }
+
+        // Create notification for post author (if not self)
+        if (post.author && post.author.toString() !== req.user._id.toString()) {
+            try {
+                await Notification.create({
+                    user: post.author,
+                    actor: req.user._id,
+                    type: 'comment',
+                    payload: { postId: post._id, commentText: text?.substring(0, 50) }
+                });
+            } catch (notifErr) {
+                console.warn('Failed to create comment notification:', notifErr.message);
+            }
         }
 
         res.status(201).json({ comment });

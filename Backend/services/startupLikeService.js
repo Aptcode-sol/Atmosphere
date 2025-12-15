@@ -1,5 +1,6 @@
 const StartupLike = require('../models/StartupLike');
 const StartupDetails = require('../models/StartupDetails');
+const Notification = require('../models/Notification');
 
 exports.listLikesForStartup = async (req, res, next) => {
     try {
@@ -55,6 +56,19 @@ exports.likeStartup = async (req, res, next) => {
                         ).lean();
                         resultLikes = (updated && updated.meta && typeof updated.meta.likes === 'number') ? updated.meta.likes : (updated && updated.likesCount) || 0;
                     });
+                    // Create notification for startup owner (if not self)
+                    if (startup.user && startup.user.toString() !== req.user._id.toString()) {
+                        try {
+                            await Notification.create({
+                                user: startup.user,
+                                actor: req.user._id,
+                                type: 'like',
+                                payload: { startupId: startup._id, startupName: startup.companyName }
+                            });
+                        } catch (notifErr) {
+                            console.warn('Failed to create startup like notification:', notifErr.message);
+                        }
+                    }
                     if (typeof resultLikes === 'number') return res.json({ success: true, likes: resultLikes });
                 } catch (err) {
                     // Fall through to non-transactional path
@@ -73,6 +87,20 @@ exports.likeStartup = async (req, res, next) => {
                     return res.json({ success: true, likes: (startup.meta && typeof startup.meta.likes === 'number') ? startup.meta.likes : (startup.likesCount || 0) });
                 }
                 throw err;
+            }
+
+            // Create notification for startup owner (if not self)
+            if (startup.user && startup.user.toString() !== req.user._id.toString()) {
+                try {
+                    await Notification.create({
+                        user: startup.user,
+                        actor: req.user._id,
+                        type: 'like',
+                        payload: { startupId: startup._id, startupName: startup.companyName }
+                    });
+                } catch (notifErr) {
+                    console.warn('Failed to create startup like notification:', notifErr.message);
+                }
             }
 
             try {

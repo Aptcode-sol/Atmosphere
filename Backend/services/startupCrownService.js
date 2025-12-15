@@ -1,6 +1,7 @@
 const StartupCrown = require('../models/StartupCrown');
 const StartupDetails = require('../models/StartupDetails');
 const InvestorDetails = require('../models/InvestorDetails');
+const Notification = require('../models/Notification');
 
 exports.listCrownsForStartup = async (req, res, next) => {
     try {
@@ -43,6 +44,19 @@ exports.crownStartup = async (req, res, next) => {
                         ).lean();
                         resultCrowns = (updated && updated.meta && typeof updated.meta.crowns === 'number') ? updated.meta.crowns : (updated && updated.crowns) || 0;
                     });
+                    // Create notification for startup owner (if not self)
+                    if (startup.user && startup.user.toString() !== req.user._id.toString()) {
+                        try {
+                            await Notification.create({
+                                user: startup.user,
+                                actor: req.user._id,
+                                type: 'crown',
+                                payload: { startupId: startup._id, startupName: startup.companyName }
+                            });
+                        } catch (notifErr) {
+                            console.warn('Failed to create startup crown notification:', notifErr.message);
+                        }
+                    }
                     if (typeof resultCrowns === 'number') return res.json({ success: true, crowns: resultCrowns });
                 } catch (err) {
                     console.warn('Crown transaction failed, falling back', err && err.message ? err.message : err);
@@ -59,6 +73,19 @@ exports.crownStartup = async (req, res, next) => {
             startup.meta = startup.meta || {};
             startup.meta.crowns = (startup.meta.crowns || 0) + 1;
             await startup.save();
+            // Create notification for startup owner (if not self)
+            if (startup.user && startup.user.toString() !== req.user._id.toString()) {
+                try {
+                    await Notification.create({
+                        user: startup.user,
+                        actor: req.user._id,
+                        type: 'crown',
+                        payload: { startupId: startup._id, startupName: startup.companyName }
+                    });
+                } catch (notifErr) {
+                    console.warn('Failed to create startup crown notification:', notifErr.message);
+                }
+            }
             return res.json({ success: true, crowns: startup.meta.crowns || 0 });
         }
         res.json({ success: true, crowns: startup.meta.crowns || 0 });

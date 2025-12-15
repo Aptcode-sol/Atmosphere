@@ -1,4 +1,4 @@
-const { StartupComment, StartupDetails } = require('../models');
+const { StartupComment, StartupDetails, Notification } = require('../models');
 
 exports.createComment = async (req, res, next) => {
     try {
@@ -82,6 +82,21 @@ exports.createComment = async (req, res, next) => {
         }
 
         const commentsCount = (updatedStartup && updatedStartup.meta && typeof updatedStartup.meta.commentsCount === 'number') ? updatedStartup.meta.commentsCount : (updatedStartup && typeof updatedStartup.commentsCount === 'number' ? updatedStartup.commentsCount : (startup.meta && startup.meta.commentsCount) || 0);
+
+        // Create notification for startup owner (if not self)
+        if (startup.user && startup.user.toString() !== req.user._id.toString()) {
+            try {
+                await Notification.create({
+                    user: startup.user,
+                    actor: req.user._id,
+                    type: 'comment',
+                    payload: { startupId: startup._id, startupName: startup.companyName, commentText: text?.substring(0, 50) }
+                });
+            } catch (notifErr) {
+                console.warn('Failed to create startup comment notification:', notifErr.message);
+            }
+        }
+
         res.status(201).json({ comment: commentObj, commentsCount });
     } catch (err) { next(err); }
 };

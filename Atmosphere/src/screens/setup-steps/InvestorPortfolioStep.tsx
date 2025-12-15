@@ -73,6 +73,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
     const [docName, setDocName] = useState('');
     const [docUrl, setDocUrl] = useState('');
     const [uploadingDoc, setUploadingDoc] = useState(false);
+    const [pendingDoc, setPendingDoc] = useState<{ uri: string; name?: string; type?: string } | null>(null);
 
     const resetForm = () => {
         setCompanyName(''); setCompanyId(''); setDate(''); setAmount(''); setDocName(''); setDocUrl('');
@@ -89,20 +90,9 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
 
             const doc = result[0];
             if (doc && doc.uri) {
-                setUploadingDoc(true);
-                try {
-                    const url = await uploadDocument(
-                        doc.uri,
-                        doc.name || 'document',
-                        doc.type || 'application/octet-stream'
-                    );
-                    setDocName(doc.name || 'document');
-                    setDocUrl(url);
-                } catch (uploadErr: any) {
-                    Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document');
-                } finally {
-                    setUploadingDoc(false);
-                }
+                // Stage the file locally and show name, do NOT upload yet
+                setPendingDoc({ uri: doc.uri, name: doc.name, type: doc.type });
+                setDocName(doc.name || 'document');
             }
         } catch (err: any) {
             // User cancelled or error
@@ -148,23 +138,42 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
         return () => { mounted = false; };
     }, []);
 
-    const handleVerifyHolding = () => {
+    const handleVerifyHolding = async () => {
         // basic validation
         if (!companyName || !amount) {
             // minimal feedback — in real app use Alert
             Alert.alert('Missing fields', 'Please provide company name and amount');
             return;
         }
-        const amt = parseFloat(amount) || 0;
-        const newHolding = { name: companyName, date: date || new Date().toLocaleDateString(), amount: amt, docUrl };
-        setHoldings((prev) => {
-            const updated = [...prev, newHolding];
-            // persist updated holdings immediately
-            saveInvestorDetails({ previousInvestments: updated });
-            return updated;
-        });
-        setAddingHolding(false);
-        resetForm();
+
+        setUploadingDoc(true);
+        try {
+            let finalDocUrl = docUrl;
+            if (pendingDoc) {
+                try {
+                    const url = await uploadDocument(pendingDoc.uri, pendingDoc.name || undefined, pendingDoc.type || undefined);
+                    finalDocUrl = url;
+                    setDocUrl(url);
+                    setPendingDoc(null);
+                } catch (e: any) {
+                    Alert.alert('Upload Failed', e?.message || 'Could not upload document');
+                    return;
+                }
+            }
+
+            const amt = parseFloat(amount) || 0;
+            const newHolding = { name: companyName, date: date || new Date().toLocaleDateString(), amount: amt, docUrl: finalDocUrl };
+            setHoldings((prev) => {
+                const updated = [...prev, newHolding];
+                // persist updated holdings immediately
+                saveInvestorDetails({ previousInvestments: updated });
+                return updated;
+            });
+            setAddingHolding(false);
+            resetForm();
+        } finally {
+            setUploadingDoc(false);
+        }
     };
 
     async function saveInvestorDetails(overrides: any = {}) {

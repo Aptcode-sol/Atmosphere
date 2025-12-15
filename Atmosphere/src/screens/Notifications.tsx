@@ -147,8 +147,10 @@ const Notifications = () => {
 
     const renderNotification = ({ item }: { item: NotificationItem }) => {
         const iconInfo = getNotificationIcon(item.type);
-        const userName = item.fromUser?.displayName || item.fromUser?.username || 'Someone';
-        const avatarUrl = item.fromUser?.avatarUrl;
+        // Backend returns 'actor' (populated), fallback to 'fromUser' for compatibility
+        const actorData = (item as any).actor || item.fromUser;
+        const userName = actorData?.displayName || actorData?.username || 'Someone';
+        const avatarUrl = actorData?.avatarUrl;
 
         return (
             <TouchableOpacity

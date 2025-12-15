@@ -62,6 +62,8 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
     const [uploadingDoc, setUploadingDoc] = useState(false);
     const [investorDocUrl, setInvestorDocUrl] = useState('');
     const [uploadingInvestorDoc, setUploadingInvestorDoc] = useState(false);
+    const [pendingDoc, setPendingDoc] = useState<{ uri: string; name?: string; type?: string } | null>(null);
+    const [pendingInvestorDoc, setPendingInvestorDoc] = useState<{ uri: string; name?: string; type?: string } | null>(null);
 
     useEffect(() => {
         (async () => {
@@ -126,20 +128,9 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
 
             const doc = result[0];
             if (doc && doc.uri) {
-                setUploadingDoc(true);
-                try {
-                    const url = await uploadDocument(
-                        doc.uri,
-                        doc.name || 'document',
-                        doc.type || 'application/octet-stream'
-                    );
-                    setUploadName(doc.name || 'document');
-                    setUploadUrl(url);
-                } catch (uploadErr: any) {
-                    Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document');
-                } finally {
-                    setUploadingDoc(false);
-                }
+                // stage file for later upload
+                setPendingDoc({ uri: doc.uri, name: doc.name, type: doc.type });
+                setUploadName(doc.name || 'document');
             }
         } catch (err: any) {
             // User cancelled or error
@@ -160,20 +151,9 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
 
             const doc = result[0];
             if (doc && doc.uri) {
-                setUploadingInvestorDoc(true);
-                try {
-                    const url = await uploadDocument(
-                        doc.uri,
-                        doc.name || 'document',
-                        doc.type || 'application/octet-stream'
-                    );
-                    setInvestorDoc(doc.name || 'document');
-                    setInvestorDocUrl(url);
-                } catch (uploadErr: any) {
-                    Alert.alert('Upload Failed', uploadErr.message || 'Failed to upload document');
-                } finally {
-                    setUploadingInvestorDoc(false);
-                }
+                // stage investor doc for upload on submit
+                setPendingInvestorDoc({ uri: doc.uri, name: doc.name, type: doc.type });
+                setInvestorDoc(doc.name || 'document');
             }
         } catch (err: any) {
             // User cancelled or error
@@ -185,7 +165,37 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
 
     const sendForVerification = async () => {
         if (!consent) return Alert.alert('Consent required', 'Please provide consent to proceed');
+
+        setUploadingDoc(true);
+        setUploadingInvestorDoc(true);
         try {
+            // Upload staged documents if any
+            let finalUploadUrl = uploadUrl;
+            if (pendingDoc) {
+                try {
+                    const url = await uploadDocument(pendingDoc.uri, pendingDoc.name || undefined, pendingDoc.type || undefined);
+                    finalUploadUrl = url;
+                    setUploadUrl(url);
+                    setPendingDoc(null);
+                } catch (e: any) {
+                    Alert.alert('Upload Failed', e?.message || 'Could not upload document');
+                    return;
+                }
+            }
+
+            let finalInvestorDocUrl = investorDocUrl;
+            if (pendingInvestorDoc) {
+                try {
+                    const url = await uploadDocument(pendingInvestorDoc.uri, pendingInvestorDoc.name || undefined, pendingInvestorDoc.type || undefined);
+                    finalInvestorDocUrl = url;
+                    setInvestorDocUrl(url);
+                    setPendingInvestorDoc(null);
+                } catch (e: any) {
+                    Alert.alert('Upload Failed', e?.message || 'Could not upload investor document');
+                    return;
+                }
+            }
+
             const payload = {
                 companyName: companyProfile,
                 about,
@@ -198,17 +208,20 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                     fundingMethod,
                     fundingAmount: raisedAmount,
                     investorName: fundingMethod === 'Capital Raised' ? investorName : undefined,
-                    investorDoc: fundingMethod === 'Capital Raised' ? investorDocUrl : undefined,
+                    investorDoc: fundingMethod === 'Capital Raised' ? finalInvestorDocUrl : undefined,
                 },
                 roundType,
                 requiredCapital,
-                documents: uploadUrl,
+                documents: finalUploadUrl,
             };
             await saveStartupProfile(payload);
             Alert.alert('Sent', 'Documents sent for verification');
             onDone();
         } catch (error: any) {
             Alert.alert('Error', error?.message || 'Unable to send for verification');
+        } finally {
+            setUploadingDoc(false);
+            setUploadingInvestorDoc(false);
         }
     };
 

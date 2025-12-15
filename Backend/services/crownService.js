@@ -1,6 +1,7 @@
 const Crown = require('../models/Crown');
 const Post = require('../models/Post');
 const InvestorDetails = require('../models/InvestorDetails');
+const Notification = require('../models/Notification');
 
 exports.listCrownsForPost = async (req, res, next) => {
     try {
@@ -28,6 +29,19 @@ exports.crownPost = async (req, res, next) => {
                 post.meta.crowns = (post.meta.crowns || 0) + 1;
             }
             await post.save();
+            // Create notification for post author (if not self)
+            if (post.author && post.author.toString() !== req.user._id.toString()) {
+                try {
+                    await Notification.create({
+                        user: post.author,
+                        actor: req.user._id,
+                        type: 'crown',
+                        payload: { postId: post._id, postContent: post.content?.substring(0, 50) }
+                    });
+                } catch (notifErr) {
+                    console.warn('Failed to create crown notification:', notifErr.message);
+                }
+            }
         }
         res.json({ success: true });
     } catch (err) { next(err); }
