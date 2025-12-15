@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, TextInput, SafeAreaView } from 'react-native';
+import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, SafeAreaView, Alert } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl, DEFAULT_BASE_URL } from '../lib/config';
 import { getImageSource } from '../lib/image';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
+import CommentsOverlay from '../components/CommentsOverlay';
+import ShareModal from '../components/ShareModal';
+import { likePost, unlikePost, savePost, unsavePost, checkPostShared } from '../lib/api';
 
 type PostDetailProps = {
   route: { params: { postId: string } };
@@ -17,18 +20,22 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   const { postId } = route.params;
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [likeLoading, setLikeLoading] = useState(false);
-  const [shareLoading, setShareLoading] = useState(false);
+
+  // Interaction states
   const [liked, setLiked] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
+
   const [saved, setSaved] = useState(false);
-  const [_shared, _setShared] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  const [shared, setShared] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+
   const [activeImage, setActiveImage] = useState(0);
-  const [comments, setComments] = useState<any[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [showComments, setShowComments] = useState(false);
 
+  // Computed images
   const images: string[] = post?.media?.map((m: any) => m.url) || (post?.image ? [post.image] : []);
   const windowWidth = Dimensions.get('window').width;
 
@@ -55,26 +62,6 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   }, [postId]);
 
   useEffect(() => {
-    if (!showComments) return;
-    const fetchComments = async () => {
-      setCommentsLoading(true);
-      try {
-        const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
-        const token = await AsyncStorage.getItem('token');
-        const headers: any = { 'Content-Type': 'application/json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const res = await fetch(`${base}/api/comments/${postId}/comments`, { headers });
-        const data = await res.json();
-        setComments(data.comments || []);
-      } catch {
-        setComments([]);
-      }
-      setCommentsLoading(false);
-    };
-    fetchComments();
-  }, [postId, showComments]);
-
-  useEffect(() => {
     const checkSaved = async () => {
       try {
         const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
@@ -84,6 +71,7 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         const res = await fetch(`${base}/api/saved/check/post/${postId}`, { headers });
         const data = await res.json();
         setSaved(data.saved || false);
+        if (data.savedId) setSavedId(data.savedId);
       } catch {
         setSaved(false);
       }
@@ -92,119 +80,90 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   }, [postId]);
 
   useEffect(() => {
-    const checkShared = async () => {
+    const checkSharedStatus = async () => {
       try {
-        const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
-        const token = await AsyncStorage.getItem('token');
-        const headers: any = { 'Content-Type': 'application/json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-        const res = await fetch(`${base}/api/shares/check/${postId}`, { headers });
-        const data = await res.json();
-        _setShared(data.shared || false);
+        const data = await checkPostShared(postId);
+        setShared(data.shared || false);
       } catch {
-        _setShared(false);
+        setShared(false);
       }
     };
-    checkShared();
+    checkSharedStatus();
   }, [postId]);
 
   const handleLike = async () => {
     if (likeLoading) return;
     setLikeLoading(true);
+    const prevLiked = liked;
+    setLiked(!prevLiked);
+    setPost((prev: any) => ({ ...prev, likesCount: !prevLiked ? (prev.likesCount || 0) + 1 : Math.max(0, (prev.likesCount || 0) - 1) }));
+
     try {
-      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
-      const token = await AsyncStorage.getItem('token');
-      const headers: any = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = `Bearer ${token}`;
-      let updatedLiked = liked;
-      let updatedLikesCount = post.likesCount || 0;
-      if (!liked) {
-        const res = await fetch(`${base}/api/posts/${postId}/like`, { method: 'POST', headers });
-        const data = await res.json();
-        updatedLiked = true;
-        updatedLikesCount = data.likes ?? data.likesCount ?? updatedLikesCount;
+      if (!prevLiked) {
+        await likePost(postId);
       } else {
-        const res = await fetch(`${base}/api/posts/${postId}/like`, { method: 'DELETE', headers });
-        const data = await res.json();
-        updatedLiked = false;
-        updatedLikesCount = data.likes ?? data.likesCount ?? updatedLikesCount;
+        await unlikePost(postId);
       }
-      setLiked(updatedLiked);
-      setPost((prev: any) => ({ ...prev, likesCount: updatedLikesCount }));
     } catch {
-      // Optionally show error
+      // Revert if failed
+      setLiked(prevLiked);
+      setPost((prev: any) => ({ ...prev, likesCount: prevLiked ? (prev.likesCount || 0) + 1 : Math.max(0, (prev.likesCount || 0) - 1) }));
     }
     setLikeLoading(false);
   };
 
-  const handleCommentSubmit = async () => {
-    if (!commentText.trim() || commentSubmitting) return;
-    setCommentSubmitting(true);
-    try {
-      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
-      const token = await AsyncStorage.getItem('token');
-      const headers: any = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch(`${base}/api/comments/${postId}/comments`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ text: commentText })
-      });
-      const data = await res.json();
-      setComments((prev) => [data.comment || data, ...prev]);
-      const newCount = data?.commentsCount ?? data?.comments?.length ?? undefined;
-      setPost((prev: any) => ({ ...prev, commentsCount: typeof newCount === 'number' ? newCount : ((prev.commentsCount || 0) + 1) }));
-      setCommentText('');
-    } catch {
-      // Optionally show error
-    }
-    setCommentSubmitting(false);
-  };
-
   const handleSave = async () => {
-    try {
-      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
-      const token = await AsyncStorage.getItem('token');
-      const headers: any = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = `Bearer ${token}`;
+    if (saveLoading) return;
+    setSaveLoading(true);
+    const prevSaved = saved;
+    const prevSavedId = savedId;
+    setSaved(!prevSaved);
 
-      if (!saved) {
-        await fetch(`${base}/api/saved`, { method: 'POST', headers, body: JSON.stringify({ postId }) });
-        setSaved(true);
+    try {
+      if (!prevSaved) {
+        const result = await savePost(postId);
+        if (result?._id) setSavedId(result._id);
       } else {
-        await fetch(`${base}/api/saved/${postId}`, { method: 'DELETE', headers });
-        setSaved(false);
+        if (prevSavedId) {
+          await unsavePost(prevSavedId);
+        } else {
+          await fetch(`${await getBaseUrl()}/api/saved/${postId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${await AsyncStorage.getItem('token')}` } });
+        }
+        setSavedId(null);
       }
-    } catch {
-      // Optionally handle error
+    } catch (err) {
+      setSaved(prevSaved);
+      setSavedId(prevSavedId);
     }
+    setSaveLoading(false);
   };
 
-  const handleShare = async () => {
-    if (shareLoading) return;
-    setShareLoading(true);
-    try {
-      const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
-      const token = await AsyncStorage.getItem('token');
-      const headers: any = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch(`${base}/api/shares`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ postId })
-      });
-      const data = await res.json();
-      if (data.sharesCount !== undefined) {
-        setPost((prev: any) => ({ ...prev, sharesCount: data.sharesCount }));
-        _setShared(true);
-      }
-    } catch { }
-    setShareLoading(false);
+  const handleShareClick = () => {
+    setShowShareModal(true);
+  };
+
+  const handleShareComplete = (sharesCount: number) => {
+    setPost((prev: any) => ({ ...prev, sharesCount, shares: { ...prev.shares, sharedByCurrentUser: true } }));
+    setShared(true);
   };
 
   const goBack = () => {
     if (navigation && navigation.goBack) navigation.goBack();
     else if (onBackPress) onBackPress();
+  };
+
+  const handleCommentUpdate = (newCount?: number) => {
+    setPost((prev: any) => ({
+      ...prev,
+      commentsCount: typeof newCount === 'number' ? newCount : ((prev.commentsCount || 0) + 1)
+    }));
+  };
+
+  const handleCommentDelete = (newCount?: number) => {
+    setPost((prev: any) => ({
+      ...prev,
+      commentsCount: typeof newCount === 'number' ? newCount : Math.max(0, (prev.commentsCount || 0) - 1)
+    }));
   };
 
   if (loading) {
@@ -245,9 +204,7 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
           <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Post</Text>
-        <TouchableOpacity onPress={handleSave} style={styles.headerRight}>
-          <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={24} color={theme.text} />
-        </TouchableOpacity>
+        <View style={styles.headerRight} />
       </View>
 
       <ScrollView
@@ -308,19 +265,27 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
 
         {/* Action Buttons */}
         <View style={[styles.actionsRow, { borderColor: theme.border }]}>
+          {/* Like */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleLike} disabled={likeLoading}>
             <MaterialCommunityIcons name={liked ? "heart" : "heart-outline"} size={26} color={liked ? '#FF3B5C' : theme.text} />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.likesCount || 0}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments((v) => !v)}>
-            <MaterialCommunityIcons name="comment-outline" size={26} color={showComments ? theme.primary : theme.text} />
+          {/* Comment */}
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments(true)}>
+            <MaterialCommunityIcons name="comment-outline" size={26} color={theme.text} />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.commentsCount || 0}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={handleShare} disabled={shareLoading}>
-            <MaterialCommunityIcons name="share-outline" size={26} color={theme.text} />
+          {/* Share */}
+          <TouchableOpacity style={styles.actionBtn} onPress={handleShareClick}>
+            <MaterialCommunityIcons name={shared ? "share" : "share-outline"} size={26} color={shared ? theme.primary : theme.text} />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.sharesCount || 0}</Text>
+          </TouchableOpacity>
+
+          {/* Save */}
+          <TouchableOpacity style={styles.actionBtn} onPress={handleSave} disabled={saveLoading}>
+            <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={26} color={saved ? theme.primary : theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -341,57 +306,27 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
             ))}
           </View>
         )}
-
-        {/* Comments Section */}
-        {showComments && (
-          <View style={[styles.commentsSection, { borderTopColor: theme.border }]}>
-            <Text style={[styles.commentsTitle, { color: theme.text }]}>Comments</Text>
-
-            {/* Comment Input */}
-            <View style={[styles.commentInputRow, { backgroundColor: theme.cardBackground || '#1a1a1a' }]}>
-              <TextInput
-                style={[styles.commentInput, { color: theme.text }]}
-                placeholder="Add a comment..."
-                placeholderTextColor={theme.placeholder}
-                value={commentText}
-                onChangeText={setCommentText}
-                editable={!commentSubmitting}
-              />
-              <TouchableOpacity
-                onPress={handleCommentSubmit}
-                disabled={commentSubmitting || !commentText.trim()}
-                style={[styles.sendBtn, { backgroundColor: commentText.trim() ? theme.primary : theme.border }]}
-              >
-                <MaterialCommunityIcons name="send" size={18} color={commentText.trim() ? '#fff' : theme.placeholder} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Comments List */}
-            {commentsLoading ? (
-              <ActivityIndicator color={theme.primary} style={{ marginTop: 16 }} />
-            ) : (
-              comments.length === 0 ? (
-                <Text style={[styles.noComments, { color: theme.placeholder }]}>No comments yet. Be the first to comment!</Text>
-              ) : (
-                comments.map((c, idx) => (
-                  <View key={c._id || idx} style={styles.commentRow}>
-                    <Image source={getImageSource(c.author?.avatarUrl || 'https://via.placeholder.com/40x40.png?text=U')} style={styles.commentAvatar} />
-                    <View style={styles.commentContent}>
-                      <View style={styles.commentHeader}>
-                        <Text style={[styles.commentAuthor, { color: theme.text }]}>{c.author?.displayName || c.author?.username || 'User'}</Text>
-                        <Text style={[styles.commentTime, { color: theme.placeholder }]}>
-                          {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </Text>
-                      </View>
-                      <Text style={[styles.commentText, { color: theme.text }]}>{c.text}</Text>
-                    </View>
-                  </View>
-                ))
-              )
-            )}
-          </View>
-        )}
       </ScrollView>
+
+      {/* Comments Overlay */}
+      <CommentsOverlay
+        startupId={postId}
+        type="post"
+        visible={showComments}
+        onClose={() => setShowComments(false)}
+        onCommentAdded={handleCommentUpdate}
+        onCommentDeleted={handleCommentDelete}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        contentId={postId}
+        type="post"
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onShareComplete={handleShareComplete}
+        alreadyShared={shared}
+      />
     </SafeAreaView>
   );
 }
@@ -534,74 +469,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     fontWeight: '500',
-  },
-  commentsSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  commentsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  commentInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 24,
-    paddingLeft: 16,
-    paddingRight: 4,
-    paddingVertical: 4,
-  },
-  commentInput: {
-    flex: 1,
-    fontSize: 14,
-    paddingVertical: 8,
-  },
-  sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noComments: {
-    textAlign: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-    fontSize: 14,
-  },
-  commentRow: {
-    flexDirection: 'row',
-    marginTop: 16,
-  },
-  commentAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#333',
-  },
-  commentContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  commentAuthor: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  commentTime: {
-    fontSize: 12,
-  },
-  commentText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-  },
+  }
 });
 
 export default PostDetail;

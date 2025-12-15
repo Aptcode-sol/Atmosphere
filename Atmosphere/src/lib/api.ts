@@ -179,6 +179,23 @@ export async function getStartupProfile(userId: string) {
     }
 }
 
+export async function getAnyUserProfile(userId: string) {
+    // 1. Try fetching as startup first
+    try {
+        const startupProfile = await getStartupProfile(userId);
+        if (startupProfile) return startupProfile;
+    } catch (e) {
+        // ignore error and proceed to try as regular user
+    }
+
+    // 2. Fetch as regular user
+    const user = await getUserByIdentifier(userId);
+    if (user) {
+        return { user, details: null };
+    }
+    throw new Error('User not found');
+}
+
 export async function getPostsByUser(userId: string) {
     // Preferred backend route: GET /api/posts?userId=<id>
     try {
@@ -222,8 +239,17 @@ export async function getFollowersList(userId: string) {
     return data?.followers || [];
 }
 
+export async function getFollowingList(userId: string) {
+    let data = await request(`/api/follows/${encodeURIComponent(userId)}/following`, {}, { method: 'GET' });
+    return data?.following || [];
+}
+
 export async function getChatDetails(chatId: string) {
     return request(`/api/chats/${chatId}`, {}, { method: 'GET' });
+}
+
+export async function createOrFindChat(participantId: string) {
+    return request('/api/chats', { participantId }, { method: 'POST' });
 }
 
 export async function getFollowersCount(userId: string) {
@@ -338,6 +364,14 @@ export async function addStartupComment(startupId: string, text: string, parent?
 export async function getStartupComments(startupId: string) {
     const data = await request(`/api/startup-comments/${encodeURIComponent(startupId)}/comments`, {}, { method: 'GET' });
     return data.comments || [];
+}
+
+export async function sharePost(postId: string, userIds: string[] = []) {
+    return request('/api/shares', { postId, userIds }, { method: 'POST' });
+}
+
+export async function checkPostShared(postId: string) {
+    return request(`/api/shares/check/${postId}`, {}, { method: 'GET' });
 }
 
 export async function getUserByIdentifier(identifier: string) {
@@ -521,6 +555,20 @@ export async function addReelComment(reelId: string, text: string, parent?: stri
 
 export async function deleteReelComment(commentId: string) {
     return request(`/api/reels/comments/${encodeURIComponent(commentId)}`, {}, { method: 'DELETE' });
+}
+
+// Share reel with followers
+export async function shareReel(reelId: string, followerIds: string[] = []) {
+    return request(`/api/reels/${encodeURIComponent(reelId)}/share`, { followerIds }, { method: 'POST' });
+}
+
+export async function updateReelShare(reelId: string, followerIds: string[]) {
+    return request(`/api/reels/${encodeURIComponent(reelId)}/share`, { followerIds }, { method: 'PUT' });
+}
+
+export async function checkReelShared(reelId: string) {
+    const data = await request(`/api/reels/${encodeURIComponent(reelId)}/share/check`, {}, { method: 'GET' });
+    return data || { shared: false, shareId: null, sharedWith: [] };
 }
 
 // Upload video for reels

@@ -49,15 +49,25 @@ const LandingPage = () => {
     };
 
     const renderContent = () => {
+        if (selectedProfileId) {
+            return <Profile
+                onNavigate={(r: RouteKey) => setRoute(r)}
+                userId={selectedProfileId}
+                onClose={() => setSelectedProfileId(null)}
+            />;
+        }
         if (selectedPostId) {
             return <PostDetail route={{ params: { postId: selectedPostId } }} onBackPress={handleBackFromPost} />;
         }
         if (selectedChatId) {
             // @ts-ignore
-            return <ChatDetail chatId={selectedChatId} onBackPress={handleBackFromChat} />;
-        }
-        if (selectedProfileId) {
-            return <Profile onNavigate={(r: RouteKey) => setRoute(r)} userId={selectedProfileId} onClose={() => { setSelectedProfileId(null); setRoute('home'); }} />;
+            return <ChatDetail
+                chatId={selectedChatId}
+                onBackPress={handleBackFromChat}
+                onProfileOpen={(userId: string) => {
+                    setSelectedProfileId(userId);
+                }}
+            />;
         }
         switch (route) {
             case 'home':

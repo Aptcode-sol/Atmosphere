@@ -1,17 +1,17 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated, Easing, Dimensions } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { getStartupComments, addStartupComment, deleteComment, deleteStartupComment, getComments, addComment, getProfile } from '../lib/api';
+import { getReelComments, addReelComment, deleteReelComment, getProfile } from '../lib/api';
 import Icon from 'react-native-vector-icons/Feather';
+
+type Comment = any;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.5);
 
-type Comment = any;
-
-const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommentDeleted, type = 'startup' }: { startupId: string; visible: boolean; onClose: () => void; onCommentAdded?: (newCount?: number) => void; onCommentDeleted?: (newCount?: number) => void; type?: 'startup' | 'post' }) => {
-    const { theme } = useContext(ThemeContext);
-    const anim = useRef(new Animated.Value(0)).current; // 0 hidden -> 1 visible
+const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onCommentDeleted }: { reelId: string; visible: boolean; onClose: () => void; onCommentAdded?: (newCount?: number) => void; onCommentDeleted?: (newCount?: number) => void }) => {
+    const { theme } = useContext(ThemeContext) as any;
+    const anim = useRef(new Animated.Value(0)).current;
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -26,12 +26,7 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
             if (!visible) return;
             setLoading(true);
             try {
-                let data = [];
-                if (type === 'post') {
-                    data = await getComments(String(startupId));
-                } else {
-                    data = await getStartupComments(String(startupId));
-                }
+                const data = await getReelComments(String(reelId));
                 if (mounted) setComments(data || []);
                 try {
                     const profile = await getProfile();
@@ -41,7 +36,7 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                     // ignore
                 }
             } catch (err) {
-                console.warn('CommentsOverlay: failed to load comments', err);
+                console.warn('ReelCommentsOverlay: failed to load comments', err);
                 if (mounted) setComments([]);
             } finally {
                 if (mounted) setLoading(false);
@@ -49,16 +44,13 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
         };
         fetch();
         return () => { mounted = false; };
-    }, [visible, startupId, type]);
+    }, [visible, reelId]);
 
-    // Animate in/out when `visible` changes
     useEffect(() => {
         if (visible) {
             Animated.timing(anim, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
         } else {
-            Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
-                // ensure onClose is called by parent when they flip `visible` to false; keep no-op here
-            });
+            Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start();
         }
     }, [visible, anim]);
 
@@ -66,24 +58,16 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
         if (!text.trim() || submitting) return;
         setSubmitting(true);
         try {
-            let newComment;
-            if (type === 'post') {
-                newComment = await addComment(String(startupId), text.trim());
-            } else {
-                newComment = await addStartupComment(String(startupId), text.trim());
-            }
-
-            // API may return created comment under different shapes
+            const newComment = await addReelComment(String(reelId), text.trim());
             const commentObj = newComment?.comment || newComment || { text: text.trim(), createdAt: new Date().toISOString() };
             setComments(prev => [commentObj, ...prev]);
             setText('');
-            // If API returned updated counts, prefer that
             const newCount = (newComment && (newComment.commentsCount ?? newComment.count ?? newComment.totalComments)) || undefined;
             if (typeof onCommentAdded === 'function') {
                 try { onCommentAdded(typeof newCount === 'number' ? newCount : undefined); } catch { onCommentAdded(); }
             }
         } catch (err) {
-            console.warn('CommentsOverlay: failed to submit comment', err);
+            console.warn('ReelCommentsOverlay: failed to submit comment', err);
         } finally {
             setSubmitting(false);
         }
@@ -108,12 +92,13 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
         }
     };
 
+    const closeModal = () => {
+        Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => onClose && onClose());
+    };
+
     return (
-        <Modal visible={visible} transparent onRequestClose={onClose}>
-            <TouchableWithoutFeedback onPress={() => {
-                // animate out, then call onClose after animation
-                Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => onClose && onClose());
-            }}>
+        <Modal visible={visible} transparent onRequestClose={closeModal}>
+            <TouchableWithoutFeedback onPress={closeModal}>
                 <Animated.View style={[styles.backdrop, { opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] }) }]} />
             </TouchableWithoutFeedback>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
@@ -122,27 +107,25 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                         styles.sheet,
                         styles.sheetAbsolute,
                         styles.sheetBorders,
-                        { backgroundColor: theme?.background || '#F3F4F6', width: Math.min(640, SCREEN_WIDTH - 40), height: SHEET_HEIGHT },
+                        { backgroundColor: theme?.background || '#121212', width: Math.min(640, SCREEN_WIDTH - 40), height: SHEET_HEIGHT },
                         { transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [SHEET_HEIGHT, 0] }) }] },
                         { opacity: anim }
                     ]}
                 >
                     <View style={styles.handleRow}>
                         <View style={[styles.handle, styles.handleWide, styles.handleColor]} />
-                        <TouchableOpacity onPress={() => {
-                            Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => onClose && onClose());
-                        }} style={styles.closeBtn}>
+                        <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
                             <Icon name="x" size={20} color={theme?.placeholder || '#999'} />
                         </TouchableOpacity>
                     </View>
                     <Text style={[styles.title, { color: theme?.text }]}>Comments</Text>
                     <View style={styles.contentWrap}>
                         {loading ? (
-                            <ActivityIndicator size="large" color="#FB923C" />
+                            <ActivityIndicator size="large" color="#ec4899" />
                         ) : (
                             <>
                                 {comments.length === 0 ? (
-                                    <View style={styles.emptyWrap}><Text style={[styles.emptyText, { color: theme?.placeholder }]}>No comments available.</Text></View>
+                                    <View style={styles.emptyWrap}><Text style={[styles.emptyText, { color: theme?.placeholder }]}>No comments yet. Be the first!</Text></View>
                                 ) : (
                                     <FlatList
                                         data={comments}
@@ -152,7 +135,6 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                                                 onLongPress={() => {
                                                     const authorId = item.author?._id || item.author?.id || item.author;
                                                     if (!authorId || !meId || String(authorId) !== String(meId)) return;
-                                                    // toggle the small delete button for this comment
                                                     const idKey = String(item._id || item.id || item.createdAt);
                                                     setShowDeleteFor(prev => (String(prev) === idKey ? null : idKey));
                                                 }}
@@ -173,33 +155,14 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                                                                     onPress={async () => {
                                                                         try {
                                                                             setDeletingId(item._id || item.id || item.createdAt);
-                                                                            // Prefer startup-specific or post-specific delete endpoint
-                                                                            let resp: any = null;
-                                                                            try {
-                                                                                if (type === 'post') {
-                                                                                    // For regular posts, api.deleteComment is generic enough or add logic if needed
-                                                                                    // In api.ts, deleteComment calls /api/comments/:id
-                                                                                    resp = await deleteComment(String(item._id || item.id));
-                                                                                } else {
-                                                                                    resp = await deleteStartupComment(String(item._id || item.id));
-                                                                                }
-                                                                            } catch (err) {
-                                                                                // fallback generic
-                                                                                try {
-                                                                                    resp = await deleteComment(String(item._id || item.id));
-                                                                                } catch (e) {
-                                                                                    throw new Error('delete failed');
-                                                                                }
-                                                                            }
+                                                                            await deleteReelComment(String(item._id || item.id));
                                                                             setComments(prev => prev.filter(c => String(c._id || c.id || c.createdAt) !== String(item._id || item.id || item.createdAt)));
                                                                             setShowDeleteFor(null);
-                                                                            // Read returned count if available
-                                                                            const newCount = resp?.commentsCount ?? resp?.comments ?? resp?.count ?? undefined;
                                                                             if (typeof onCommentDeleted === 'function') {
-                                                                                try { onCommentDeleted(typeof newCount === 'number' ? newCount : undefined); } catch { try { onCommentDeleted(); } catch { } }
+                                                                                try { onCommentDeleted(); } catch { }
                                                                             }
                                                                         } catch (err) {
-                                                                            console.warn('CommentsOverlay: failed to delete comment', err);
+                                                                            console.warn('ReelCommentsOverlay: failed to delete comment', err);
                                                                         } finally {
                                                                             setDeletingId(null);
                                                                         }
@@ -228,7 +191,7 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                             onChangeText={setText}
                             placeholder="Add a comment..."
                             placeholderTextColor={theme?.placeholder || '#888'}
-                            style={[styles.input, { color: theme?.text, borderColor: theme?.border || '#222' }]}
+                            style={[styles.input, { color: theme?.text, borderColor: theme?.border || '#333' }]}
                             editable={!submitting}
                             multiline
                         />
@@ -247,7 +210,6 @@ const styles = StyleSheet.create({
     container: { flex: 1, justifyContent: 'flex-end', alignItems: 'center' },
     sheet: { borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 12, minHeight: 200, overflow: 'hidden' },
     sheetAbsolute: { position: 'absolute', bottom: 0 },
-    sheetBorderThin: { borderTopWidth: 1 },
     sheetBorders: { borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#333333' },
     handleWide: { width: 96 },
     handleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
@@ -273,8 +235,8 @@ const styles = StyleSheet.create({
     inputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
     inputSeparator: { height: 1, backgroundColor: '#333333', alignSelf: 'stretch', marginBottom: 8, marginLeft: -12, marginRight: -12 },
     input: { flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8, maxHeight: 100 },
-    sendBtn: { backgroundColor: '#1a73e8', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20 },
+    sendBtn: { backgroundColor: '#ec4899', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20 },
     sendText: { color: '#fff', fontWeight: '700' }
 });
 
-export default CommentsOverlay;
+export default ReelCommentsOverlay;

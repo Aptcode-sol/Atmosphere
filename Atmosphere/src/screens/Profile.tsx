@@ -153,7 +153,13 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                 if (routeStartupDetailsId) {
                     profileData = await getStartupProfile(String(routeStartupDetailsId));
                 } else if (viewingUserId) {
-                    profileData = await getStartupProfile(String(viewingUserId));
+                    // Try to get any profile (startup or regular user)
+                    const api = await import('../lib/api');
+                    if (api.getAnyUserProfile) {
+                        profileData = await api.getAnyUserProfile(String(viewingUserId));
+                    } else {
+                        profileData = await getStartupProfile(String(viewingUserId));
+                    }
                 } else {
                     profileData = await getProfile();
                 }
