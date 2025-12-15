@@ -107,7 +107,6 @@ const Jobs = () => {
     const [grantsSkip, setGrantsSkip] = useState(0);
     const [grantsHasMore, setGrantsHasMore] = useState(true);
     const [grantsLoading, setGrantsLoading] = useState(true);
-
     const [events, setEvents] = useState<any[]>([]);
     const [eventsSkip, setEventsSkip] = useState(0);
     const [eventsHasMore, setEventsHasMore] = useState(true);
@@ -183,7 +182,9 @@ const Jobs = () => {
 
     // Fetch Lists
     const loadJobs = async (skip = 0) => {
+        if (jobsLoading) return; // Prevent concurrent requests
         if (skip === 0) setJobsLoading(true);
+        else setJobsLoading(true);
         try {
             const data = await api.fetchJobs(JOBS_LIMIT, skip);
             if (skip === 0) {
@@ -191,7 +192,12 @@ const Jobs = () => {
                 AsyncStorage.setItem('ATMOSPHERE_JOBS_CACHE', JSON.stringify(data)).catch(() => { });
                 setJobsRefreshed(true);
             } else {
-                setJobs(prev => [...prev, ...data]);
+                // Deduplicate when appending
+                setJobs(prev => {
+                    const existingIds = new Set(prev.map(item => item._id || item.id));
+                    const newItems = data.filter(item => !existingIds.has(item._id || item.id));
+                    return [...prev, ...newItems];
+                });
             }
             setJobsHasMore(data.length >= JOBS_LIMIT);
             setJobsSkip(skip + JOBS_LIMIT);
@@ -200,7 +206,9 @@ const Jobs = () => {
     };
 
     const loadGrants = async (skip = 0) => {
+        if (grantsLoading) return; // Prevent concurrent requests
         if (skip === 0) setGrantsLoading(true);
+        else setGrantsLoading(true);
         try {
             const data = await api.fetchGrants(JOBS_LIMIT, skip);
             if (skip === 0) {
@@ -208,7 +216,12 @@ const Jobs = () => {
                 AsyncStorage.setItem('ATMOSPHERE_GRANTS_CACHE', JSON.stringify(data)).catch(() => { });
                 setGrantsRefreshed(true);
             } else {
-                setGrants(prev => [...prev, ...data]);
+                // Deduplicate when appending
+                setGrants(prev => {
+                    const existingIds = new Set(prev.map(item => item._id || item.id));
+                    const newItems = data.filter(item => !existingIds.has(item._id || item.id));
+                    return [...prev, ...newItems];
+                });
             }
             setGrantsHasMore(data.length >= JOBS_LIMIT);
             setGrantsSkip(skip + JOBS_LIMIT);
@@ -217,7 +230,9 @@ const Jobs = () => {
     };
 
     const loadEvents = async (skip = 0) => {
+        if (eventsLoading) return; // Prevent concurrent requests
         if (skip === 0) setEventsLoading(true);
+        else setEventsLoading(true);
         try {
             const data = await api.fetchEvents(JOBS_LIMIT, skip);
             if (skip === 0) {
@@ -225,7 +240,12 @@ const Jobs = () => {
                 AsyncStorage.setItem('ATMOSPHERE_EVENTS_CACHE', JSON.stringify(data)).catch(() => { });
                 setEventsRefreshed(true);
             } else {
-                setEvents(prev => [...prev, ...data]);
+                // Deduplicate when appending
+                setEvents(prev => {
+                    const existingIds = new Set(prev.map(item => item._id || item.id));
+                    const newItems = data.filter(item => !existingIds.has(item._id || item.id));
+                    return [...prev, ...newItems];
+                });
             }
             setEventsHasMore(data.length >= JOBS_LIMIT);
             setEventsSkip(skip + JOBS_LIMIT);

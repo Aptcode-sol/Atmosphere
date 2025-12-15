@@ -107,9 +107,9 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                         setRoundType(data.roundType || data.stage || '');
                         // Load required capital (backend stores as 'fundingNeeded', frontend uses 'requiredCapital')
                         setRequiredCapital(data.requiredCapital || data.fundingNeeded ? String(data.requiredCapital || data.fundingNeeded) : '');
-                        // Populate documents URL
+                        // Populate documents URL (but DON'T set uploadName - only show name when user picks new file)
                         if (data.documents) {
-                            setUploadName(typeof data.documents === 'string' ? data.documents.split('/').pop() || 'document' : 'document');
+                            // setUploadName is intentionally NOT set here - document name only shows for newly picked files
                             setUploadUrl(data.documents);
                         }
                     } else {

@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         marginVertical: 8,
         overflow: 'hidden',
-        marginHorizontal: 12
+        marginHorizontal: 0
     },
     headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
     headerLeftRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     currentRound: { color: '#bbb', marginTop: 12, marginBottom: 8 },
     currentRoundValue: { color: '#fff', fontWeight: '700' },
     fundingBarWrap: { marginTop: 8 },
-    fundingBarTrack: { height: 18, borderRadius: 10, backgroundColor: '#0f0f0f', overflow: 'hidden' },
+    fundingBarTrack: { height: 25, borderRadius: 5, backgroundColor: '#0f0f0f', overflow: 'hidden' },
     fundingFilled: { height: '100%', backgroundColor: '#888888' },
     fundingLabelsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
     filledLabel: { color: '#bbb' },

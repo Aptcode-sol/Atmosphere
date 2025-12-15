@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { updateProfile, getProfile, verifyEmail, uploadProfilePicture } from '../lib/api';
+import { updateProfile, getProfile, uploadProfilePicture } from '../lib/api';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
 // InvestorSetup and PersonalSetup are not used in this screen
@@ -60,12 +60,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
     const [username, setUsername] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [bio, setBio] = useState('');
-    const [email, setEmail] = useState('');
-    const [initialEmail, setInitialEmail] = useState('');
-    const [emailChanged, setEmailChanged] = useState(false);
-    const [verifying, setVerifying] = useState(false);
-    const [verificationCode, setVerificationCode] = useState('');
-    const [verified, setVerified] = useState(false);
+    // Email-related state removed
     const [saving, setSaving] = useState(false);
     const [roleStep, setRoleStep] = useState<'startup' | 'investor' | 'personal' | 'portfolio_investor' | 'portfolio_startup' | null>(null);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -85,17 +80,15 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     setUsername(profile.user.username || '');
                     setDisplayName(profile.user.displayName || profile.user.fullName || '');
                     setBio(profile.user.bio || '');
-                    setEmail(profile.user.email || '');
-                    setInitialEmail(profile.user.email || '');
+                    // Email fields omitted
                     setAvatarUrl(profile.user.avatarUrl || null);
                     if (profile.user.profileSetupComplete) setIsEditMode(true);
                     // Get account type from roles array (first role or default to personal)
                     const roles = profile.user.roles || ['personal'];
                     const primaryRole = roles[0] || 'personal';
                     setAccountType(primaryRole as 'startup' | 'investor' | 'personal');
-                    // Get KYC and portfolio status
+                    // Get KYC status
                     setIsKycVerified(profile.user.isKycVerified || false);
-                    setPortfolioComplete(profile.user.portfolioComplete || false);
                     // Debug log
                     console.log('[SetupProfile] Loaded user state:', {
                         roles: profile.user.roles,
@@ -141,8 +134,8 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
     };
 
     const submit = async () => {
-        if (!username || !displayName || !email) {
-            Alert.alert('Missing fields', 'Please fill username, full name and email');
+        if (!username || !displayName) {
+            Alert.alert('Missing fields', 'Please fill username and full name');
             return;
         }
         setSaving(true);
@@ -178,7 +171,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     bio,
                     profileSetupComplete: true,
                     onboardingStep: 4,
-                    email,
+                    // email omitted
                     ...(finalAvatarUrl && { avatarUrl: finalAvatarUrl })
                 }
             });
@@ -192,24 +185,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
         } finally { setSaving(false); }
     };
 
-    const checkVerificationCode = async () => {
-        if (!verificationCode) {
-            Alert.alert('Enter code', 'Please enter the verification code');
-            return;
-        }
-        try {
-            const json = await verifyEmail(verificationCode);
-            if (json && json.success) {
-                setVerified(true);
-                setVerifying(false);
-                Alert.alert('Verified', 'Email verified (dev stub)');
-            } else {
-                Alert.alert('Invalid code', json && json.error ? json.error : 'Verification failed');
-            }
-        } catch {
-            Alert.alert('Error', 'Unable to verify code');
-        }
-    };
+    // Email verification function removed
 
     return (
         <View style={[localStyles.fullPage, { backgroundColor: theme.background }]}>
@@ -269,26 +245,6 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                 <Text style={[localStyles.label, themePlaceholderStyle]}>Full Name</Text>
                 <TextInput placeholder="Enter your full name" value={displayName} onChangeText={setDisplayName} style={localStyles.input} placeholderTextColor={theme.placeholder} />
 
-                <Text style={[localStyles.label, themePlaceholderStyle]}>Email</Text>
-                <View style={localStyles.verificationRow}>
-                    <TextInput placeholder="Email" value={email} onChangeText={(v) => { setEmail(v); setEmailChanged(v !== initialEmail); setVerified(false); }} style={localStyles.inputFlex} placeholderTextColor={theme.placeholder} />
-                    {emailChanged && !verified && (
-                        <TouchableOpacity onPress={() => setVerifying(true)} style={localStyles.verifyButton}><Text style={localStyles.verifyButtonText}>Verify</Text></TouchableOpacity>
-                    )}
-                    {verified && (
-                        <Text style={localStyles.verifiedText}>Verified</Text>
-                    )}
-                </View>
-                {verifying && (
-                    <View style={localStyles.verificationBlock}>
-                        <Text style={[localStyles.label, { color: theme.placeholder }]}>Verification Code</Text>
-                        <View style={localStyles.verificationRowInner}>
-                            <TextInput placeholder="Enter code" value={verificationCode} onChangeText={setVerificationCode} style={localStyles.inputFlex} placeholderTextColor={theme.placeholder} />
-                            <TouchableOpacity onPress={checkVerificationCode} style={localStyles.verifyButton}><Text style={localStyles.verifyButtonText}>Check</Text></TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-
                 <Text style={[localStyles.label, { color: theme.placeholder }]}>Quick Bio</Text>
                 <TextInput placeholder="Tell us about yourself" value={bio} onChangeText={setBio} multiline numberOfLines={3} style={localStyles.textarea} placeholderTextColor={theme.placeholder} />
 
@@ -315,9 +271,12 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                         );
                     }
 
-                    // Investor/Startup - always show Next button, but route differently based on mode
-                    // In edit mode, use portfolio_ prefix to go directly to portfolio
-                    const targetStep = isEditMode ? `portfolio_${accountType}` : accountType;
+                    // Investor/Startup - only show Next button in setup mode (not edit mode)
+                    // In edit mode, users access portfolio settings via Settings overlay
+                    if (isEditMode) {
+                        return null; // No Next button in edit mode - use Settings instead
+                    }
+                    const targetStep = accountType;
                     return (
                         <TouchableOpacity
                             onPress={() => setRoleStep(targetStep as any)}

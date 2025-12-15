@@ -8,7 +8,7 @@ try {
     envUrl = undefined;
 }
 
-export const DEFAULT_BASE_URL = envUrl || 'http://192.168.0.106:4000';
+export const DEFAULT_BASE_URL = envUrl || 'https://atmosphere-backend.onrender.com';
 const KEY = '@app_base_url';
 
 export async function getBaseUrl(): Promise<string> {

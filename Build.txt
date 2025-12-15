@@ -1,0 +1,5 @@
+# Build debug apk
+./gradlew assembleDebug
+
+# Build release apk
+./gradlew assembleRelease

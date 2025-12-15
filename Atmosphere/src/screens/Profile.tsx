@@ -111,6 +111,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     const [loading, setLoading] = useState(true);
     const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
     const [ownProfileId, setOwnProfileId] = useState<string | null>(null);
+    const [accountType, setAccountType] = useState<'investor' | 'startup' | 'personal'>('personal');
     const routeCtx: any = useContext(NavigationRouteContext) as any | undefined;
     const routeUserId = routeCtx?.params?.userId || null;
     const routeStartupDetailsId = routeCtx?.params?.startupDetailsId || null;
@@ -182,6 +183,10 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     if (!viewingUserId) {
                         const derived = profileData?.user?._id || profileData?.user?.id || null;
                         if (derived) setOwnProfileId(String(derived));
+                        // Extract accountType from user roles
+                        const roles = profileData?.user?.roles || [];
+                        const primaryRole = roles[0] || profileData?.user?.accountType || 'personal';
+                        setAccountType(primaryRole as 'investor' | 'startup' | 'personal');
                     }
                 }
             } catch {
@@ -471,7 +476,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     </>
                 )}
             </ScrollView>
-            {leftDrawerOpen && <SettingsOverlay src={src} theme={theme} onClose={() => setLeftDrawerOpen(false)} />}
+            {leftDrawerOpen && <SettingsOverlay src={src} theme={theme} accountType={accountType} onClose={() => setLeftDrawerOpen(false)} />}
         </View>
     );
 };
