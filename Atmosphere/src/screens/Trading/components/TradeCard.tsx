@@ -34,15 +34,14 @@ export const TradeCard: React.FC<TradeCardProps> = ({
 
     // Animate when isExpanded changes
     useEffect(() => {
-        // Configure smooth layout animation
-        LayoutAnimation.configureNext({
-            duration: 200,
-            update: { type: LayoutAnimation.Types.easeInEaseOut },
-            create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-            delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-        });
+        // Spring animation for smooth natural feel like other apps
+        LayoutAnimation.configureNext(LayoutAnimation.create(
+            250,
+            LayoutAnimation.Types.spring,
+            LayoutAnimation.Properties.scaleY
+        ));
 
-        // Smooth opacity fade
+        // Smooth opacity fade with native driver
         Animated.timing(opacityAnim, {
             toValue: isExpanded ? 1 : 0,
             duration: 200,

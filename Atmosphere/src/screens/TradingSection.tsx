@@ -147,14 +147,13 @@ const Trading = () => {
         }).start();
     };
 
-    // Filter container animated style
+    // Filter container animated style - full height for all filters
     const filterContainerStyle = {
         maxHeight: filterAnimValue.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, 200], // enough height for filters
+            outputRange: [0, 500], // full height for all filters
         }),
         opacity: filterAnimValue,
-        overflow: 'hidden' as const,
     };
 
     // BUY TAB Pagination State
@@ -351,13 +350,12 @@ const Trading = () => {
     };
 
     const togglePortfolio = (cardKey: string) => {
-        // Custom smooth animation config
-        LayoutAnimation.configureNext({
-            duration: 200,
-            update: { type: LayoutAnimation.Types.easeInEaseOut },
-            create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-            delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-        });
+        // Spring animation for smooth natural feel like other apps
+        LayoutAnimation.configureNext(LayoutAnimation.create(
+            250,
+            LayoutAnimation.Types.spring,
+            LayoutAnimation.Properties.scaleY
+        ));
         setExpandedPortfolios(prev => {
             const newSet = new Set(prev);
             if (newSet.has(cardKey)) {
@@ -761,13 +759,12 @@ const Trading = () => {
                                         activeOpacity={0.9}
                                         style={[styles.collapsedCardRow, isExpanded && styles.expandedCardHeader]}
                                         onPress={() => {
-                                            // Custom smooth animation config
-                                            LayoutAnimation.configureNext({
-                                                duration: 200,
-                                                update: { type: LayoutAnimation.Types.easeInEaseOut },
-                                                create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-                                                delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-                                            });
+                                            // Spring animation for smooth natural feel
+                                            LayoutAnimation.configureNext(LayoutAnimation.create(
+                                                250,
+                                                LayoutAnimation.Types.spring,
+                                                LayoutAnimation.Properties.scaleY
+                                            ));
                                             setExpandedTradeId(isExpanded ? null : (tradeId as string | number));
                                             setEditingTradeId(null);
                                         }}
@@ -1014,8 +1011,8 @@ const Trading = () => {
                     />
                 </TouchableOpacity>
 
-                {/* Category Filters - Animated container */}
-                <Animated.View style={filterContainerStyle}>
+                {/* Filter Categories - Below filter button */}
+                <Animated.View style={[filterContainerStyle, { overflow: 'hidden' }]}>
                     <View style={styles.categoriesContainer}>
                         {categories.map(category => (
                             <TouchableOpacity
@@ -1036,6 +1033,7 @@ const Trading = () => {
                         ))}
                     </View>
                 </Animated.View>
+
                 {/* Suggested for you heading */}
                 <Text style={styles.suggestedHeading}>Suggested for you</Text>
                 {/* Inline loading indicator for filter changes (after first load) */}
@@ -1059,7 +1057,6 @@ const Trading = () => {
         return (
             <FlatList
                 data={data}
-
                 keyExtractor={(item, index) => `${String(item._id || item.id)}_${index}`}
                 contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
                 renderItem={({ item }) => {
