@@ -195,32 +195,40 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   toggle: {
-    width: 56,
+    width: 60,
     alignItems: "center",
     justifyContent: "center",
   },
   toggleTrack: {
-    width: 56,
-    height: 30,
+    width: 54,
+    height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    padding: 4,
+    backgroundColor: "rgb(46, 46, 46)",
+    padding: 3,
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgb(46, 46, 46)",
   },
   toggleThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#1f6fff",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#404040",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
   thumbLeft: {
     alignSelf: "flex-start",
-    marginLeft: 4,
+    marginLeft: 1,
   },
   thumbRight: {
     alignSelf: "flex-end",
-    marginRight: 4,
+    marginRight: 1,
   },
 });
+
 
 export default BottomNav;

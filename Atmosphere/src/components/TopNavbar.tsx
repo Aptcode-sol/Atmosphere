@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontFamily: 'Pacifico-Regular',
     color: '#fff',
     textAlign: 'center',
