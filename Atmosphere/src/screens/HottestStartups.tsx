@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { Image } from 'react-native';
 import { Crown, Heart, Flame } from 'lucide-react-native';
 import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
+import TopNavbar from '../components/TopNavbar';
 
 const { width } = Dimensions.get('window');
 
@@ -181,7 +182,7 @@ const HottestStartups = () => {
                 </View>
             </View>
             <TouchableOpacity style={styles.viewBtn} onPress={() => { /* navigate to profile */ }}>
-                <Text style={styles.viewBtnText}>View</Text>
+                <Text style={styles.viewBtnText}>View {'>'}</Text>
             </TouchableOpacity>
         </View>
     );
@@ -196,22 +197,25 @@ const HottestStartups = () => {
     }
 
     return (
-        <FlatList
-            data={topList.slice(3)}
-            keyExtractor={i => String(i._startupId || i.id || i._id)}
-            renderItem={renderListItem}
-            ItemSeparatorComponent={Separator}
-            contentContainerStyle={styles.content}
-            style={[styles.container, { backgroundColor: theme?.background || '#fff' }]}
-            ListHeaderComponent={Header({ theme, renderPodium })}
-            refreshControl={
-                <ThemedRefreshControl
-                    refreshing={refreshing}
-                    onRefresh={onRefresh}
-                    progressViewOffset={0}
-                />
-            }
-        />
+        <View style={[styles.container, { backgroundColor: theme?.background || '#fff' }]}>
+            {/* <TopNavbar /> */}
+            <FlatList
+                data={topList.slice(3)}
+                keyExtractor={i => String(i._startupId || i.id || i._id)}
+                renderItem={renderListItem}
+                ItemSeparatorComponent={Separator}
+                contentContainerStyle={[styles.content, { paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 60 }]}
+                style={styles.flatList}
+                ListHeaderComponent={Header({ theme, renderPodium })}
+                refreshControl={
+                    <ThemedRefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        progressViewOffset={Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 60 : 60}
+                    />
+                }
+            />
+        </View>
     );
 };
 
@@ -261,7 +265,7 @@ const styles = StyleSheet.create({
     statPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     likesText: { color: '#F472B6', fontSize: 12, fontWeight: '600' },
     listWrap: { marginTop: 20 },
-    listCard: { backgroundColor: '#0b1220', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center' },
+    listCard: { backgroundColor: '#0A0A0A', borderRadius: 28, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
     listAvatar: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
     listInitials: { color: '#fff', fontWeight: '800', textAlign: 'center' },
     listImage: { width: 56, height: 56, borderRadius: 12, alignSelf: 'stretch' },
@@ -269,12 +273,13 @@ const styles = StyleSheet.create({
     podiumImage: { width: 72, height: 72, borderRadius: 10 },
     championImage: { width: 84, height: 84, borderRadius: 14 },
     listName: { color: '#fff', fontWeight: '700', maxWidth: width - 160 },
-    listTag: { color: '#9CA3AF', fontSize: 12, maxWidth: width - 160 },
-    viewBtn: { borderWidth: 1, borderColor: '#1f2937', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999 },
-    viewBtnText: { color: '#fff', fontWeight: '700' }
+    listTag: { color: '#9CA3AF', fontSize: 12, maxWidth: width - 200 },
+    viewBtn: { backgroundColor: '#000', borderWidth: 1, borderColor: '#333', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 24, marginLeft: 8 },
+    viewBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 }
     , separator: { height: 12 },
     loadingWrap: { justifyContent: 'center', alignItems: 'center' },
-    headerSpacer: { height: 12 }
+    headerSpacer: { height: 25 },
+    flatList: { flex: 1 },
 });
 
 export default HottestStartups;
