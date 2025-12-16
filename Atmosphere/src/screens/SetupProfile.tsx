@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView,
 import { ThemeContext } from '../contexts/ThemeContext';
 import { updateProfile, getProfile, uploadProfilePicture } from '../lib/api';
 import ImageCropPicker from 'react-native-image-crop-picker';
+import { ArrowLeft, Camera } from 'lucide-react-native';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
 // InvestorSetup and PersonalSetup are not used in this screen
 import InvestorPortfolioStep from './setup-steps/InvestorPortfolioStep';
@@ -190,7 +191,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
     return (
         <View style={[localStyles.fullPage, { backgroundColor: theme.background }]}>
             <View style={localStyles.header}>
-                <TouchableOpacity onPress={() => onClose && onClose()} style={localStyles.headerLeft}><Text style={localStyles.headerIcon}>{'←'}</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => onClose && onClose()} style={localStyles.headerLeft}><ArrowLeft size={24} color={theme.text} /></TouchableOpacity>
                 <View style={localStyles.headerCenter}>
                     <Text style={[localStyles.headerTitle, localStyles.headerTitleColor]}>
                         {isEditMode ? 'Edit Profile' : 'Setup Profile'}

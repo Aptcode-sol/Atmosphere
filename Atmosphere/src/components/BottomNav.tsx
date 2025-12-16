@@ -1,7 +1,16 @@
 import React, { useEffect, useState, useContext } from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import {
+  Home,
+  Search,
+  Film,
+  User,
+  Rocket,
+  TrendingUp,
+  Briefcase,
+  Calendar
+} from "lucide-react-native";
 import { NavigationContext, NavigationRouteContext } from "@react-navigation/native";
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 
@@ -10,17 +19,17 @@ type AppMode = "left" | "right";
 const NAV_MODE_KEY = "navMode";
 
 const leftModeTabs = [
-  { id: "home", icon: "home", label: "Home", route: "Home" },
-  { id: "search", icon: "magnify", label: "Search", route: "Search" },
-  { id: "reels", icon: "filmstrip", label: "Reels", route: "Reels" },
-  { id: "profile", icon: "account", label: "Profile", route: "Profile" },
+  { id: "home", Icon: Home, label: "Home", route: "Home" },
+  { id: "search", Icon: Search, label: "Search", route: "Search" },
+  { id: "reels", Icon: Film, label: "Reels", route: "Reels" },
+  { id: "profile", Icon: User, label: "Profile", route: "Profile" },
 ];
 
 const rightModeTabs = [
-  { id: "launch", icon: "rocket", label: "Launch", route: "Launch" },
-  { id: "trade", icon: "trending-up", label: "Trade", route: "Trade" },
-  { id: "opportunities", icon: "briefcase", label: "Opportunities", route: "Opportunities" },
-  { id: "meetings", icon: "calendar", label: "Meetings", route: "Meetings" },
+  { id: "launch", Icon: Rocket, label: "Launch", route: "Launch" },
+  { id: "trade", Icon: TrendingUp, label: "Trade", route: "Trade" },
+  { id: "opportunities", Icon: Briefcase, label: "Opportunities", route: "Opportunities" },
+  { id: "meetings", Icon: Calendar, label: "Meetings", route: "Meetings" },
 ];
 
 type BottomNavProps = {
@@ -73,8 +82,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
       onRouteChange(tabRoute);
       return;
     }
-    // navigate by route name — assumes screens use these names
-    // If your app uses different names, update the `route` fields above to match.
     if (navigation && typeof navigation.navigate === 'function') {
       navigation.navigate(tabRoute);
     }
@@ -90,10 +97,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
     }
   };
 
-  const shouldHideMobileNav = false; // customize if there are screens that should hide the nav
+  const shouldHideMobileNav = false;
 
   const isTabActive = (tabRoute: string) => {
-    // Use activeRoute prop if provided, otherwise fall back to navigation route
     const current = activeRoute || (route?.name as string | undefined);
     if (!current) return false;
     return current === tabRoute;
@@ -106,6 +112,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
       <View style={styles.row}>
         {tabs.slice(0, 2).map((tab) => {
           const active = isTabActive(tab.route);
+          const IconComponent = tab.Icon;
           return (
             <TouchableOpacity
               key={tab.id}
@@ -113,10 +120,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
               style={[styles.tab]}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons
-                name={tab.icon}
-                size={30}
+              <IconComponent
                 color={active ? "#fff" : "#9aa0a6"}
+                size={26}
+                strokeWidth={active ? 2.5 : 1.5}
               />
             </TouchableOpacity>
           );
@@ -130,6 +137,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
 
         {tabs.slice(2, 4).map((tab) => {
           const active = isTabActive(tab.route);
+          const IconComponent = tab.Icon;
           return (
             <TouchableOpacity
               key={tab.id}
@@ -137,10 +145,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
               style={[styles.tab]}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons
-                name={tab.icon}
-                size={30}
+              <IconComponent
                 color={active ? "#fff" : "#9aa0a6"}
+                size={26}
+                strokeWidth={active ? 2.5 : 1.5}
               />
             </TouchableOpacity>
           );

@@ -8,6 +8,7 @@ import { getSettings, updateSettings, changePassword, getProfile, updateProfile,
 import { Picker } from '@react-native-picker/picker';
 import { pick, types } from '@react-native-documents/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { ArrowLeft, ChevronRight } from 'lucide-react-native';
 
 const SETTINGS_CACHE_KEY = 'ATMOSPHERE_SETTINGS_CACHE';
 
@@ -450,7 +451,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
         <Animated.View style={[styles.fullPage, animatedContainerStyle]}>
             <View style={styles.settingsHeader}>
                 <TouchableOpacity onPress={handleClose} style={styles.headerBack}>
-                    <Text style={{ color: theme.text }}>{'←'}</Text>
+                    <ArrowLeft size={24} color={theme.text} />
                 </TouchableOpacity>
                 <Text style={[styles.settingsTitle, themeTextStyle]}>Settings</Text>
                 <View style={spacerWidthStyle} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Heart, Send } from 'lucide-react-native';
 
 interface TopNavbarProps {
   title?: string;
@@ -29,7 +29,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* LEFT SIDE */}
         <View style={styles.left}>
           <TouchableOpacity onPress={onNotificationsPress} style={styles.iconButton}>
-            <MaterialCommunityIcons name="heart-outline" size={26} color="#fff" />
+            <Heart size={26} color="#fff" />
             {notificationsCount > 0 && <View style={styles.badge} />}
           </TouchableOpacity>
         </View>
@@ -42,7 +42,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* RIGHT SIDE */}
         <View style={styles.right}>
           <TouchableOpacity onPress={onChatsPress} style={styles.iconButton}>
-            <MaterialCommunityIcons name="send-outline" size={26} color="#fff" />
+            <Send size={26} color="#fff" />
             {messagesCount > 0 && (
               <View style={styles.msgBadge}>
                 <Text style={styles.msgBadgeText}>{messagesCount}</Text>

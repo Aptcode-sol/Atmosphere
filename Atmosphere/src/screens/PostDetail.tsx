@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, SafeAreaView, Alert } from 'react-native';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl, DEFAULT_BASE_URL } from '../lib/config';
@@ -181,7 +181,7 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
+            <ArrowLeft size={24} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.text }]}>Post</Text>
           <View style={styles.headerRight} />
@@ -201,7 +201,7 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={theme.text} />
+          <ArrowLeft size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Post</Text>
         <View style={styles.headerRight} />
@@ -267,25 +267,25 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         <View style={[styles.actionsRow, { borderColor: theme.border }]}>
           {/* Like */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleLike} disabled={likeLoading}>
-            <MaterialCommunityIcons name={liked ? "heart" : "heart-outline"} size={26} color={liked ? '#FF3B5C' : theme.text} />
+            <Heart size={26} color={liked ? '#FF3B5C' : theme.text} fill={liked ? '#FF3B5C' : 'none'} />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.likesCount || 0}</Text>
           </TouchableOpacity>
 
           {/* Comment */}
           <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments(true)}>
-            <MaterialCommunityIcons name="comment-outline" size={26} color={theme.text} />
+            <MessageCircle size={26} color={theme.text} />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.commentsCount || 0}</Text>
           </TouchableOpacity>
 
           {/* Share */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleShareClick}>
-            <MaterialCommunityIcons name={shared ? "share" : "share-outline"} size={26} color={shared ? theme.primary : theme.text} />
+            <Share2 size={26} color={shared ? theme.primary : theme.text} />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.sharesCount || 0}</Text>
           </TouchableOpacity>
 
           {/* Save */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleSave} disabled={saveLoading}>
-            <MaterialCommunityIcons name={saved ? "bookmark" : "bookmark-outline"} size={26} color={saved ? theme.primary : theme.text} />
+            <Bookmark size={26} color={saved ? theme.primary : theme.text} fill={saved ? theme.primary : 'none'} />
           </TouchableOpacity>
         </View>
 

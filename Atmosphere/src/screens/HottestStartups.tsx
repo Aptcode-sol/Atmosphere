@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import { Image } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Crown, Heart, Flame } from 'lucide-react-native';
 import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -85,10 +85,14 @@ const HottestStartups = () => {
                         <Text style={[styles.podiumName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{second?.name ?? second?.companyName ?? second?.company?.name ?? '—'}</Text>
                         <Text style={[styles.shortDesc, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(second)}</Text>
                         <View style={styles.likesRow}>
-                            <Icon name="award" size={14} color="#F59E0B" />
-                            <Text style={styles.likesText}>{second?.weekCounts?.crowns ?? second?.stats?.crowns ?? 0}</Text>
-                            <Icon name="heart" size={14} color="#F472B6" />
-                            <Text style={styles.likesText}>{second?.weekCounts?.likes ?? second?.stats?.likes ?? 0}</Text>
+                            <View style={styles.statPair}>
+                                <Crown size={14} color="#F59E0B" />
+                                <Text style={styles.likesText}>{second?.weekCounts?.crowns ?? second?.stats?.crowns ?? 0}</Text>
+                            </View>
+                            <View style={styles.statPair}>
+                                <Heart size={14} color="#F472B6" />
+                                <Text style={styles.likesText}>{second?.weekCounts?.likes ?? second?.stats?.likes ?? 0}</Text>
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -109,10 +113,14 @@ const HottestStartups = () => {
                         <Text style={[styles.championName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{first?.name ?? first?.companyName ?? first?.company?.name ?? '—'}</Text>
                         <Text style={[styles.shortDescCenter, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(first)}</Text>
                         <View style={styles.likesRow}>
-                            <Icon name="award" size={16} color="#F59E0B" />
-                            <Text style={styles.likesText}>{first?.weekCounts?.crowns ?? first?.stats?.crowns ?? 0}</Text>
-                            <Icon name="heart" size={16} color="#F472B6" />
-                            <Text style={styles.likesText}>{first?.weekCounts?.likes ?? first?.stats?.likes ?? 0}</Text>
+                            <View style={styles.statPair}>
+                                <Crown size={16} color="#F59E0B" />
+                                <Text style={styles.likesText}>{first?.weekCounts?.crowns ?? first?.stats?.crowns ?? 0}</Text>
+                            </View>
+                            <View style={styles.statPair}>
+                                <Heart size={16} color="#F472B6" />
+                                <Text style={styles.likesText}>{first?.weekCounts?.likes ?? first?.stats?.likes ?? 0}</Text>
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -133,10 +141,14 @@ const HottestStartups = () => {
                         <Text style={[styles.podiumName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{third?.name ?? third?.companyName ?? third?.company?.name ?? '—'}</Text>
                         <Text style={[styles.shortDesc, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(third)}</Text>
                         <View style={styles.likesRow}>
-                            <Icon name="award" size={14} color="#F59E0B" />
-                            <Text style={styles.likesText}>{third?.weekCounts?.crowns ?? third?.stats?.crowns ?? 0}</Text>
-                            <Icon name="heart" size={14} color="#F472B6" />
-                            <Text style={styles.likesText}>{third?.weekCounts?.likes ?? third?.stats?.likes ?? 0}</Text>
+                            <View style={styles.statPair}>
+                                <Crown size={14} color="#F59E0B" />
+                                <Text style={styles.likesText}>{third?.weekCounts?.crowns ?? third?.stats?.crowns ?? 0}</Text>
+                            </View>
+                            <View style={styles.statPair}>
+                                <Heart size={14} color="#F472B6" />
+                                <Text style={styles.likesText}>{third?.weekCounts?.likes ?? third?.stats?.likes ?? 0}</Text>
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -157,10 +169,14 @@ const HottestStartups = () => {
                 <Text style={[styles.listName, { color: theme?.text }]} numberOfLines={1} ellipsizeMode="tail">{item.name || item.companyName || item.company?.name || '—'}</Text>
                 <Text style={[styles.listTag, { color: theme?.placeholder }]} numberOfLines={1} ellipsizeMode="tail">{shortOf(item)}</Text>
                 <View style={styles.likesRow}>
-                    <Icon name="award" size={14} color="#F59E0B" />
-                    <Text style={styles.likesText}>{item.weekCounts?.crowns ?? item.stats?.crowns ?? 0}</Text>
-                    <Icon name="heart" size={14} color="#F472B6" />
-                    <Text style={styles.likesText}>{item.weekCounts?.likes ?? item.stats?.likes ?? 0}</Text>
+                    <View style={styles.statPair}>
+                        <Crown size={14} color="#F59E0B" />
+                        <Text style={styles.likesText}>{item.weekCounts?.crowns ?? item.stats?.crowns ?? 0}</Text>
+                    </View>
+                    <View style={styles.statPair}>
+                        <Heart size={14} color="#F472B6" />
+                        <Text style={styles.likesText}>{item.weekCounts?.likes ?? item.stats?.likes ?? 0}</Text>
+                    </View>
                 </View>
             </View>
             <TouchableOpacity style={styles.viewBtn} onPress={() => { /* navigate to profile */ }}>
@@ -205,7 +221,10 @@ const Separator = () => <View style={styles.separator} />;
 const Header = ({ theme, renderPodium }: { theme: any; renderPodium: () => JSX.Element | null; }) => () => (
     <>
         <View style={styles.headerCenter}>
-            <Text style={[styles.heading, { color: theme?.text }]}>🔥 Hottest Startups This Week</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <Flame size={24} color="#F59E0B" fill="#F59E0B" />
+                <Text style={[styles.heading, { color: theme?.text, marginTop: 0 }]}>Hottest Startups This Week</Text>
+            </View>
             <Text style={[styles.sub, { color: theme?.placeholder }]}>Discover the top 10 most liked companies in the past 7 days.</Text>
         </View>
         {renderPodium()}
@@ -239,8 +258,9 @@ const styles = StyleSheet.create({
     podiumTag: { color: '#9CA3AF', fontSize: 12, maxWidth: 120 },
     shortDesc: { color: '#9CA3AF', fontSize: 12, maxWidth: 120 },
     shortDescCenter: { color: '#9CA3AF', fontSize: 12, maxWidth: 140, textAlign: 'center' },
-    likesRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-    likesText: { color: '#F472B6', marginLeft: 6, fontSize: 12 },
+    likesRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
+    statPair: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    likesText: { color: '#F472B6', fontSize: 12, fontWeight: '600' },
     listWrap: { marginTop: 20 },
     listCard: { backgroundColor: '#0b1220', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center' },
     listAvatar: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

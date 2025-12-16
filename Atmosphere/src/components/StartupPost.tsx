@@ -10,6 +10,7 @@ import { Alert } from 'react-native';
 import CommentsOverlay from './CommentsOverlay';
 import { crownStartup, uncrownStartup } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Heart, Crown, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react-native';
 
 type StartupCard = {
     id: string;
@@ -252,6 +253,10 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                         <Text style={[styles.followBtnText, followed && styles.followBtnTextActive]}>{followed ? 'Following' : 'Follow'}</Text>
                     </TouchableOpacity>
                 )}
+                {/* 3 dots menu */}
+                <TouchableOpacity style={styles.menuButton}>
+                    <MoreHorizontal size={24} color="#9aa0a6" />
+                </TouchableOpacity>
             </View>
 
             {/* Comments overlay is used instead of inline input */}
@@ -275,32 +280,52 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
 
             <View style={styles.actionsRow}>
                 <View style={styles.statItemRow}>
+                    {/* Like */}
                     <TouchableOpacity style={styles.statItem} onPress={toggleLike}>
-                        <Text style={[styles.heart, { color: liked ? '#e74c3c' : '#ddd' }]}>❤</Text>
-                        <Text style={[styles.statCount, { color: '#ddd' }]}>{likes}</Text>
+                        <Heart
+                            size={24}
+                            color={liked ? '#ef4444' : '#fff'}
+                            fill={liked ? '#ef4444' : 'none'}
+                        />
+                        <Text style={styles.statCount}>{likes}</Text>
                     </TouchableOpacity>
-                    <View style={styles.statItem}>
-                        {isInvestor ? (
-                            <TouchableOpacity onPress={toggleCrown} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <Text style={[styles.statIcon, { color: '#ffd700' }]}>👑</Text>
-                                <Text style={[styles.statCount, { color: '#ddd' }]}>{crownsCount}</Text>
-                            </TouchableOpacity>
-                        ) : (
-                            <>
-                                <Text style={[styles.statIcon, { color: '#ddd' }]}>👑</Text>
-                                <Text style={[styles.statCount, { color: '#ddd' }]}>{crownsCount}</Text>
-                            </>
-                        )}
-                    </View>
-                    <View style={styles.statItem}>
-                        <TouchableOpacity onPress={() => setCommentsOverlayVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <Text style={[styles.statIcon, { color: '#ddd' }]}>💬</Text>
-                            <Text style={[styles.statCount, { color: '#ddd' }]}>{commentsCount}</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.statItem}><Text style={[styles.statIcon, { color: '#ddd' }]}>📤</Text><Text style={[styles.statCount, { color: '#ddd' }]}>{stats.shares}</Text></View>
-                    <TouchableOpacity style={styles.statItem} onPress={toggleSave}>
-                        <Text style={[styles.statIcon, { color: saved ? '#3b82f6' : '#ddd' }]}>{saved ? '🔖' : '📑'}</Text>
+
+                    {/* Crown */}
+                    <TouchableOpacity
+                        style={styles.statItem}
+                        onPress={isInvestor ? toggleCrown : undefined}
+                        disabled={!isInvestor}
+                    >
+                        <Crown
+                            size={24}
+                            color={crowned ? '#eab308' : '#fff'}
+                            fill={crowned ? '#eab308' : 'none'}
+                        />
+                        <Text style={styles.statCount}>{crownsCount}</Text>
+                    </TouchableOpacity>
+
+                    {/* Comments */}
+                    <TouchableOpacity style={styles.statItem} onPress={() => setCommentsOverlayVisible(true)}>
+                        <MessageCircle size={24} color="#fff" />
+                        <Text style={styles.statCount}>{commentsCount}</Text>
+                    </TouchableOpacity>
+
+                    {/* Share/Send */}
+                    <TouchableOpacity style={styles.statItem}>
+                        <Send size={24} color="#fff" />
+                        <Text style={styles.statCount}>{stats.shares}</Text>
+                    </TouchableOpacity>
+
+                    {/* Spacer */}
+                    <View style={{ flex: 1 }} />
+
+                    {/* Bookmark */}
+                    <TouchableOpacity onPress={toggleSave}>
+                        <Bookmark
+                            size={24}
+                            color="#fff"
+                            fill={saved ? '#fff' : 'none'}
+                        />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -337,47 +362,118 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
 
 const styles = StyleSheet.create({
     card: {
-        borderWidth: 1,
-        borderRadius: 8,
-        marginVertical: 8,
+        borderWidth: 0,
+        marginVertical: 0,
         overflow: 'hidden',
-        marginHorizontal: 0
+        marginHorizontal: 0,
+        backgroundColor: '#0a0a0a',
     },
-    headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
-    headerLeftRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    headerLeft: { marginLeft: 10 },
-    avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#333', borderWidth: 2, borderColor: '#111' },
-    followBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#333' },
-    followBtnActive: { backgroundColor: '#111', borderColor: '#111' },
-    followBtnText: { color: '#fff', fontWeight: '700' },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+    },
+    headerLeftRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        gap: 12,
+    },
+    headerLeft: { marginLeft: 0 },
+    avatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#1a1a1a',
+        borderWidth: 2,
+        borderColor: '#333',
+    },
+    followBtn: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        backgroundColor: '#262626',
+    },
+    followBtnActive: { backgroundColor: '#262626' },
+    followBtnText: { color: '#fff', fontWeight: '500', fontSize: 12 },
     followBtnTextActive: { color: '#fff' },
-    companyName: { fontWeight: '700', fontSize: 16 },
-    verifiedSmall: { color: '#bbb', fontSize: 12, marginTop: 2 },
-    imageWrap: { paddingHorizontal: 12, paddingTop: 8 },
-    mainImage: { width: '100%', height: 420, backgroundColor: '#222', borderRadius: 6 },
-    actionsRow: { paddingHorizontal: 12, paddingTop: 12 },
-    statItemRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    statItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    statCount: { fontSize: 12, fontWeight: '600' },
-    heart: { fontSize: 18 },
-    statIcon: { fontSize: 14 },
-    body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 16 },
-    whatsLabel: { color: '#bbb', fontSize: 12, marginBottom: 8 },
-    descriptionFull: { color: '#ddd', fontSize: 14, lineHeight: 20, marginBottom: 12 },
-    stageRow: { marginTop: 8, marginBottom: 8 },
-    stageText: { color: '#bbb', fontSize: 12 },
-    stageValue: { color: '#fff', fontWeight: '700' },
-    pillsRow: { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 12 },
-    pill: { borderWidth: 1, borderColor: '#222', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#111' },
-    pillText: { color: '#ddd', fontWeight: '700' },
-    currentRound: { color: '#bbb', marginTop: 12, marginBottom: 8 },
-    currentRoundValue: { color: '#fff', fontWeight: '700' },
-    fundingBarWrap: { marginTop: 8 },
-    fundingBarTrack: { height: 25, borderRadius: 5, backgroundColor: '#0f0f0f', overflow: 'hidden' },
-    fundingFilled: { height: '100%', backgroundColor: '#888888' },
-    fundingLabelsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-    filledLabel: { color: '#bbb' },
-    totalLabel: { color: '#bbb' },
+    companyName: { fontWeight: '600', fontSize: 14 },
+    verifiedSmall: { color: '#888', fontSize: 10, marginTop: 2 },
+    imageWrap: { paddingHorizontal: 0, paddingTop: 0 },
+    mainImage: {
+        width: '100%',
+        aspectRatio: 16 / 11,
+        backgroundColor: '#1a1a1a',
+    },
+    actionsRow: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    statItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 20,
+    },
+    statItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    statCount: {
+        fontSize: 15,
+        fontWeight: '500',
+        color: '#fff',
+    },
+    heart: { fontSize: 24 },
+    statIcon: { fontSize: 24 },
+    body: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 16 },
+    whatsLabel: {
+        color: '#888',
+        fontSize: 11,
+        fontWeight: '600',
+        marginBottom: 6,
+        letterSpacing: 0.5,
+    },
+    descriptionFull: {
+        color: '#e0e0e0',
+        fontSize: 14,
+        lineHeight: 20,
+        marginBottom: 12,
+    },
+    stageRow: { marginTop: 0, marginBottom: 12 },
+    stageText: { color: '#888', fontSize: 11, fontWeight: '600', letterSpacing: 0.5 },
+    stageValue: { color: '#fff', fontWeight: '600', fontSize: 11 },
+    pillsRow: { flexDirection: 'row', gap: 8, marginTop: 0, marginBottom: 12 },
+    pill: {
+        borderWidth: 1,
+        borderColor: '#333',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,
+        backgroundColor: '#0f0f0f',
+    },
+    pillText: { color: '#fff', fontWeight: '500', fontSize: 12 },
+    currentRound: { color: '#888', marginTop: 0, marginBottom: 8, fontSize: 12 },
+    currentRoundValue: { color: '#fff', fontWeight: '600', fontSize: 14 },
+    fundingBarWrap: { marginTop: 0 },
+    fundingBarTrack: {
+        height: 32,
+        borderRadius: 6,
+        backgroundColor: '#1a1a1a',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    fundingFilled: { height: '100%', backgroundColor: '#666' },
+    fundingLabelsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+    filledLabel: { color: '#fff', fontSize: 12 },
+    totalLabel: { color: '#fff', fontSize: 12 },
+    menuButton: {
+        padding: 4,
+        marginLeft: 8,
+    },
 });
 
 export default StartupPost;

@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, Dimensions, Animated, FlatList, ActivityI
 import { PLACEHOLDER } from '../../lib/localImages';
 import { getImageSource } from '../../lib/image';
 import styles from './Profile.styles';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { Play, Video, Copy } from 'lucide-react-native';
 
 type Props = {
     posts: any[];
@@ -78,7 +78,7 @@ export default function ProfilePager({ posts, reels = [], postsLoading, reelsLoa
                             borderRadius: 4,
                             padding: 2,
                         }}>
-                            <Icon name="play" size={16} color="#fff" />
+                            <Play size={16} color="#fff" />
                         </View>
                     )}
                     {/* Video type indicator */}
@@ -91,7 +91,7 @@ export default function ProfilePager({ posts, reels = [], postsLoading, reelsLoa
                             borderRadius: 4,
                             padding: 2,
                         }}>
-                            <Icon name="videocam" size={16} color="#fff" />
+                            <Video size={16} color="#fff" />
                         </View>
                     )}
                     {/* Multiple media indicator */}
@@ -104,7 +104,7 @@ export default function ProfilePager({ posts, reels = [], postsLoading, reelsLoa
                             borderRadius: 4,
                             padding: 2,
                         }}>
-                            <Icon name="copy" size={14} color="#fff" />
+                            <Copy size={14} color="#fff" />
                         </View>
                     )}
                 </View>
