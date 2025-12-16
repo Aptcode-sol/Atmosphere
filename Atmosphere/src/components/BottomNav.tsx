@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { View, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet, DeviceEventEmitter } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "@react-native-community/blur";
 import {
@@ -79,6 +79,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
   const tabs = appMode === "left" ? leftModeTabs : rightModeTabs;
 
   const handleTabPress = (tabRoute: string) => {
+    if (isTabActive(tabRoute)) {
+      DeviceEventEmitter.emit(`scrollToTop_${tabRoute}`);
+      return;
+    }
     if (onRouteChange) {
       onRouteChange(tabRoute);
       return;
@@ -167,7 +171,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "rgba(0, 0, 0, 0.91)",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(255,255,255,0.15)",
     height: BOTTOM_NAV_HEIGHT + 50,

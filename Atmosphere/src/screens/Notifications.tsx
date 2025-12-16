@@ -7,11 +7,11 @@ import {
     TouchableOpacity,
     Image,
     ActivityIndicator,
-    RefreshControl,
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from '../lib/api';
 import Icon from 'react-native-vector-icons/Ionicons';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 interface NotificationItem {
     _id: string;
@@ -238,12 +238,10 @@ const Notifications = () => {
                 contentContainerStyle={notifications.length === 0 ? styles.emptyList : undefined}
                 ListEmptyComponent={renderEmptyState}
                 refreshControl={
-                    <RefreshControl
+                    <ThemedRefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={theme.primary}
-                        title="Pull to refresh"
-                        titleColor={theme.text}
+                        progressViewOffset={0}
                     />
                 }
             />

@@ -7,12 +7,12 @@ import {
     TouchableOpacity,
     Image,
     ActivityIndicator,
-    RefreshControl,
     Dimensions,
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { fetchSavedPosts, unsavePost } from '../lib/api';
 import Icon from 'react-native-vector-icons/Ionicons';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 const { width } = Dimensions.get('window');
 const GRID_SIZE = (width - 4) / 3; // 3 columns with 2px gaps
@@ -166,10 +166,10 @@ const SavedPosts = ({ onClose, onPostPress }: SavedPostsProps) => {
                 contentContainerStyle={savedItems.length === 0 ? styles.emptyList : styles.gridContainer}
                 ListEmptyComponent={renderEmptyState}
                 refreshControl={
-                    <RefreshControl
+                    <ThemedRefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={theme.primary}
+                        progressViewOffset={0}
                     />
                 }
             />

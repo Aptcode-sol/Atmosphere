@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator } from 'react-native';
 import { Image } from 'react-native';
 import { Crown, Heart, Flame } from 'lucide-react-native';
 import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 const { width } = Dimensions.get('window');
 
@@ -204,12 +205,10 @@ const HottestStartups = () => {
             style={[styles.container, { backgroundColor: theme?.background || '#fff' }]}
             ListHeaderComponent={Header({ theme, renderPodium })}
             refreshControl={
-                <RefreshControl
+                <ThemedRefreshControl
                     refreshing={refreshing}
                     onRefresh={onRefresh}
-                    tintColor={theme?.primary || '#F59E0B'}
-                    title="Release to refresh"
-                    titleColor={theme?.text || '#888'}
+                    progressViewOffset={0}
                 />
             }
         />

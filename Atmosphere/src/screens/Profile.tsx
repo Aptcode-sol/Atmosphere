@@ -1,7 +1,8 @@
 import React, { useState, useContext, useEffect } from 'react';
 /* eslint-disable react-native/no-inline-styles */
-import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile, getFollowersCount, getFollowingCount, getStartupProfile, getUserReels } from '../lib/api';
 import { getImageSource } from '../lib/image';
@@ -391,12 +392,10 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                 style={[styles.container, { backgroundColor: theme.background }]}
                 contentContainerStyle={[styles.contentContainer]}
                 refreshControl={
-                    <RefreshControl
+                    <ThemedRefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={theme.primary}
-                        title="Release to Refresh"
-                        titleColor={theme.text}
+                        progressViewOffset={0}
                     />
                 }
             >

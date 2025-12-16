@@ -254,9 +254,9 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                     </TouchableOpacity>
                 )}
                 {/* 3 dots menu */}
-                <TouchableOpacity style={styles.menuButton}>
+                {/* <TouchableOpacity style={styles.menuButton}>
                     <MoreHorizontal size={24} color="#9aa0a6" />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
             </View>
 
             {/* Comments overlay is used instead of inline input */}

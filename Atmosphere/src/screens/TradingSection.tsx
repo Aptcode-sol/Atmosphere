@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, LayoutAnimation, UIManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, fetchInvestors, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Video from 'react-native-video';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 // Import modular files
 import { categories, Investment, InvestorPortfolio } from './Trading/types';
@@ -655,12 +656,10 @@ const Trading = () => {
                 style={flexOneStyle}
                 contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
                 refreshControl={
-                    <RefreshControl
+                    <ThemedRefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor="#1a73e8"
-                        title="Release to refresh"
-                        titleColor="#888"
+                        progressViewOffset={0}
                     />
                 }
             >
@@ -1084,12 +1083,10 @@ const Trading = () => {
                 onEndReachedThreshold={0.5}
                 ListFooterComponent={() => buyLoading && data.length > 0 ? <ActivityIndicator size="small" color="#1a73e8" style={footerLoaderStyle} /> : null}
                 refreshControl={
-                    <RefreshControl
+                    <ThemedRefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor="#1a73e8"
-                        title="Release to refresh"
-                        titleColor="#888"
+                        progressViewOffset={0}
                     />
                 }
             />

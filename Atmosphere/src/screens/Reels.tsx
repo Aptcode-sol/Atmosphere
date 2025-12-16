@@ -15,6 +15,7 @@ import { Heart, MessageCircle, Send, Eye, Video } from 'lucide-react-native';
 import VideoPlayer from 'react-native-video';
 import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 const { width, height } = Dimensions.get('window');
 const ITEM_HEIGHT = height - BOTTOM_NAV_HEIGHT;
@@ -51,6 +52,25 @@ const Reels = () => {
 
     // Like loading states per reel
     const [likeLoading, setLikeLoading] = useState<Set<string>>(new Set());
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            const data = await fetchReels(30, 0);
+            const reelsWithDefaults = data.map((reel: any) => ({
+                ...reel,
+                sharesCount: reel.sharesCount || 0,
+                isLiked: reel.isLiked || false,
+                isShared: false,
+            }));
+            setReels(reelsWithDefaults);
+        } catch (err) {
+            console.warn('Failed to refresh reels:', err);
+        } finally {
+            setRefreshing(false);
+        }
+    }, []);
 
     useEffect(() => {
         loadReels();
@@ -284,6 +304,13 @@ const Reels = () => {
                     index,
                 })}
                 extraData={[likeLoading]}
+                refreshControl={
+                    <ThemedRefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        progressViewOffset={0}
+                    />
+                }
             />
 
             {/* Comments Modal */}

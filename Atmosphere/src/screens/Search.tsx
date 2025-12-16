@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
-import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions, RefreshControl } from 'react-native';
+import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getImageSource } from '../lib/image';
 import { fetchExplorePosts, searchEntities, searchUsers } from '../lib/api';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 4) / 3; // 3 columns with 2px gaps
@@ -37,6 +38,10 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
     const [initialLoadDone, setInitialLoadDone] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
+    const flatListRef = useRef<FlatList>(null);
+
+
+
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         if (query.trim()) {
@@ -47,6 +52,14 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
         setRefreshing(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [query, activeTab]);
+
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('scrollToTop_Search', () => {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            onRefresh();
+        });
+        return () => sub.remove();
+    }, [onRefresh]);
 
     // Debounce Search
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -275,6 +288,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
             )}
 
             <FlatList
+                ref={flatListRef}
                 key={isGrid ? 'grid' : 'list'}
                 data={currentData}
                 numColumns={isGrid ? 3 : 1}
@@ -294,12 +308,10 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                     ) : null
                 }
                 refreshControl={
-                    <RefreshControl
+                    <ThemedRefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={theme.primary}
-                        title="Release to refresh"
-                        titleColor={theme.text}
+                        progressViewOffset={0}
                     />
                 }
             />

@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useContext, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, DeviceEventEmitter } from 'react-native';
 import TopNavbar from '../components/TopNavbar';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import { ThemeContext } from '../contexts/ThemeContext';
 import StartupPost from '../components/StartupPost';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 import { fetchStartupPosts } from '../lib/api';
 import { getBaseUrl } from '../lib/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -103,6 +104,16 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
             fetchUnreadCount();
         }
     }, [currentUserId, fetchUnreadCount]);
+
+    const flatListRef = React.useRef<FlatList>(null);
+
+    useEffect(() => {
+        const scrollToTopSub = DeviceEventEmitter.addListener('scrollToTop_Home', () => {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            onRefresh();
+        });
+        return () => scrollToTopSub.remove();
+    }, [onRefresh]);
 
     const normalizeData = (data: any[]) => {
         return (data || []).map((p: any) => ({
@@ -244,6 +255,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
 
         return (
             <FlatList
+                ref={flatListRef}
                 data={posts}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={[styles.listContent]}
@@ -253,12 +265,9 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 ListFooterComponent={renderFooter}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl
+                    <ThemedRefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={theme.primary}
-                        title="Release to refresh"
-                        titleColor={theme.text}
                     />
                 }
             />
@@ -280,7 +289,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    listContent: { padding: 0, paddingTop: 65 },
+    listContent: { padding: 0, paddingBottom: 20, paddingTop: 65 },
     centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 20 },
     loadingText: { marginTop: 12, fontSize: 14 },
     errorText: { fontSize: 14 },

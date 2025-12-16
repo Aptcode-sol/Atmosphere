@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBaseUrl } from '../lib/config';
+import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 const TABS = ['Jobs', 'Grants', 'Events'];
 
@@ -398,12 +399,10 @@ const Jobs = () => {
                     onEndReached={loadMoreCurrent}
                     onEndReachedThreshold={0.5}
                     refreshControl={
-                        <RefreshControl
+                        <ThemedRefreshControl
                             refreshing={refreshing}
                             onRefresh={onRefreshCurrent}
-                            tintColor={theme.primary}
-                            title="Release to refresh"
-                            titleColor={theme.text}
+                            progressViewOffset={0}
                         />
                     }
                     ListHeaderComponent={() => (
