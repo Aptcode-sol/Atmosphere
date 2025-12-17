@@ -101,7 +101,7 @@ const TabButton = ({ label, isActive, onPress }: any) => (
     </TouchableOpacity>
 );
 
-const Meetings = () => {
+const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => void }) => {
     const context = React.useContext(ThemeContext);
     const theme = context?.theme || {
         background: '#fff',
@@ -138,7 +138,7 @@ const Meetings = () => {
         console.log('=== fetchMeetings START, force=', force);
         try {
             setLoading(true);
-            setError(null);
+            _setError(null);
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
 
@@ -226,7 +226,7 @@ const Meetings = () => {
             }
         } catch (err) {
             console.error('fetchMeetings ERROR:', err);
-            setError(err instanceof Error ? err.message : String(err));
+            _setError(err instanceof Error ? err.message : String(err));
         } finally {
             setLoading(false);
             console.log('=== fetchMeetings END');
@@ -285,11 +285,11 @@ const Meetings = () => {
             console.log('baseUrl=', baseUrl, 'hasToken=', !!token, 'userId=', userId);
 
             if (!token) {
-                setError('No auth token found. Please log in.');
+                _setError('No auth token found. Please log in.');
                 return;
             }
             if (!userId) {
-                setError('User ID not found. Please log in again.');
+                _setError('User ID not found. Please log in again.');
                 return;
             }
 
@@ -309,10 +309,16 @@ const Meetings = () => {
 
             console.log('Successfully joined meeting');
             setMyMeetings(prev => [...prev, String(meeting._id || meeting.id)]);
-            setActiveTab('my');
+
+            // Navigate to video call if callback provided
+            if (onJoinMeeting) {
+                onJoinMeeting(String(meeting._id || meeting.id));
+            } else {
+                setActiveTab('my');
+            }
         } catch (err) {
             console.error('handleJoin ERROR:', err);
-            setError(err instanceof Error ? err.message : String(err));
+            _setError(err instanceof Error ? err.message : String(err));
         }
     };
 
@@ -329,7 +335,7 @@ const Meetings = () => {
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
             if (!token) {
-                setError('Please log in to create meetings');
+                _setError('Please log in to create meetings');
                 return;
             }
 
@@ -370,11 +376,12 @@ const Meetings = () => {
                     <TouchableOpacity onPress={() => setShowSearchBar(s => !s)} style={styles.iconBtn}>
                         <MaterialIcons name="search" size={22} color={theme.text} />
                     </TouchableOpacity>
-                    {(userRole.toLowerCase() === 'investor' || userRole.toLowerCase() === 'startup') && (
-                        <TouchableOpacity onPress={() => setShowCreateModal(true)} style={styles.iconBtn}>
-                            <MaterialIcons name="add" size={24} color={theme.text} />
-                        </TouchableOpacity>
-                    )}
+                    {/* {(userRole.toLowerCase() === 'investor' || userRole.toLowerCase() === 'startup') && (
+                        
+                    )} */}
+                    <TouchableOpacity onPress={() => setShowCreateModal(true)} style={styles.iconBtn}>
+                        <MaterialIcons name="add" size={24} color={theme.text} />
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={() => fetchMeetings(true)} style={styles.iconBtn}>
                         <MaterialIcons name="refresh" size={22} color={theme.text} />
                     </TouchableOpacity>
@@ -427,9 +434,13 @@ const Meetings = () => {
                                     renderItem={({ item }) => (
                                         <MeetingCard
                                             meeting={item}
-                                            joinLabel="Joined"
-                                            disabled={true}
-                                            onJoin={() => { }}
+                                            joinLabel="Enter"
+                                            disabled={false}
+                                            onJoin={() => {
+                                                if (onJoinMeeting) {
+                                                    onJoinMeeting(String(item._id || item.id));
+                                                }
+                                            }}
                                         />
                                     )}
                                     refreshing={loading}

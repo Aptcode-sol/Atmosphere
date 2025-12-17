@@ -19,14 +19,16 @@ import CreatePost from './CreatePost';
 import CreateReel from './CreateReel';
 import SavedPosts from './SavedPosts';
 import CreateMenu from '../components/CreateMenu';
+import VideoCall from './VideoCall';
 
-type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail' | 'createPost' | 'createReel' | 'saved';
+type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail' | 'createPost' | 'createReel' | 'saved' | 'videoCall';
 
 const LandingPage = () => {
     const [route, setRoute] = useState<RouteKey>('home');
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const { theme } = useContext(ThemeContext);
 
@@ -91,7 +93,20 @@ const LandingPage = () => {
             case 'jobs':
                 return <Jobs />;
             case 'meetings':
-                return <Meetings />;
+                return <Meetings onJoinMeeting={(meetingId: string) => {
+                    setSelectedMeetingId(meetingId);
+                    setRoute('videoCall');
+                }} />;
+            case 'videoCall':
+                return selectedMeetingId ? (
+                    <VideoCall
+                        meetingId={selectedMeetingId}
+                        onLeave={() => {
+                            setSelectedMeetingId(null);
+                            setRoute('meetings');
+                        }}
+                    />
+                ) : null;
             case 'chatDetail':
                 return selectedChatId ? (
                     <ChatDetail
@@ -147,6 +162,7 @@ const LandingPage = () => {
             createPost: 'Profile',
             createReel: 'Profile',
             saved: 'Profile',
+            videoCall: 'Meetings',
         };
         return rev[r] || 'Home';
     };
