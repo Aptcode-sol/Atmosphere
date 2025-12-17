@@ -9,7 +9,6 @@ const UserSchema = new Schema(
         username: { type: String, required: true, unique: true, trim: true },
         passwordHash: { type: String },
         fullName: { type: String },
-        displayName: { type: String },
         bio: { type: String },
         avatarUrl: { type: String },
         roles: { type: [String], default: ['personal'], enum: ['investor', 'startup', 'personal'] },

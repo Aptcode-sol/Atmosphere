@@ -1,0 +1,35 @@
+.events-page {
+    min-height: 100vh;
+}
+
+.event-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+}
+
+.event-name svg {
+    color: #6366f1;
+}
+
+.location-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #888;
+}
+
+.datetime-cell {
+    display: flex;
+    flex-direction: column;
+}
+
+.datetime-cell .date {
+    color: #fff;
+}
+
+.datetime-cell .time {
+    font-size: 12px;
+    color: #666;
+}

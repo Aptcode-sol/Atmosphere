@@ -11,6 +11,7 @@ import ProfilePager from './profile/ProfilePager';
 import SettingsOverlay from './profile/SettingsOverlay';
 import styles from './profile/Profile.styles';
 import { NavigationRouteContext } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const mockData = (() => {
     const userName = 'Airbound';
@@ -40,8 +41,8 @@ const normalizeProfile = (profileData: any) => {
     const primaryRole = user && Array.isArray(user.roles) && user.roles.length ? user.roles[0] : user?.accountType;
     if (hasStartupDetails && details) {
         return {
-            name: details.companyName || user.displayName || user.username || 'Unknown',
-            username: user.username ? `@${user.username}` : '',
+            name: details.companyName || user.fullName || user.username || 'Unknown',
+            username: user.username ? `${user.username}` : '',
             logo: details.profileImage || user.avatarUrl || 'https://via.placeholder.com/400x240.png?text=Startup',
             tagline: details.about || user.bio || '',
             description: details.about || user.bio || '',
@@ -63,8 +64,8 @@ const normalizeProfile = (profileData: any) => {
     // For investors
     if ((primaryRole === 'investor') && details) {
         return {
-            name: user.displayName || user.username || 'Unknown',
-            username: user.username ? `@${user.username}` : '',
+            name: user.fullName || user.username || 'Unknown',
+            username: user.username ? `${user.username}` : '',
             logo: details.profileImage || user.avatarUrl || 'https://via.placeholder.com/400x240.png?text=Investor',
             tagline: details.about || user.bio || '',
             description: details.about || user.bio || '',
@@ -85,7 +86,7 @@ const normalizeProfile = (profileData: any) => {
     // For personal accounts
     return {
         name: user.displayName || user.username || 'Unknown',
-        username: user.username ? `@${user.username}` : '',
+        username: user.username ? `${user.username}` : '',
         logo: user.avatarUrl || 'https://via.placeholder.com/400x240.png?text=User',
         tagline: user.bio || '',
         description: user.bio || '',
@@ -399,7 +400,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     />
                 }
             >
-                <ProfileHeader name={loading ? '' : (src?.name || '')} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={onCreatePost} onBack={onClose} theme={theme} />
+                <ProfileHeader name={loading ? '' : (src?.username || '')} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={onCreatePost} onBack={onClose} theme={theme} />
 
                 {/* Setup is opened via parent navigation (LandingPage route 'setup') */}
 
@@ -419,20 +420,37 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                                     </View>
                                 )}
                             </View>
-                            <View style={styles.headerStats}>
-                                <View style={styles.statCol}>
-                                    <Text style={[styles.statNum, { color: theme.text }]}>{posts.length}</Text>
-                                    <Text style={[styles.statLabel, { color: theme.placeholder }]}>posts</Text>
-                                </View>
-                                <View style={styles.statCol}>
-                                    <Text style={[styles.statNum, { color: theme.text }]}>{followersCount ?? src?.stats?.followers ?? 0}</Text>
-                                    <Text style={[styles.statLabel, { color: theme.placeholder }]}>followers</Text>
-                                </View>
-                                <View style={styles.statCol}>
-                                    <Text style={[styles.statNum, { color: theme.text }]}>{followingCount ?? 0}</Text>
-                                    <Text style={[styles.statLabel, { color: theme.placeholder }]}>following</Text>
+                            <View style={{ flex: 1, justifyContent: 'center', marginLeft: 12 }}>
+                                <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700', marginBottom: 8 }}>{src?.name}</Text>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingRight: 16 }}>
+                                    <View style={styles.statCol}>
+                                        <Text style={[styles.statNum, { color: theme.text }]}>{posts.length}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.placeholder }]}>posts</Text>
+                                    </View>
+                                    <View style={styles.statCol}>
+                                        <Text style={[styles.statNum, { color: theme.text }]}>{followersCount ?? src?.stats?.followers ?? 0}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.placeholder }]}>followers</Text>
+                                    </View>
+                                    <View style={styles.statCol}>
+                                        <Text style={[styles.statNum, { color: theme.text }]}>{followingCount ?? 0}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.placeholder }]}>following</Text>
+                                    </View>
                                 </View>
                             </View>
+                        </View>
+
+                        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                            {src?.location ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                    <Ionicons name="location-outline" size={16} color={theme.placeholder} style={{ marginRight: 2 }} />
+                                    <Text style={{ color: theme.placeholder, fontSize: 13 }}>{src.location}</Text>
+                                </View>
+                            ) : null}
+                            <Text style={{ color: theme.text, fontSize: 14, lineHeight: 20, marginLeft: 5 }}>
+                                {src?.tagline && src?.description && src?.tagline !== src?.description
+                                    ? `${src.tagline} | ${src.description}`
+                                    : (src?.tagline || src?.description || '')}
+                            </Text>
                         </View>
 
                         {viewingUserId ? (

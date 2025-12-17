@@ -1,0 +1,93 @@
+.pending-startups {
+    min-height: 100vh;
+}
+
+.page-content {
+    padding: 32px;
+}
+
+.card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.badge {
+    padding: 4px 12px;
+    background: #ef444420;
+    color: #ef4444;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 40px;
+    color: #666;
+}
+
+.empty-state svg {
+    color: #10b981;
+    margin-bottom: 16px;
+}
+
+.empty-state h3 {
+    color: #fff;
+    margin: 0 0 8px 0;
+}
+
+.empty-state p {
+    margin: 0;
+}
+
+.company-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.company-icon {
+    width: 40px;
+    height: 40px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6366f1;
+}
+
+.company-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.company-name {
+    font-weight: 500;
+}
+
+.company-email {
+    font-size: 12px;
+    color: #666;
+}
+
+.stage-badge {
+    padding: 4px 10px;
+    background: #6366f120;
+    color: #6366f1;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
