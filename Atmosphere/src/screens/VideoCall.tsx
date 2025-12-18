@@ -52,8 +52,8 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
     const [micMuted, setMicMuted] = useState(false);
     const [videoMuted, setVideoMuted] = useState(false);
     const [frontCamera, setFrontCamera] = useState(true);
-    const [localUid, setLocalUid] = useState<number>(0); // Track local UID
-    const [agoraConfig, setAgoraConfig] = useState<{
+    const [_localUid, _setLocalUid] = useState<number>(0); // Track local UID (prefixed to avoid lint when unused)
+    const [_agoraConfig, _setAgoraConfig] = useState<{
         appId: string;
         token: string;
         channelName: string;
@@ -62,75 +62,70 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
 
     const engineRef = useRef<IRtcEngine | null>(null);
 
-    useEffect(() => {
-        initializeAgora();
-        return () => {
-            cleanup();
-        };
+    const cleanup = React.useCallback(async () => {
+        try {
+            if (engineRef.current) {
+                engineRef.current.stopPreview();
+                engineRef.current.leaveChannel();
+                engineRef.current.release();
+                engineRef.current = null;
+            }
+        } catch (error) {
+            console.error('Error during cleanup:', error);
+        }
     }, []);
 
-    const requestPermissions = async () => {
-        if (Platform.OS === 'android') {
-            try {
-                const granted = await PermissionsAndroid.requestMultiple([
-                    PermissionsAndroid.PERMISSIONS.CAMERA,
-                    PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-                ]);
-
-                const cameraGranted = granted['android.permission.CAMERA'] === PermissionsAndroid.RESULTS.GRANTED;
-                const audioGranted = granted['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED;
-
-                if (!cameraGranted || !audioGranted) {
-                    Alert.alert('Permissions Required', 'Camera and microphone permissions are required for video calls');
-                    return false;
-                }
-                return true;
-            } catch (err) {
-                console.error('Permission error:', err);
-                return false;
-            }
-        }
-        return true;
-    };
-
-    const fetchAgoraCredentials = async () => {
-        try {
-            const baseUrl = await getBaseUrl();
-            const token = await AsyncStorage.getItem('token');
-
-            const response = await fetch(`${baseUrl}/api/meetings/${meetingId}/agora-token`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch Agora credentials');
-            }
-
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error fetching Agora credentials:', error);
-            throw error;
-        }
-    };
-
-    const initializeAgora = async () => {
+    const initializeAgora = React.useCallback(async () => {
         try {
             setLoading(true);
+            // Request permissions (inline)
+            if (Platform.OS === 'android') {
+                try {
+                    const granted = await PermissionsAndroid.requestMultiple([
+                        PermissionsAndroid.PERMISSIONS.CAMERA,
+                        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+                    ]);
 
-            // Request permissions
-            const hasPermissions = await requestPermissions();
-            if (!hasPermissions) {
+                    const cameraGranted = granted['android.permission.CAMERA'] === PermissionsAndroid.RESULTS.GRANTED;
+                    const audioGranted = granted['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED;
+
+                    if (!cameraGranted || !audioGranted) {
+                        Alert.alert('Permissions Required', 'Camera and microphone permissions are required for video calls');
+                        setLoading(false);
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Permission error:', err);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Fetch Agora credentials from backend (inline)
+            let credentials: any = null;
+            try {
+                const baseUrl = await getBaseUrl();
+                const token = await AsyncStorage.getItem('token');
+
+                const response = await fetch(`${baseUrl}/api/meetings/${meetingId}/agora-token`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch Agora credentials');
+                }
+
+                credentials = await response.json();
+            } catch (error) {
+                console.error('Error fetching Agora credentials:', error);
+                Alert.alert('Error', 'Failed to fetch Agora credentials');
                 setLoading(false);
                 return;
             }
-
-            // Fetch Agora credentials from backend
-            const credentials = await fetchAgoraCredentials();
-            setAgoraConfig(credentials);
+            _setAgoraConfig(credentials);
 
             if (!credentials.appId) {
                 Alert.alert('Error', 'Agora App ID not configured');
@@ -205,7 +200,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
                 onJoinChannelSuccess: (connection, elapsed) => {
                     console.log('JoinChannelSuccess', connection.channelId, 'localUid:', connection.localUid, elapsed);
                     if (connection.localUid !== undefined) {
-                        setLocalUid(connection.localUid); // Store the actual local UID
+                        _setLocalUid(connection.localUid); // Store the actual local UID
                     }
                     setJoined(true);
                     setLoading(false);
@@ -231,20 +226,14 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
             Alert.alert('Error', 'Failed to initialize video call');
             setLoading(false);
         }
-    };
+    }, [meetingId]);
 
-    const cleanup = async () => {
-        try {
-            if (engineRef.current) {
-                engineRef.current.stopPreview();
-                engineRef.current.leaveChannel();
-                engineRef.current.release();
-                engineRef.current = null;
-            }
-        } catch (error) {
-            console.error('Error during cleanup:', error);
-        }
-    };
+    useEffect(() => {
+        initializeAgora();
+        return () => {
+            cleanup();
+        };
+    }, [initializeAgora, cleanup]);
 
     const toggleMic = async () => {
         try {
@@ -391,7 +380,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: '#000' }]}>
+        <View style={[styles.container, styles.blackBackground]}>
             {remoteUsers.length === 0 ? (
                 // No remote users - show local video large in center
                 <View style={styles.mainVideoArea}>
@@ -404,7 +393,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
                     <View style={styles.noParticipants}>
                         <MaterialIcons name="people-outline" size={64} color="#999" />
                         <Text style={styles.noParticipantsText}>Waiting for others to join...</Text>
-                        <Text style={[styles.noParticipantsText, { fontSize: 14, marginTop: 8 }]}>
+                        <Text style={styles.noParticipantsSubtext}>
                             Share the meeting link to invite participants
                         </Text>
                     </View>
@@ -630,6 +619,15 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '600',
+    },
+    blackBackground: {
+        backgroundColor: '#000',
+    },
+    noParticipantsSubtext: {
+        color: '#999',
+        fontSize: 14,
+        marginTop: 8,
+        textAlign: 'center',
     },
 });
 

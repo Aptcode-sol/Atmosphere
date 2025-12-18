@@ -38,15 +38,7 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ visible, onClose, onUserSel
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'followers' | 'following'>('following');
 
-    useEffect(() => {
-        if (visible) {
-            fetchUsers();
-        } else {
-            setSearchQuery('');
-        }
-    }, [visible, activeTab]);
-
-    const fetchUsers = async () => {
+    const fetchUsers = React.useCallback(async () => {
         setLoading(true);
         try {
             const userJson = await AsyncStorage.getItem('user');
@@ -66,12 +58,20 @@ const NewChatModal: React.FC<NewChatModalProps> = ({ visible, onClose, onUserSel
                 setUsers(list);
                 setFilteredUsers(list);
             }
-        } catch (err) {
-            console.error('Failed to fetch users:', err);
+        } catch {
+            console.error('Failed to fetch users');
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (visible) {
+            fetchUsers();
+        } else {
+            setSearchQuery('');
+        }
+    }, [visible, activeTab, fetchUsers]);
 
     useEffect(() => {
         if (searchQuery.trim() === '') {

@@ -38,7 +38,7 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                     const id = profile?.user?._id || profile?.user?.id || profile?.id || null;
                     if (mounted && id) setMeId(String(id));
                 } catch {
-                    // ignore
+                    // ignore errors while fetching profile
                 }
             } catch (err) {
                 console.warn('CommentsOverlay: failed to load comments', err);
@@ -82,8 +82,8 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
             if (typeof onCommentAdded === 'function') {
                 try { onCommentAdded(typeof newCount === 'number' ? newCount : undefined); } catch { onCommentAdded(); }
             }
-        } catch (err) {
-            console.warn('CommentsOverlay: failed to submit comment', err);
+        } catch {
+            console.warn('CommentsOverlay: failed to submit comment');
         } finally {
             setSubmitting(false);
         }
@@ -183,11 +183,11 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                                                                                 } else {
                                                                                     resp = await deleteStartupComment(String(item._id || item.id));
                                                                                 }
-                                                                            } catch (err) {
+                                                                            } catch {
                                                                                 // fallback generic
                                                                                 try {
                                                                                     resp = await deleteComment(String(item._id || item.id));
-                                                                                } catch (e) {
+                                                                                } catch {
                                                                                     throw new Error('delete failed');
                                                                                 }
                                                                             }

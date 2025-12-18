@@ -257,7 +257,7 @@ export async function getAnyUserProfile(userId: string) {
     try {
         const startupProfile = await getStartupProfile(userId);
         if (startupProfile) return startupProfile;
-    } catch (e) {
+    } catch {
         // ignore error and proceed to try as regular user
     }
 

@@ -8,7 +8,7 @@ import { getSettings, updateSettings, changePassword, getProfile, updateProfile,
 import { Picker } from '@react-native-picker/picker';
 import { pick, types } from '@react-native-documents/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ArrowLeft, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 
 const SETTINGS_CACHE_KEY = 'ATMOSPHERE_SETTINGS_CACHE';
 

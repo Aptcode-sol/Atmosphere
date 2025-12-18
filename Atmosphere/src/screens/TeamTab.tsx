@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,7 +22,7 @@ export default function TeamTab() {
     const loadMoreLoaderStyle = useMemo(() => ({ marginVertical: 20 }), []);
     const filterButtonTextStyle = useMemo(() => ({ fontSize: 14, fontWeight: 'bold' as const }), []);
 
-    const loadJobs = async (skipVal = 0) => {
+    const loadJobs = useCallback(async (skipVal = 0) => {
         if (loading && skipVal !== 0) return;
         setLoading(true);
         try {
@@ -39,12 +39,12 @@ export default function TeamTab() {
             }
             setHasMore(data.length >= LIMIT);
             setSkip(skipVal + LIMIT);
-        } catch (e) {
-            console.warn('Jobs load fail', e);
+        } catch {
+            console.warn('Jobs load fail');
         } finally {
             setLoading(false);
         }
-    };
+    }, [loading]);
 
     useEffect(() => {
         (async () => {
@@ -52,7 +52,7 @@ export default function TeamTab() {
             if (cached) setJobs(JSON.parse(cached));
             loadJobs(0);
         })();
-    }, []);
+    }, [loadJobs]);
 
     const onRefresh = async () => {
         setRefreshing(true);

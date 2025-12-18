@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image as RNImage, Alert, Animated, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Image as RNImage, Animated, LayoutAnimation, UIManager, Platform } from 'react-native';
 import Video from 'react-native-video';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ActiveTrade } from '../types';
@@ -34,14 +34,15 @@ export const TradeCard: React.FC<TradeCardProps> = ({
 
     // Animate when isExpanded changes
     useEffect(() => {
-        // Spring animation for smooth natural feel like other apps
-        LayoutAnimation.configureNext(LayoutAnimation.create(
-            250,
-            LayoutAnimation.Types.spring,
-            LayoutAnimation.Properties.scaleY
-        ));
+        // Configure smooth layout animation
+        LayoutAnimation.configureNext({
+            duration: 200,
+            update: { type: LayoutAnimation.Types.easeInEaseOut },
+            create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+            delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+        });
 
-        // Smooth opacity fade with native driver
+        // Smooth opacity fade
         Animated.timing(opacityAnim, {
             toValue: isExpanded ? 1 : 0,
             duration: 200,

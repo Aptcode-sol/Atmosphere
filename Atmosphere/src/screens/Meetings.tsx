@@ -3,7 +3,6 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, Activity
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl } from '../lib/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-/* eslint-disable react-native/no-inline-styles */
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type Meeting = {
@@ -47,14 +46,14 @@ const MeetingCard = ({ meeting, onJoin, joinLabel = 'Join', disabled = false, sh
     return (
         <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
             <View style={styles.cardRow}>
-                <View style={{ flex: 1 }}>
+                <View style={styles.flex1}>
                     <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>{meeting.title || 'Untitled Meeting'}</Text>
                     <Text style={[styles.subtitle, { color: theme.placeholder }]}>
                         by {meeting.host?.displayName || meeting.hostName || meeting.organizer?.displayName || 'Unknown'}
                     </Text>
                     <View style={styles.metaRow}>
                         <Text style={[styles.metaText, { color: theme.placeholder }]}>{getClockLabel()}</Text>
-                        <Text style={[styles.metaText, { color: theme.placeholder, marginLeft: 8 }]}>
+                        <Text style={[styles.metaText, { color: theme.placeholder }, styles.metaTextMargin]}>
                             {typeof meeting.participants === 'number'
                                 ? meeting.participants
                                 : (Array.isArray(meeting.participantsDetail) ? meeting.participantsDetail.length : 0)
@@ -64,10 +63,10 @@ const MeetingCard = ({ meeting, onJoin, joinLabel = 'Join', disabled = false, sh
                 </View>
                 <TouchableOpacity
                     disabled={disabled}
-                    style={[styles.joinBtn, disabled && { backgroundColor: '#999' }]}
+                    style={[styles.joinBtn, disabled && styles.disabledJoinBtn]}
                     onPress={onJoin}
                 >
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>{joinLabel}</Text>
+                    <Text style={styles.whiteBoldText}>{joinLabel}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -88,16 +87,16 @@ function formatAMPM(dateLike: Date | string) {
 }
 
 const NoMeetings = () => (
-    <View style={{ padding: 24, alignItems: 'center' }}>
+    <View style={styles.noMeetingsContainer}>
         <MaterialIcons name="video-library" size={42} color="#999" />
-        <Text style={{ marginTop: 8, color: '#999' }}>No meetings found</Text>
+        <Text style={styles.noMeetingsText}>No meetings found</Text>
     </View>
 );
 
 const TabButton = ({ label, isActive, onPress }: any) => (
-    <TouchableOpacity onPress={onPress} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-        <Text style={{ fontWeight: isActive ? '700' : '500', color: '#fff' }}>{label}</Text>
-        <View style={{ height: 2, backgroundColor: isActive ? '#fff' : 'transparent', marginTop: 6 }} />
+    <TouchableOpacity onPress={onPress} style={styles.tabButton}>
+        <Text style={[styles.tabButtonText, isActive ? styles.tabButtonActiveText : styles.tabButtonInactiveText]}>{label}</Text>
+        <View style={[styles.tabIndicator, { backgroundColor: isActive ? '#fff' : 'transparent' }]} />
     </TouchableOpacity>
 );
 
@@ -118,7 +117,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
     const [_error, _setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchBar, setShowSearchBar] = useState(false);
-    const [userRole, setUserRole] = useState<string>('');
+    const [_userRole, setUserRole] = useState<string>('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [createForm, setCreateForm] = useState({
         title: '',
@@ -372,7 +371,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={styles.headerRow}>
                 <Text style={[styles.headerTitle, { color: theme.text }]}>Meetings</Text>
-                <View style={{ flexDirection: 'row' }}>
+                <View style={styles.row}>
                     <TouchableOpacity onPress={() => setShowSearchBar(s => !s)} style={styles.iconBtn}>
                         <MaterialIcons name="search" size={22} color={theme.text} />
                     </TouchableOpacity>
@@ -401,7 +400,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                 <TabButton label="My meetings" isActive={activeTab === 'my'} onPress={() => setActiveTab('my')} />
             </View>
 
-            <View style={{ flex: 1 }}>
+            <View style={styles.flex1}>
                 {loading ? (
                     <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
                 ) : (
@@ -411,7 +410,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                                 <FlatList
                                     data={publicMeetings}
                                     keyExtractor={(item) => String(item._id || item.id)}
-                                    contentContainerStyle={{ padding: 12 }}
+                                    contentContainerStyle={styles.listPadding}
                                     renderItem={({ item }) => (
                                         <MeetingCard
                                             meeting={item}
@@ -430,7 +429,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                                 <FlatList
                                     data={myMeetingsList}
                                     keyExtractor={(item) => String(item._id || item.id)}
-                                    contentContainerStyle={{ padding: 12 }}
+                                    contentContainerStyle={styles.listPadding}
                                     renderItem={({ item }) => (
                                         <MeetingCard
                                             meeting={item}
@@ -562,6 +561,19 @@ const styles = StyleSheet.create({
     textArea: { height: 80, paddingTop: 10, textAlignVertical: 'top' },
     createBtn: { marginTop: 20, marginBottom: 20, paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
     createBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    flex1: { flex: 1 },
+    metaTextMargin: { marginLeft: 8 },
+    disabledJoinBtn: { backgroundColor: '#999' },
+    whiteBoldText: { color: '#fff', fontWeight: '700' },
+    noMeetingsContainer: { padding: 24, alignItems: 'center' },
+    noMeetingsText: { marginTop: 8, color: '#999' },
+    tabButton: { paddingHorizontal: 12, paddingVertical: 8 },
+    tabButtonText: { color: '#fff' },
+    tabButtonActiveText: { fontWeight: '700' },
+    tabButtonInactiveText: { fontWeight: '500' },
+    tabIndicator: { height: 2, marginTop: 6 },
+    row: { flexDirection: 'row' },
+    listPadding: { padding: 12 },
 });
 
 export default Meetings;

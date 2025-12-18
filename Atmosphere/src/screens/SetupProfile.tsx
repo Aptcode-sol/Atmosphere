@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView,
 import { ThemeContext } from '../contexts/ThemeContext';
 import { updateProfile, getProfile, uploadProfilePicture } from '../lib/api';
 import ImageCropPicker from 'react-native-image-crop-picker';
-import { ArrowLeft, Camera } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
 // InvestorSetup and PersonalSetup are not used in this screen
 import InvestorPortfolioStep from './setup-steps/InvestorPortfolioStep';

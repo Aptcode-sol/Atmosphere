@@ -5,20 +5,22 @@ import { ThemeContext } from '../contexts/ThemeContext';
 import { getImageSource } from '../lib/image';
 import { fetchExplorePosts, searchEntities, searchUsers } from '../lib/api';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 4) / 3; // 3 columns with 2px gaps
 
-type TabType = 'explore' | 'posts' | 'startups' | 'investors' | 'personal';
+type TabType = 'explore' | 'posts' | 'accounts';
 
 type SearchScreenProps = {
     onPostPress?: (postId: string) => void;
+    onUserPress?: (userId: string) => void;
 };
 
 const PAGE_SIZE = 15;
 const EXPLORE_CACHE_KEY = 'ATMOSPHERE_EXPLORE_FEED_CACHE';
 
-const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
+const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress }) => {
     const { theme } = useContext(ThemeContext);
     const [query, setQuery] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('explore');
@@ -39,8 +41,6 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
     const [refreshing, setRefreshing] = useState(false);
 
     const flatListRef = useRef<FlatList>(null);
-
-
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -100,11 +100,16 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                     AsyncStorage.setItem(EXPLORE_CACHE_KEY, JSON.stringify(data)).catch(() => { });
                 }
             } else {
-                setExplorePosts(prev => [...prev, ...data]);
+                // Prevent duplicates
+                setExplorePosts(prev => {
+                    const existingIds = new Set(prev.map(item => item._id || item.id));
+                    const newItems = data.filter((item: any) => !existingIds.has(item._id || item.id));
+                    return [...prev, ...newItems];
+                });
                 setExploreSkip(prev => prev + data.length);
             }
 
-            setExploreHasMore(data.length >= PAGE_SIZE); // Simple check
+            setExploreHasMore(data.length >= PAGE_SIZE);
             setInitialLoadDone(true);
         } catch (err) {
             console.warn('Explore load error', err);
@@ -123,22 +128,11 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
             const skip = reset ? 0 : searchSkip;
             let data: any[] = [];
 
-            // Map tabs to API calls
             if (tab === 'posts') {
                 const res = await searchEntities(text, 'posts', PAGE_SIZE, skip);
                 data = res.posts || [];
-            } else if (tab === 'startups') {
-                // Combine companies and startup users?
-                // For simplified pagination, just fetch companies for now. 
-                // Or fetch both parallel if skip=0? No, messes up pagination cursor.
-                // Let's rely on Backend 'companies' type which usually means Startup Profiles.
-                const res = await searchEntities(text, 'companies', PAGE_SIZE, skip);
-                data = res.companies || [];
-            } else if (tab === 'investors') {
-                data = await searchUsers(text, 'investor', PAGE_SIZE, skip);
-            } else if (tab === 'personal') {
-                // Backend doesn't support 'not role' easily, so we search users and maybe client filter?
-                // Or just search all users.
+            } else if (tab === 'accounts') {
+                // Search all users (accounts)
                 data = await searchUsers(text, undefined, PAGE_SIZE, skip);
             }
 
@@ -146,7 +140,12 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                 setSearchResults(data);
                 setSearchSkip(data.length);
             } else {
-                setSearchResults(prev => [...prev, ...data]);
+                // Prevent duplicates
+                setSearchResults(prev => {
+                    const existingIds = new Set(prev.map(item => item._id || item.id));
+                    const newItems = data.filter((item: any) => !existingIds.has(item._id || item.id));
+                    return [...prev, ...newItems];
+                });
                 setSearchSkip(prev => prev + data.length);
             }
             setSearchHasMore(data.length >= PAGE_SIZE);
@@ -170,9 +169,8 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
 
         // Debounce
         searchTimeout.current = setTimeout(() => {
-            // When query changes, switch to 'posts' if currently 'explore', else keep current tab
-            const targetTab = activeTab === 'explore' ? 'posts' : activeTab;
-            if (activeTab === 'explore') setActiveTab('posts');
+            const targetTab = activeTab === 'explore' ? 'accounts' : activeTab;
+            if (activeTab === 'explore') setActiveTab('accounts');
             setSearchResults([]);
             setSearchSkip(0);
             setSearchHasMore(true);
@@ -190,6 +188,12 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
         }
     };
 
+    const clearSearch = () => {
+        setQuery('');
+        setSearchResults([]);
+        setActiveTab('explore');
+    };
+
     const loadMore = () => {
         if (!query.trim()) {
             loadExplore(false);
@@ -200,6 +204,36 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
 
     const currentData = query.trim() ? searchResults : explorePosts;
     const isGrid = !query.trim() || activeTab === 'posts';
+
+    // Get user role/type label
+    const getUserTypeLabel = (item: any) => {
+        if (item.roles?.includes('investor')) return 'Investor';
+        if (item.roles?.includes('startup')) return 'Startup';
+        if (item.roles?.includes('personal')) return 'Personal';
+        if (item.role === 'investor') return 'Investor';
+        if (item.role === 'startup') return 'Startup';
+        if (item.accountType === 'investor') return 'Investor';
+        if (item.accountType === 'startup') return 'Startup';
+        if (item.companyName || item.company) return 'Startup';
+        return 'User';
+    };
+
+    // Get initials from name
+    const getInitials = (name: string) => {
+        if (!name) return '?';
+        const parts = name.split(' ').filter(Boolean);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return name.charAt(0).toUpperCase();
+    };
+
+    // Get avatar background color based on name
+    const getAvatarColor = (name: string) => {
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'];
+        const index = name ? name.charCodeAt(0) % colors.length : 0;
+        return colors[index];
+    };
 
     const renderItem = ({ item, index: _index }: { item: any, index: number }) => {
         // Posts (Grid)
@@ -226,27 +260,32 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
             );
         }
 
-        // Startups (List)
-        if (activeTab === 'startups') {
-            const displayName = item.name || item.displayName || item.username || item.companyName || 'Startup';
-            return (
-                <View style={[styles.feedItem, { borderBottomColor: theme.border }]}>
-                    <Text style={[styles.feedTitle, { color: theme.text }]}>🏢 {displayName}</Text>
-                    {item.description && (
-                        <Text style={[styles.feedText, { color: theme.placeholder }]} numberOfLines={2}>{item.description}</Text>
-                    )}
-                </View>
-            );
-        }
+        // Accounts (User List)
+        const displayName = item.displayName || item.fullName || item.username || 'User';
+        const avatarUrl = item.avatarUrl || item.avatar || item.profileImage;
+        const typeLabel = getUserTypeLabel(item);
 
-        // Users (List)
         return (
-            <View style={[styles.feedItem, { borderBottomColor: theme.border }]}>
-                <Text style={[styles.feedTitle, { color: theme.text }]}>👤 {item.displayName || item.username}</Text>
-                <Text style={[styles.feedText, { color: theme.placeholder }]}>@{item.username}</Text>
-                {item.bio && <Text style={[styles.feedText, { color: theme.placeholder }]} numberOfLines={2}>{item.bio}</Text>}
-                {item.verified && <Text style={[styles.feedStats, { color: theme.primary }]}>✓ Verified</Text>}
-            </View>
+            <TouchableOpacity
+                style={styles.userItem}
+                activeOpacity={0.7}
+                onPress={() => onUserPress && onUserPress(item._id || item.id)}
+            >
+                {avatarUrl ? (
+                    <Image
+                        source={getImageSource(avatarUrl)}
+                        style={styles.userAvatar}
+                    />
+                ) : (
+                    <View style={[styles.userAvatar, styles.userAvatarPlaceholder, { backgroundColor: getAvatarColor(displayName) }]}>
+                        <Text style={styles.userAvatarInitials}>{getInitials(displayName)}</Text>
+                    </View>
+                )}
+                <View style={styles.userInfo}>
+                    <Text style={[styles.userName, { color: theme.text }]}>{displayName}</Text>
+                    <Text style={[styles.userType, { color: theme.placeholder }]}>{typeLabel}</Text>
+                </View>
+            </TouchableOpacity>
         );
     };
 
@@ -254,32 +293,42 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
         if ((!query.trim() && exploreLoading) || (query.trim() && searchLoading)) {
             return <ActivityIndicator style={styles.loader} color={theme.primary} />;
         }
-        return <View style={{ height: 20 }} />;
+        return <View style={styles.footerSpacer} />;
     };
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
+            {/* Search Bar */}
             <View style={styles.searchBarContainer}>
-                <TextInput
-                    style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                    placeholder="Search posts, startups, people..."
-                    placeholderTextColor={theme.placeholder}
-                    value={query}
-                    onChangeText={handleSearchTextChange}
-                />
+                <View style={[styles.searchBar, { backgroundColor: '#1a1a1a', borderColor: '#333' }]}>
+                    <MaterialIcons name="search" size={22} color="#888" style={styles.searchIcon} />
+                    <TextInput
+                        style={[styles.input, { color: theme.text }]}
+                        placeholder="Search accounts, reels, posts..."
+                        placeholderTextColor="#666"
+                        value={query}
+                        onChangeText={handleSearchTextChange}
+                    />
+                    {query.length > 0 && (
+                        <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                            <MaterialIcons name="close" size={20} color="#888" />
+                        </TouchableOpacity>
+                    )}
+                </View>
             </View>
 
+            {/* Tabs - Only show when searching */}
             {query.trim() !== '' && (
                 <View style={[styles.tabsContainer, { borderBottomColor: theme.border }]}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {(['posts', 'startups', 'investors', 'personal'] as TabType[]).map((tab) => (
+                        {(['accounts', 'posts'] as TabType[]).map((tab) => (
                             <TouchableOpacity
                                 key={tab}
-                                style={[styles.tab, activeTab === tab && { borderBottomColor: theme.primary }]}
+                                style={[styles.tab, activeTab === tab && styles.tabActive]}
                                 onPress={() => handleTabChange(tab)}
                             >
-                                <Text style={[styles.tabText, { color: activeTab === tab ? theme.primary : theme.placeholder }]}>
-                                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                <Text style={[styles.tabText, { color: activeTab === tab ? '#fff' : theme.placeholder }]}>
+                                    {tab === 'accounts' ? 'Accounts' : 'Posts'}
                                 </Text>
                             </TouchableOpacity>
                         ))}
@@ -292,7 +341,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
                 key={isGrid ? 'grid' : 'list'}
                 data={currentData}
                 numColumns={isGrid ? 3 : 1}
-                keyExtractor={(item, _idx) => (item._id || item.id || String(_idx))}
+                keyExtractor={(item, idx) => (item._id || item.id || String(idx))}
                 renderItem={renderItem}
                 onEndReached={loadMore}
                 onEndReachedThreshold={0.5}
@@ -322,21 +371,76 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress }) => {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     searchBarContainer: { padding: 12, paddingTop: 8 },
-    input: { borderWidth: 1, borderRadius: 24, padding: 12, fontSize: 16, paddingHorizontal: 16 },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderRadius: 24,
+        paddingHorizontal: 12,
+        height: 48,
+    },
+    searchIcon: { marginRight: 8 },
+    input: { flex: 1, fontSize: 16, paddingVertical: 0 },
+    clearButton: { padding: 4 },
     tabsContainer: { borderBottomWidth: 1, paddingHorizontal: 0 },
-    tab: { paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent', minWidth: 80, alignItems: 'center' },
-    tabText: { fontSize: 13, fontWeight: '500' },
+    tab: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    tabActive: { borderBottomColor: '#fff' },
+    tabText: { fontSize: 14, fontWeight: '600' },
     loader: { margin: 20 },
+    footerSpacer: { height: 20 },
     gridContent: { paddingHorizontal: 1 },
-    gridItem: { width: ITEM_SIZE, height: ITEM_SIZE, margin: 1, borderRadius: 4, overflow: 'hidden', backgroundColor: '#e0e0e0', position: 'relative' },
-    gridImage: { width: '100%', height: '100%', backgroundColor: '#f0f0f0' },
-    reelBadge: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-    reelIcon: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-    listContent: { paddingHorizontal: 8, paddingTop: 8 },
-    feedItem: { padding: 12, borderBottomWidth: 1, marginBottom: 4, marginHorizontal: 4, borderRadius: 8 },
-    feedTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-    feedText: { fontSize: 14, lineHeight: 20, marginBottom: 8 },
-    feedStats: { fontSize: 12, fontWeight: '500' },
+    gridItem: {
+        width: ITEM_SIZE,
+        height: ITEM_SIZE,
+        margin: 1,
+        borderRadius: 4,
+        overflow: 'hidden',
+        backgroundColor: '#1a1a1a',
+        position: 'relative',
+    },
+    gridImage: { width: '100%', height: '100%', backgroundColor: '#1a1a1a' },
+    reelBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        borderRadius: 4,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    reelIcon: { color: '#fff', fontSize: 12 },
+    listContent: { paddingHorizontal: 0, paddingTop: 8 },
+    userItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+    },
+    userAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#333',
+    },
+    userAvatarPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    userAvatarInitials: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    userInfo: { marginLeft: 12, flex: 1 },
+    userName: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+    userType: { fontSize: 13, opacity: 0.8 },
     emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 80 },
     emptyText: { fontSize: 14 },
 });

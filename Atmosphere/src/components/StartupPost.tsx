@@ -1,4 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useContext } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -10,7 +9,7 @@ import { Alert } from 'react-native';
 import CommentsOverlay from './CommentsOverlay';
 import { crownStartup, uncrownStartup } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Heart, Crown, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react-native';
+import { Heart, Crown, MessageCircle, Send, Bookmark } from 'lucide-react-native';
 import VerifiedBadge from './VerifiedBadge';
 
 type StartupCard = {
@@ -184,7 +183,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     };
 
     return (
-        <View style={[styles.card, { backgroundColor: '#070707', borderColor: '#0b0b0b' }]}>
+        <View style={[styles.card, styles.cardBackground]}>
             <View style={styles.headerTop}>
                 <TouchableOpacity style={styles.headerLeftRow} activeOpacity={0.8} onPress={() => {
                     try {
@@ -216,8 +215,8 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                 }}>
                     <Image source={getImageSource(companyData.profileImage)} style={styles.avatar} onError={(e) => { console.warn('StartupPost avatar error', e.nativeEvent, companyData.profileImage); }} />
                     <View style={styles.headerLeft}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={[styles.companyName, { color: '#fff' }]}>{companyData.name}</Text>
+                        <View style={styles.rowCenter}>
+                            <Text style={[styles.companyName, styles.whiteText]}>{companyData.name}</Text>
                             {companyData.verified && <VerifiedBadge size={14} />}
                         </View>
                     </View>
@@ -320,7 +319,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                     </TouchableOpacity>
 
                     {/* Spacer */}
-                    <View style={{ flex: 1 }} />
+                    <View style={styles.flex1} />
 
                     {/* Bookmark */}
                     <TouchableOpacity onPress={toggleSave}>
@@ -476,6 +475,20 @@ const styles = StyleSheet.create({
     menuButton: {
         padding: 4,
         marginLeft: 8,
+    },
+    cardBackground: {
+        backgroundColor: '#070707',
+        borderColor: '#0b0b0b',
+    },
+    rowCenter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    whiteText: {
+        color: '#fff',
+    },
+    flex1: {
+        flex: 1,
     },
 });
 

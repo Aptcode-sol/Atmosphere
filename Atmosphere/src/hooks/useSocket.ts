@@ -85,10 +85,12 @@ export const useSocket = (options: UseSocketOptions = { autoConnect: true }) => 
             connect();
         }
 
+        // capture current typingTimeouts map to avoid ref changes during cleanup
+        const timeoutsMap = typingTimeouts.current;
         return () => {
             // Clean up typing timeouts
-            typingTimeouts.current.forEach(timeout => clearTimeout(timeout));
-            typingTimeouts.current.clear();
+            timeoutsMap.forEach(timeout => clearTimeout(timeout));
+            timeoutsMap.clear();
             disconnect();
         };
     }, [options.autoConnect, connect, disconnect]);

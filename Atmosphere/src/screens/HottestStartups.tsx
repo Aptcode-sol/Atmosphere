@@ -6,7 +6,7 @@ import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
-import TopNavbar from '../components/TopNavbar';
+// import TopNavbar from '../components/TopNavbar';
 
 const { width } = Dimensions.get('window');
 
@@ -73,14 +73,14 @@ const HottestStartups = () => {
             <View style={styles.podiumWrap}>
                 {/* 2nd */}
                 <View style={[styles.podiumItem, styles.podiumSecond]}>
-                    <View style={[styles.medal, { backgroundColor: second?.color || '#9CA3AF', borderWidth: 3, borderColor: '#C0C0C0' }]}>
+                    <View style={[styles.medal, { backgroundColor: second?.color || '#9CA3AF' }, styles.medalSilver]}>
                         {avatarOf(second) ? (
                             <Image source={{ uri: avatarOf(second) }} style={styles.podiumImage} />
                         ) : (
                             <Text style={styles.medalText}>{initialsOf(second)}</Text>
                         )}
                     </View>
-                    <View style={[styles.podiumBase, { backgroundColor: '#E5E7EB' }]}>
+                    <View style={[styles.podiumBase, styles.silverPodiumBase]}>
                         <Text style={styles.podiumRank}>2</Text>
                     </View>
                     <View style={styles.podiumLabel}>
@@ -101,14 +101,14 @@ const HottestStartups = () => {
 
                 {/* 1st */}
                 <View style={styles.podiumItemCenter}>
-                    <View style={[styles.champion, { backgroundColor: first?.color || '#F59E0B', borderColor: '#FBBF24', borderWidth: 4 }]}>
+                    <View style={[styles.champion, { backgroundColor: first?.color || '#F59E0B' }, styles.championGold]}>
                         {avatarOf(first) ? (
                             <Image source={{ uri: avatarOf(first) }} style={styles.championImage} />
                         ) : (
                             <Text style={styles.championText}>{initialsOf(first)}</Text>
                         )}
                     </View>
-                    <View style={[styles.podiumBaseCenter, { backgroundColor: '#FDE68A' }]}>
+                    <View style={[styles.podiumBaseCenter, styles.goldPodiumBase]}>
                         <Text style={styles.podiumRankCenter}>1</Text>
                     </View>
                     <View style={styles.podiumLabelCenter}>
@@ -129,14 +129,14 @@ const HottestStartups = () => {
 
                 {/* 3rd */}
                 <View style={[styles.podiumItem, styles.podiumThird]}>
-                    <View style={[styles.medal, { backgroundColor: third?.color || '#FB923C', borderWidth: 3, borderColor: '#CD7F32' }]}>
+                    <View style={[styles.medal, { backgroundColor: third?.color || '#FB923C' }, styles.medalBronze]}>
                         {avatarOf(third) ? (
                             <Image source={{ uri: avatarOf(third) }} style={styles.podiumImage} />
                         ) : (
                             <Text style={styles.medalText}>{initialsOf(third)}</Text>
                         )}
                     </View>
-                    <View style={[styles.podiumBase, { backgroundColor: '#FED7AA' }]}>
+                    <View style={[styles.podiumBase, styles.bronzePodiumBase]}>
                         <Text style={styles.podiumRank}>3</Text>
                     </View>
                     <View style={styles.podiumLabel}>
@@ -224,7 +224,7 @@ const Separator = () => <View style={styles.separator} />;
 const Header = ({ theme, renderPodium }: { theme: any; renderPodium: () => JSX.Element | null; }) => () => (
     <>
         <View style={styles.headerCenter}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <View style={styles.headerHeadingRow}>
                 <Flame size={24} color="#F59E0B" fill="#F59E0B" />
                 <Text style={[styles.heading, { color: theme?.text, marginTop: 0 }]}>Hottest Startups This Week</Text>
             </View>
@@ -280,6 +280,13 @@ const styles = StyleSheet.create({
     loadingWrap: { justifyContent: 'center', alignItems: 'center' },
     headerSpacer: { height: 25 },
     flatList: { flex: 1 },
+    silverPodiumBase: { backgroundColor: '#E5E7EB' },
+    goldPodiumBase: { backgroundColor: '#FDE68A' },
+    bronzePodiumBase: { backgroundColor: '#FED7AA' },
+    medalSilver: { borderWidth: 3, borderColor: '#C0C0C0' },
+    medalBronze: { borderWidth: 3, borderColor: '#CD7F32' },
+    championGold: { borderColor: '#FBBF24', borderWidth: 4 },
+    headerHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
 });
 
 export default HottestStartups;

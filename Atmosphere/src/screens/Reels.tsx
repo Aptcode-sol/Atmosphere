@@ -184,7 +184,7 @@ const Reels = () => {
 
     const renderReel = ({ item, index }: { item: ReelItem; index: number }) => {
         const isActive = index === currentIndex;
-        const displayName = item.author?.displayName || item.author?.username || 'User';
+        // author display name resolved inline where needed
 
         return (
             <View style={styles.reelContainer}>

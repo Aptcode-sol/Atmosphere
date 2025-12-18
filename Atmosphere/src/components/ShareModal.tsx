@@ -56,7 +56,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
     const [submitting, setSubmitting] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState('');
-    const [myId, setMyId] = useState<string | null>(null);
+    // current user id is not used here; omit state to avoid lint warnings
 
     useEffect(() => {
         let mounted = true;
@@ -67,15 +67,14 @@ const ShareModal: React.FC<ShareModalProps> = ({
                 const profile = await getProfile();
                 const id = profile?.user?._id || profile?.user?.id || profile?.id || null;
                 if (mounted && id) {
-                    setMyId(String(id));
                     const list = await getFollowersList(String(id));
                     if (mounted) {
                         setFollowers(list || []);
                         setFilteredFollowers(list || []);
                     }
                 }
-            } catch (err) {
-                console.warn('ShareModal: failed to load followers', err);
+            } catch {
+                console.warn('ShareModal: failed to load followers');
                 if (mounted) setFollowers([]);
             } finally {
                 if (mounted) setLoading(false);

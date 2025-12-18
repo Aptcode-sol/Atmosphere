@@ -57,13 +57,14 @@ const ChatList: React.FC<ChatListProps> = ({ chats, currentUserId, onChatPress, 
                     )}
                 </View>
                 <View style={styles.chatInfo}>
-                    <Text style={[
-                        styles.chatName,
-                        {
-                            color: theme.text,
-                            fontWeight: hasUnread ? '700' : '600'
-                        }
-                    ]} numberOfLines={1}>
+                    <Text
+                        style={[
+                            styles.chatName,
+                            { color: theme.text },
+                            hasUnread ? styles.unreadWeight : styles.readWeight
+                        ]}
+                        numberOfLines={1}
+                    >
                         {name}
                     </Text>
                     <Text style={[styles.lastMessage, { color: theme.placeholder }]} numberOfLines={1}>
@@ -128,9 +129,10 @@ const styles = StyleSheet.create({
     chatInfo: { flex: 1, justifyContent: 'center' },
     chatName: {
         fontSize: 15,
-        fontWeight: '600',
         marginBottom: 4
     },
+    readWeight: { fontWeight: '600' },
+    unreadWeight: { fontWeight: '700' },
     lastMessage: {
         fontSize: 13,
         marginTop: 0,

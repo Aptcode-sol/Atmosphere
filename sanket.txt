@@ -1,2 +1,0 @@
-1. Settings page
-2. Files in setup for s3

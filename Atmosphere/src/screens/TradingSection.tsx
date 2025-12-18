@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, fetchInvestors, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades } from '../lib/api';
+import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Video from 'react-native-video';
-import ThemedRefreshControl from '../components/ThemedRefreshControl';
 
 // Import modular files
 import { categories, Investment, InvestorPortfolio } from './Trading/types';
@@ -68,14 +67,9 @@ const Trading = () => {
     const centeredLoaderStyle = useMemo(() => ({ flex: 1, alignItems: 'center', justifyContent: 'center' }), []);
     const flexOneStyle = useMemo(() => ({ flex: 1 }), []);
     const rowCenterStyle = useMemo(() => ({ flexDirection: 'row', alignItems: 'center' }), []);
-    const rowCenterGap8 = useMemo(() => ({ flexDirection: 'row', alignItems: 'center', gap: 8 }), []);
-    const rightButtonsRow = useMemo(() => ({ flexDirection: 'row', gap: 8 }), []);
-    const previewImageFull = useMemo(() => ({ width: '100%', height: '100%' }), []);
-    const fullWidthCard = useMemo(() => ({ width: '100%' }), []);
-    const statLabelBlue = useMemo(() => ({ color: '#1a73e8' }), []);
-    const statValueBlue = useMemo(() => ({ color: '#1a73e8' }), []);
+    // Removed unused memoized styles to reduce lint noise
     const footerLoaderStyle = useMemo(() => ({ margin: 20 }), []);
-    const videoPlayerTextStyle = useMemo(() => ({ color: '#fff', textAlign: 'center' }), []);
+    // Removed unused memoized video player style
     const activeTradesTopStyle = useMemo(() => ({ marginTop: 24 }), []);
     const pagerPageWidth = useMemo(() => ({ width: screenW }), []);
     const headerPadding = 16; // Matches headerContainer paddingHorizontal
@@ -109,10 +103,10 @@ const Trading = () => {
     const [companyType] = useState<string[]>([]);
     const [videoUri, setVideoUri] = useState<string>('');
     const [imageUris, setImageUris] = useState<string[]>([]);
-    const [videoS3Url, setVideoS3Url] = useState<string>('');
-    const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string>('');
-    const [imageS3Urls, setImageS3Urls] = useState<string[]>([]);
-    const [uploading, setUploading] = useState<boolean>(false);
+    const [_videoS3Url, _setVideoS3Url] = useState<string>('');
+    const [_videoThumbnailUrl, _setVideoThumbnailUrl] = useState<string>('');
+    const [_imageS3Urls, _setImageS3Urls] = useState<string[]>([]);
+    const [_uploading, _setUploading] = useState<boolean>(false);
     const [externalLinkHeading, setExternalLinkHeading] = useState<string>('');
     const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
     const [selectedCompanyName, setSelectedCompanyName] = useState<string>('');
@@ -148,13 +142,14 @@ const Trading = () => {
         }).start();
     };
 
-    // Filter container animated style - full height for all filters
+    // Filter container animated style
     const filterContainerStyle = {
         maxHeight: filterAnimValue.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, 500], // full height for all filters
+            outputRange: [0, 200], // enough height for filters
         }),
         opacity: filterAnimValue,
+        overflow: 'hidden' as const,
     };
 
     // BUY TAB Pagination State
@@ -351,12 +346,13 @@ const Trading = () => {
     };
 
     const togglePortfolio = (cardKey: string) => {
-        // Spring animation for smooth natural feel like other apps
-        LayoutAnimation.configureNext(LayoutAnimation.create(
-            250,
-            LayoutAnimation.Types.spring,
-            LayoutAnimation.Properties.scaleY
-        ));
+        // Custom smooth animation config
+        LayoutAnimation.configureNext({
+            duration: 200,
+            update: { type: LayoutAnimation.Types.easeInEaseOut },
+            create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+            delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+        });
         setExpandedPortfolios(prev => {
             const newSet = new Set(prev);
             if (newSet.has(cardKey)) {
@@ -656,10 +652,12 @@ const Trading = () => {
                 style={flexOneStyle}
                 contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
                 refreshControl={
-                    <ThemedRefreshControl
+                    <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        progressViewOffset={0}
+                        tintColor="#1a73e8"
+                        title="Release to refresh"
+                        titleColor="#888"
                     />
                 }
             >
@@ -758,12 +756,13 @@ const Trading = () => {
                                         activeOpacity={0.9}
                                         style={[styles.collapsedCardRow, isExpanded && styles.expandedCardHeader]}
                                         onPress={() => {
-                                            // Spring animation for smooth natural feel
-                                            LayoutAnimation.configureNext(LayoutAnimation.create(
-                                                250,
-                                                LayoutAnimation.Types.spring,
-                                                LayoutAnimation.Properties.scaleY
-                                            ));
+                                            // Custom smooth animation config
+                                            LayoutAnimation.configureNext({
+                                                duration: 200,
+                                                update: { type: LayoutAnimation.Types.easeInEaseOut },
+                                                create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                                                delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                                            });
                                             setExpandedTradeId(isExpanded ? null : (tradeId as string | number));
                                             setEditingTradeId(null);
                                         }}
@@ -1010,8 +1009,8 @@ const Trading = () => {
                     />
                 </TouchableOpacity>
 
-                {/* Filter Categories - Below filter button */}
-                <Animated.View style={[filterContainerStyle, { overflow: 'hidden' }]}>
+                {/* Category Filters - Animated container */}
+                <Animated.View style={filterContainerStyle}>
                     <View style={styles.categoriesContainer}>
                         {categories.map(category => (
                             <TouchableOpacity
@@ -1032,7 +1031,6 @@ const Trading = () => {
                         ))}
                     </View>
                 </Animated.View>
-
                 {/* Suggested for you heading */}
                 <Text style={styles.suggestedHeading}>Suggested for you</Text>
                 {/* Inline loading indicator for filter changes (after first load) */}
@@ -1056,6 +1054,7 @@ const Trading = () => {
         return (
             <FlatList
                 data={data}
+
                 keyExtractor={(item, index) => `${String(item._id || item.id)}_${index}`}
                 contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
                 renderItem={({ item }) => {
@@ -1083,10 +1082,12 @@ const Trading = () => {
                 onEndReachedThreshold={0.5}
                 ListFooterComponent={() => buyLoading && data.length > 0 ? <ActivityIndicator size="small" color="#1a73e8" style={footerLoaderStyle} /> : null}
                 refreshControl={
-                    <ThemedRefreshControl
+                    <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        progressViewOffset={0}
+                        tintColor="#1a73e8"
+                        title="Release to refresh"
+                        titleColor="#888"
                     />
                 }
             />
