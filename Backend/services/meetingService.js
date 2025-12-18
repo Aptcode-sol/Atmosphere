@@ -1,12 +1,31 @@
 const { Meeting, Notification } = require('../models');
+const { generateChannelName } = require('./agoraService');
 
 exports.createMeeting = async (req, res, next) => {
     try {
         const { title, description, scheduledAt, duration, meetingLink, location, participants, type } = req.body;
         if (!title || !scheduledAt) return res.status(400).json({ error: 'Title and scheduledAt are required' });
 
-        const meeting = new Meeting({ organizer: req.user._id, title, description, scheduledAt, duration: duration || 60, meetingLink, location, participants: participants || [], type: type || 'one-on-one' });
+        // Create meeting first to get the ID
+        const meeting = new Meeting({
+            organizer: req.user._id,
+            title,
+            description,
+            scheduledAt,
+            duration: duration || 60,
+            meetingLink: meetingLink || '', // Will be set after save if empty
+            location,
+            participants: participants || [],
+            type: type || 'one-on-one'
+        });
         await meeting.save();
+
+        // Generate Agora channel name if meetingLink not provided
+        if (!meetingLink) {
+            meeting.meetingLink = generateChannelName(meeting._id.toString());
+            await meeting.save();
+        }
+
         await meeting.populate('organizer', 'username displayName avatarUrl verified');
         await meeting.populate('participants.userId', 'username displayName avatarUrl verified');
 
@@ -164,7 +183,40 @@ exports.addParticipant = async (req, res, next) => {
         const notification = new Notification({ user: notifyUser, actor: req.user._id, type: isSelf ? 'meeting_joined' : 'meeting_invite', payload: { meetingId: meeting._id, title: meeting.title, scheduledAt: meeting.scheduledAt } });
         await notification.save();
 
+
         res.json({ message: 'Participant added successfully' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+exports.getAgoraToken = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { uid } = req.query;
+        const meeting = await Meeting.findById(id);
+        if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+
+        const isOrganizer = meeting.organizer.toString() === req.user._id.toString();
+        const isParticipant = meeting.participants.some(p => p.userId.toString() === req.user._id.toString());
+        if (!isOrganizer && !isParticipant) return res.status(403).json({ error: 'Access denied' });
+
+        const { generateAgoraToken } = require('./agoraService');
+        const channelName = meeting.meetingLink;
+
+        if (!channelName) {
+            return res.status(400).json({ error: 'Meeting does not have a valid channel' });
+        }
+
+        const agoraUid = uid ? parseInt(uid) : 0;
+        const token = generateAgoraToken(channelName, agoraUid, 'publisher', 3600);
+
+        res.json({
+            token,
+            channelName,
+            appId: process.env.AGORA_APP_ID,
+            uid: agoraUid
+        });
     } catch (err) {
         next(err);
     }
