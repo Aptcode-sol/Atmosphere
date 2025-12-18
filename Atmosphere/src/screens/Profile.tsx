@@ -12,6 +12,7 @@ import SettingsOverlay from './profile/SettingsOverlay';
 import styles from './profile/Profile.styles';
 import { NavigationRouteContext } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const mockData = (() => {
     const userName = 'Airbound';
@@ -56,6 +57,7 @@ const normalizeProfile = (profileData: any) => {
                 teamSize: details.teamMembers?.length || 0,
                 fundingRaised: details.fundingRaised || details.financialProfile?.fundingAmount || 0
             },
+            verified: user.verified || details.verified || false,
             profileSetupComplete: user.profileSetupComplete,
             onboardingStep: user.onboardingStep,
         };
@@ -79,6 +81,7 @@ const normalizeProfile = (profileData: any) => {
                 teamSize: 0,
                 fundingRaised: 0
             },
+            verified: user.verified || false,
             profileSetupComplete: user.profileSetupComplete,
             onboardingStep: user.onboardingStep,
         };
@@ -100,6 +103,7 @@ const normalizeProfile = (profileData: any) => {
             teamSize: 0,
             fundingRaised: 0
         },
+        verified: user.verified || false,
         profileSetupComplete: user.profileSetupComplete,
         onboardingStep: user.onboardingStep,
     };
@@ -421,7 +425,10 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                                 )}
                             </View>
                             <View style={{ flex: 1, justifyContent: 'center', marginLeft: 12 }}>
-                                <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700', marginBottom: 8 }}>{src?.name}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                    <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>{src?.name}</Text>
+                                    {src?.verified && <VerifiedBadge size={18} />}
+                                </View>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingRight: 16 }}>
                                     <View style={styles.statCol}>
                                         <Text style={[styles.statNum, { color: theme.text }]}>{posts.length}</Text>

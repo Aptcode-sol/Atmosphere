@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Gift, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, Gift } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import Table, { TableHead, TableBody, TableRow, TableHeader, TableCell } from '../components/ui/Table';
@@ -10,8 +10,10 @@ import './Grants.css';
 const Grants = () => {
     const [grants, setGrants] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingGrant, setEditingGrant] = useState(null);
+    const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         organization: '',
@@ -29,16 +31,14 @@ const Grants = () => {
     }, []);
 
     const loadGrants = async () => {
+        setLoading(true);
+        setError('');
         try {
             const response = await getGrants();
-            setGrants(response.data || []);
-        } catch (error) {
-            // Mock data for demo
-            setGrants([
-                { _id: '1', name: 'Startup India Seed Fund', organization: 'Govt of India', amount: '₹50L', deadline: '2025-01-15', type: 'grant' },
-                { _id: '2', name: 'Y Combinator W25', organization: 'YC', amount: '$500K', deadline: '2025-02-01', type: 'accelerator' },
-                { _id: '3', name: 'T-Hub Incubation', organization: 'T-Hub', amount: '₹25L', deadline: '2025-01-30', type: 'incubator' },
-            ]);
+            setGrants(response.data?.grants || response.data || []);
+        } catch (err) {
+            console.error('Failed to load grants:', err);
+            setError(err.response?.data?.error || 'Failed to load grants');
         } finally {
             setLoading(false);
         }
@@ -46,6 +46,9 @@ const Grants = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setSaving(true);
+        setError('');
+
         try {
             if (editingGrant) {
                 await updateGrant(editingGrant._id, formData);
@@ -54,14 +57,27 @@ const Grants = () => {
             }
             loadGrants();
             closeModal();
-        } catch (error) {
-            console.error('Failed to save grant:', error);
+        } catch (err) {
+            console.error('Failed to save grant:', err);
+            setError(err.response?.data?.error || 'Failed to save grant');
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleEdit = (grant) => {
         setEditingGrant(grant);
-        setFormData(grant);
+        setFormData({
+            name: grant.name || '',
+            organization: grant.organization || '',
+            sector: grant.sector || '',
+            location: grant.location || '',
+            amount: grant.amount || '',
+            deadline: grant.deadline?.split('T')[0] || '',
+            type: grant.type || 'grant',
+            description: grant.description || '',
+            url: grant.url || '',
+        });
         setShowModal(true);
     };
 
@@ -70,8 +86,9 @@ const Grants = () => {
             try {
                 await deleteGrant(id);
                 setGrants(grants.filter(g => g._id !== id));
-            } catch (error) {
-                console.error('Failed to delete grant:', error);
+            } catch (err) {
+                console.error('Failed to delete grant:', err);
+                setError(err.response?.data?.error || 'Failed to delete grant');
             }
         }
     };
@@ -90,10 +107,12 @@ const Grants = () => {
             <Header title="Grants & Programs" />
 
             <div className="page-content">
+                {error && <div className="error-banner">{error}</div>}
+
                 <Card>
                     <CardHeader>
                         <div className="card-header-row">
-                            <CardTitle>All Grants</CardTitle>
+                            <CardTitle>All Grants ({grants.length})</CardTitle>
                             <Button onClick={() => setShowModal(true)}>
                                 <Plus size={18} />
                                 Add Grant
@@ -103,6 +122,12 @@ const Grants = () => {
                     <CardContent>
                         {loading ? (
                             <div className="loading">Loading...</div>
+                        ) : grants.length === 0 ? (
+                            <div className="empty-state">
+                                <Gift size={48} />
+                                <h3>No grants yet</h3>
+                                <p>Click "Add Grant" to create one</p>
+                            </div>
                         ) : (
                             <Table>
                                 <TableHead>
@@ -236,7 +261,9 @@ const Grants = () => {
                             </div>
                             <div className="modal-actions">
                                 <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                                <Button type="submit">{editingGrant ? 'Update' : 'Create'}</Button>
+                                <Button type="submit" disabled={saving}>
+                                    {saving ? 'Saving...' : (editingGrant ? 'Update' : 'Create')}
+                                </Button>
                             </div>
                         </form>
                     </div>

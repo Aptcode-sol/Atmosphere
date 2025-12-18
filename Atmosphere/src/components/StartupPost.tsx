@@ -11,6 +11,7 @@ import CommentsOverlay from './CommentsOverlay';
 import { crownStartup, uncrownStartup } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Heart, Crown, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react-native';
+import VerifiedBadge from './VerifiedBadge';
 
 type StartupCard = {
     id: string;
@@ -215,8 +216,10 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                 }}>
                     <Image source={getImageSource(companyData.profileImage)} style={styles.avatar} onError={(e) => { console.warn('StartupPost avatar error', e.nativeEvent, companyData.profileImage); }} />
                     <View style={styles.headerLeft}>
-                        <Text style={[styles.companyName, { color: '#fff' }]}>{companyData.name}</Text>
-                        {companyData.verified && <Text style={styles.verifiedSmall}>Verified startup</Text>}
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={[styles.companyName, { color: '#fff' }]}>{companyData.name}</Text>
+                            {companyData.verified && <VerifiedBadge size={14} />}
+                        </View>
                     </View>
                 </TouchableOpacity>
                 {((companyData as any).userId || (companyData as any).user || companyData.id) !== String(currentUserId) && (

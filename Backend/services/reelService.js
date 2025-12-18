@@ -2,12 +2,13 @@ const Reel = require('../models/Reel');
 const ReelLike = require('../models/ReelLike');
 const ReelComment = require('../models/ReelComment');
 const ReelShare = require('../models/ReelShare');
+const { User } = require('../models');
 
 // Create a new reel
 exports.createReel = async (req, res) => {
     try {
         const { videoUrl, thumbnailUrl, caption, tags, duration } = req.body;
-        
+
         if (!videoUrl) {
             return res.status(400).json({ error: 'Video URL is required' });
         }
@@ -33,23 +34,32 @@ exports.createReel = async (req, res) => {
 exports.getReelsFeed = async (req, res) => {
     try {
         const { limit = 20, skip = 0 } = req.query;
-        
-        const reels = await Reel.find({ visibility: 'public' })
+
+        // Get blocked user IDs
+        const blockedUsers = await User.find({ blocked: true }).select('_id').lean();
+        const blockedIds = blockedUsers.map(u => u._id);
+
+        const filter = { visibility: 'public' };
+        if (blockedIds.length > 0) {
+            filter.author = { $nin: blockedIds };
+        }
+
+        const reels = await Reel.find(filter)
             .sort({ createdAt: -1 })
             .skip(parseInt(skip))
             .limit(parseInt(limit))
-            .populate('author', 'username displayName avatarUrl')
+            .populate('author', 'username displayName avatarUrl verified')
             .lean();
-        
+
         // Add user interaction status if authenticated
         if (req.user) {
             const reelIds = reels.map(r => r._id);
-            const likes = await ReelLike.find({ 
-                reel: { $in: reelIds }, 
-                user: req.user.id 
+            const likes = await ReelLike.find({
+                reel: { $in: reelIds },
+                user: req.user.id
             }).lean();
             const likedMap = new Set(likes.map(l => l.reel.toString()));
-            
+
             reels.forEach(reel => {
                 reel.isLiked = likedMap.has(reel._id.toString());
             });
@@ -86,7 +96,7 @@ exports.getUserReels = async (req, res) => {
 exports.getReel = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const reel = await Reel.findById(id)
             .populate('author', 'username displayName avatarUrl')
             .lean();
@@ -230,7 +240,7 @@ exports.getComments = async (req, res) => {
 exports.deleteComment = async (req, res) => {
     try {
         const { commentId } = req.params;
-        
+
         const comment = await ReelComment.findById(commentId);
         if (!comment) {
             return res.status(404).json({ error: 'Comment not found' });
@@ -263,7 +273,7 @@ exports.shareReel = async (req, res) => {
             existing.sharedWith = [...new Set([...existing.sharedWith.map(id => id.toString()), ...(followerIds || [])])];
             await existing.save();
             const reel = await Reel.findById(id);
-            return res.json({ 
+            return res.json({
                 message: 'Share updated',
                 shareId: existing._id,
                 sharesCount: reel?.sharesCount || 0,
@@ -282,7 +292,7 @@ exports.shareReel = async (req, res) => {
         await Reel.findByIdAndUpdate(id, { $inc: { sharesCount: 1 } });
         const reel = await Reel.findById(id);
 
-        res.status(201).json({ 
+        res.status(201).json({
             share,
             sharesCount: reel?.sharesCount || 1
         });
@@ -318,7 +328,7 @@ exports.checkReelShared = async (req, res) => {
     try {
         const { id } = req.params;
         const share = await ReelShare.findOne({ reel: id, user: req.user.id });
-        res.json({ 
+        res.json({
             shared: !!share,
             shareId: share?._id || null,
             sharedWith: share?.sharedWith || []

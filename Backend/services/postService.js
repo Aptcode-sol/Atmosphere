@@ -10,6 +10,7 @@ exports.sharePost = async (req, res, next) => {
 };
 const { Post } = require('../models');
 const Like = require('../models/Like');
+const { User } = require('../models');
 
 exports.createPost = async (req, res, next) => {
     try {
@@ -24,9 +25,16 @@ exports.createPost = async (req, res, next) => {
 exports.listPosts = async (req, res, next) => {
     try {
         const { limit = 20, skip = 0, userId, tag } = req.query;
+
+        // Get blocked user IDs
+        const blockedUsers = await User.find({ blocked: true }).select('_id').lean();
+        const blockedIds = blockedUsers.map(u => u._id);
+
         const filter = { visibility: 'public' };
         if (userId) filter.author = userId;
         if (tag) filter.tags = tag;
+        if (blockedIds.length > 0) filter.author = { ...filter.author, $nin: blockedIds };
+
         const posts = await Post.find(filter).populate('author', 'username displayName avatarUrl verified').sort({ createdAt: -1 }).limit(parseInt(limit)).skip(parseInt(skip));
         res.json({ posts, count: posts.length });
     } catch (err) { next(err); }

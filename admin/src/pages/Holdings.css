@@ -71,3 +71,47 @@
     font-size: 12px;
     font-weight: 500;
 }
+
+.investor-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.investor-name {
+    font-weight: 500;
+}
+
+.investor-email {
+    font-size: 12px;
+    color: #666;
+}
+
+.documents-cell {
+    display: flex;
+    gap: 4px;
+}
+
+.no-docs {
+    color: #666;
+    font-size: 12px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 40px !important;
+    color: #666;
+}
+
+.empty-state svg {
+    color: #10b981;
+    margin-bottom: 16px;
+}
+
+.empty-state h3 {
+    color: #fff;
+    margin: 0 0 8px 0;
+}
+
+.empty-state p {
+    margin: 0;
+}

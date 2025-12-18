@@ -16,6 +16,7 @@ import VideoPlayer from 'react-native-video';
 import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const { width, height } = Dimensions.get('window');
 const ITEM_HEIGHT = height - BOTTOM_NAV_HEIGHT;
@@ -30,6 +31,7 @@ interface ReelItem {
         username: string;
         displayName?: string;
         avatarUrl?: string;
+        verified?: boolean;
     };
     likesCount: number;
     commentsCount: number;
@@ -207,7 +209,10 @@ const Reels = () => {
                 {/* Overlay Content */}
                 <View style={styles.overlay}>
                     <View style={styles.info}>
-                        <Text style={styles.username}>@{item.author.username}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.username}>@{item.author.username}</Text>
+                            {item.author.verified && <VerifiedBadge size={14} />}
+                        </View>
                         {item.caption && (
                             <Text style={styles.caption} numberOfLines={2}>
                                 {item.caption}

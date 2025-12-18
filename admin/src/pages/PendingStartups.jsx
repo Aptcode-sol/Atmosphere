@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, ExternalLink, Building2 } from 'lucide-react';
+import { CheckCircle, XCircle, ExternalLink, Building2, FileText } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import Table, { TableHead, TableBody, TableRow, TableHeader, TableCell } from '../components/ui/Table';
@@ -10,42 +10,21 @@ import './PendingStartups.css';
 const PendingStartups = () => {
     const [startups, setStartups] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         loadStartups();
     }, []);
 
     const loadStartups = async () => {
+        setLoading(true);
+        setError('');
         try {
-            // Mock data until backend is ready
-            setStartups([
-                {
-                    _id: '1',
-                    companyName: 'TechFlow Inc',
-                    email: 'contact@techflow.com',
-                    industry: 'SaaS',
-                    stage: 'Seed',
-                    createdAt: '2024-12-15',
-                },
-                {
-                    _id: '2',
-                    companyName: 'CloudSync',
-                    email: 'hello@cloudsync.io',
-                    industry: 'Cloud Infrastructure',
-                    stage: 'Pre-Seed',
-                    createdAt: '2024-12-14',
-                },
-                {
-                    _id: '3',
-                    companyName: 'AI Analytics Pro',
-                    email: 'info@aianalytics.com',
-                    industry: 'AI/ML',
-                    stage: 'Seed',
-                    createdAt: '2024-12-13',
-                },
-            ]);
-        } catch (error) {
-            console.error('Failed to load startups:', error);
+            const response = await getPendingStartups();
+            setStartups(response.data?.startups || []);
+        } catch (err) {
+            console.error('Failed to load startups:', err);
+            setError(err.response?.data?.error || 'Failed to load pending startups. Make sure you are logged in as admin.');
         } finally {
             setLoading(false);
         }
@@ -55,20 +34,27 @@ const PendingStartups = () => {
         try {
             await verifyStartup(id);
             setStartups(startups.filter(s => s._id !== id));
-        } catch (error) {
-            console.error('Failed to verify startup:', error);
+        } catch (err) {
+            console.error('Failed to verify startup:', err);
+            setError(err.response?.data?.error || 'Failed to verify startup');
         }
     };
 
     const handleReject = async (id) => {
-        if (window.confirm('Are you sure you want to reject this startup?')) {
-            try {
-                await rejectStartup(id);
-                setStartups(startups.filter(s => s._id !== id));
-            } catch (error) {
-                console.error('Failed to reject startup:', error);
-            }
+        const reason = window.prompt('Enter rejection reason:');
+        if (!reason) return;
+
+        try {
+            await rejectStartup(id, reason);
+            setStartups(startups.filter(s => s._id !== id));
+        } catch (err) {
+            console.error('Failed to reject startup:', err);
+            setError(err.response?.data?.error || 'Failed to reject startup');
         }
+    };
+
+    const openDocument = (url) => {
+        window.open(url, '_blank');
     };
 
     return (
@@ -76,6 +62,8 @@ const PendingStartups = () => {
             <Header title="Pending Startups" />
 
             <div className="page-content">
+                {error && <div className="error-banner">{error}</div>}
+
                 <Card>
                     <CardHeader>
                         <div className="card-header-row">
@@ -97,8 +85,9 @@ const PendingStartups = () => {
                                 <TableHead>
                                     <TableRow>
                                         <TableHeader>Company</TableHeader>
-                                        <TableHeader>Industry</TableHeader>
+                                        <TableHeader>Type</TableHeader>
                                         <TableHeader>Stage</TableHeader>
+                                        <TableHeader>Documents</TableHeader>
                                         <TableHeader>Applied</TableHeader>
                                         <TableHeader>Actions</TableHeader>
                                     </TableRow>
@@ -113,13 +102,45 @@ const PendingStartups = () => {
                                                     </div>
                                                     <div className="company-info">
                                                         <span className="company-name">{startup.companyName}</span>
-                                                        <span className="company-email">{startup.email}</span>
+                                                        <span className="company-email">{startup.user?.email}</span>
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{startup.industry}</TableCell>
+                                            <TableCell>{startup.companyType || 'N/A'}</TableCell>
                                             <TableCell>
-                                                <span className="stage-badge">{startup.stage}</span>
+                                                <span className="stage-badge">{startup.stage || 'N/A'}</span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="documents-cell">
+                                                    {/* Main document */}
+                                                    {startup.documents && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => openDocument(startup.documents)}
+                                                            title="View main document"
+                                                        >
+                                                            <FileText size={16} />
+                                                            <ExternalLink size={12} />
+                                                        </Button>
+                                                    )}
+                                                    {/* Verification documents */}
+                                                    {startup.verificationDocuments?.map((doc, idx) => (
+                                                        <Button
+                                                            key={idx}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => openDocument(doc.url)}
+                                                            title={`View ${doc.type}`}
+                                                        >
+                                                            <FileText size={16} />
+                                                            <span className="doc-type">{doc.type}</span>
+                                                        </Button>
+                                                    ))}
+                                                    {!startup.documents && !startup.verificationDocuments?.length && (
+                                                        <span className="no-docs">No docs</span>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell>{new Date(startup.createdAt).toLocaleDateString()}</TableCell>
                                             <TableCell>

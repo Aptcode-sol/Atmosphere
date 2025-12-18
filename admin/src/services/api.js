@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -25,13 +25,15 @@ export const login = (credentials) => api.post('/admin/login', credentials);
 export const getStats = () => api.get('/admin/stats');
 
 // Users
-export const getUsers = (params) => api.get('/users', { params });
-export const getUserById = (id) => api.get(`/users/${id}`);
+export const getUsers = (params) => api.get('/admin/users', { params });
+export const getUserById = (id) => api.get(`/admin/users/${id}`);
+export const blockUser = (id, reason) => api.post(`/admin/block-user/${id}`, { reason });
+export const unblockUser = (id) => api.post(`/admin/unblock-user/${id}`);
 
 // Pending Startups
 export const getPendingStartups = () => api.get('/admin/pending-startups');
-export const verifyStartup = (id) => api.post(`/admin/verify-startup/${id}`);
-export const rejectStartup = (id) => api.post(`/admin/reject-startup/${id}`);
+export const verifyStartup = (id, notes) => api.post(`/admin/verify-startup/${id}`, { notes });
+export const rejectStartup = (id, reason) => api.post(`/admin/reject-startup/${id}`, { reason });
 
 // Grants
 export const getGrants = () => api.get('/grants');
@@ -47,5 +49,10 @@ export const deleteEvent = (id) => api.delete(`/events/${id}`);
 
 // Holdings
 export const getHoldings = () => api.get('/admin/holdings');
+export const getPendingHoldings = () => api.get('/admin/pending-holdings');
+export const approveHolding = (investorId, investmentIndex) =>
+    api.post(`/admin/approve-holding/${investorId}/${investmentIndex}`);
+export const rejectHolding = (investorId, investmentIndex, reason) =>
+    api.post(`/admin/reject-holding/${investorId}/${investmentIndex}`, { reason });
 
 export default api;

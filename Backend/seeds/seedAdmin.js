@@ -1,56 +1,72 @@
-const { connect, close, models } = require('../index');
-const bcrypt = require('bcrypt');
+/**
+ * Admin Seed Script
+ * Run this to create an admin user: node seeds/seedAdmin.js
+ * 
+ * Configure admin credentials below:
+ */
 
-async function seed() {
-    await connect();
-    const { User } = models;
+// ========== CONFIGURE ADMIN CREDENTIALS HERE ==========
+const ADMIN_EMAIL = 'admin@atmosphere.com';
+const ADMIN_PASSWORD = 'Admin@123';
+const ADMIN_USERNAME = 'admin';
+// =======================================================
 
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@local.dev';
-    const existing = await User.findOne({ email: adminEmail });
-    if (existing) {
-        console.log('Admin already exists');
-        await close();
-        return;
-    }
-
-    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'adminpass', 10);
-    const admin = new User({ email: adminEmail, username: 'admin', displayName: 'Admin', passwordHash, roles: ['admin'] });
-    await admin.save();
-    console.log('Admin user created:', admin.email);
-    await close();
-}
-
-seed().catch((err) => {
-    console.error(err);
-    process.exit(1);
-});
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
-const { User } = require('../models');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/atmosphere_dev';
+// MongoDB connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/atmosphere';
 
-async function run() {
-    await mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-    console.log('Connected to MongoDB for seeding');
+async function seedAdmin() {
+    try {
+        console.log('Connecting to MongoDB...');
+        await mongoose.connect(MONGODB_URI);
+        console.log('Connected to MongoDB');
 
-    const exists = await User.findOne({ email: 'admin@atmosphere.local' });
-    if (exists) {
-        console.log('Admin exists');
+        // Import User model
+        const { User } = require('../models');
+
+        // Hash password
+        const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+
+        // Check if user already exists
+        let user = await User.findOne({ email: ADMIN_EMAIL.toLowerCase() });
+
+        if (user) {
+            // Update existing user to be admin
+            user.passwordHash = passwordHash;
+            if (!user.roles.includes('admin')) {
+                user.roles.push('admin');
+            }
+            user.verified = true;
+            await user.save();
+            console.log('✅ Existing user updated to admin:');
+        } else {
+            // Create new admin user
+            user = new User({
+                email: ADMIN_EMAIL.toLowerCase(),
+                username: ADMIN_USERNAME,
+                passwordHash,
+                roles: ['admin'],
+                verified: true,
+                displayName: ADMIN_USERNAME,
+            });
+            await user.save();
+            console.log('✅ Admin user created:');
+        }
+
+        console.log(`   Email: ${user.email}`);
+        console.log(`   Username: ${user.username}`);
+        console.log(`   Roles: ${user.roles.join(', ')}`);
+
+        await mongoose.disconnect();
+        console.log('\nDone! You can now login to the admin dashboard.');
         process.exit(0);
+    } catch (error) {
+        console.error('❌ Error seeding admin:', error.message);
+        process.exit(1);
     }
-
-    const admin = new User({
-        email: 'admin@atmosphere.local',
-        username: 'admin',
-        displayName: 'Admin',
-        roles: ['admin'],
-        verified: true,
-    });
-
-    await admin.save();
-    console.log('Admin user created');
-    process.exit(0);
 }
 
-run().catch((err) => { console.error(err); process.exit(1); });
+seedAdmin();

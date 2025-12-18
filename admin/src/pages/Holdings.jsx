@@ -1,65 +1,75 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, TrendingUp, DollarSign } from 'lucide-react';
+import { Briefcase, DollarSign, FileText, ExternalLink, CheckCircle, XCircle } from 'lucide-react';
 import Header from '../components/Layout/Header';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import Table, { TableHead, TableBody, TableRow, TableHeader, TableCell } from '../components/ui/Table';
-import { getHoldings } from '../services/api';
+import Button from '../components/ui/Button';
+import { getPendingHoldings, approveHolding, rejectHolding } from '../services/api';
 import './Holdings.css';
 
 const Holdings = () => {
     const [holdings, setHoldings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         loadHoldings();
     }, []);
 
     const loadHoldings = async () => {
+        setLoading(true);
+        setError('');
         try {
-            // Mock data until backend is ready
-            setHoldings([
-                {
-                    _id: '1',
-                    investorName: 'John Anderson',
-                    startupName: 'TechFlow Inc',
-                    amount: '$150,000',
-                    date: '2024-12-10',
-                    round: 'Seed',
-                },
-                {
-                    _id: '2',
-                    investorName: 'Sarah Miller',
-                    startupName: 'CloudSync',
-                    amount: '$75,000',
-                    date: '2024-12-08',
-                    round: 'Pre-Seed',
-                },
-                {
-                    _id: '3',
-                    investorName: 'Mike Johnson',
-                    startupName: 'AI Analytics Pro',
-                    amount: '$200,000',
-                    date: '2024-12-05',
-                    round: 'Seed',
-                },
-            ]);
-        } catch (error) {
-            console.error('Failed to load holdings:', error);
+            const response = await getPendingHoldings();
+            setHoldings(response.data?.holdings || []);
+        } catch (err) {
+            console.error('Failed to load holdings:', err);
+            setError(err.response?.data?.error || 'Failed to load pending holdings. Make sure you are logged in as admin.');
         } finally {
             setLoading(false);
         }
     };
 
-    const totalInvested = holdings.reduce((sum, h) => {
-        const amount = parseInt(h.amount.replace(/[^0-9]/g, ''));
-        return sum + amount;
-    }, 0);
+    const handleApprove = async (holding) => {
+        try {
+            await approveHolding(holding.investorId, holding.investmentIndex);
+            setHoldings(holdings.filter(h =>
+                !(h.investorId === holding.investorId && h.investmentIndex === holding.investmentIndex)
+            ));
+        } catch (err) {
+            console.error('Failed to approve holding:', err);
+            setError(err.response?.data?.error || 'Failed to approve holding');
+        }
+    };
+
+    const handleReject = async (holding) => {
+        const reason = window.prompt('Enter rejection reason:');
+        if (!reason) return;
+
+        try {
+            await rejectHolding(holding.investorId, holding.investmentIndex, reason);
+            setHoldings(holdings.filter(h =>
+                !(h.investorId === holding.investorId && h.investmentIndex === holding.investmentIndex)
+            ));
+        } catch (err) {
+            console.error('Failed to reject holding:', err);
+            setError(err.response?.data?.error || 'Failed to reject holding');
+        }
+    };
+
+    const openDocument = (url) => {
+        window.open(url, '_blank');
+    };
+
+    const totalAmount = holdings.reduce((sum, h) => sum + (h.amount || 0), 0);
 
     return (
         <div className="holdings-page">
             <Header title="Investor Holdings" />
 
             <div className="page-content">
+                {error && <div className="error-banner">{error}</div>}
+
                 <div className="stats-row">
                     <Card className="stat-card-small">
                         <CardContent>
@@ -67,7 +77,7 @@ const Holdings = () => {
                                 <Briefcase size={24} />
                                 <div>
                                     <span className="stat-value-small">{holdings.length}</span>
-                                    <span className="stat-label-small">Total Holdings</span>
+                                    <span className="stat-label-small">Pending Approval</span>
                                 </div>
                             </div>
                         </CardContent>
@@ -77,8 +87,8 @@ const Holdings = () => {
                             <div className="stat-small">
                                 <DollarSign size={24} />
                                 <div>
-                                    <span className="stat-value-small">${totalInvested.toLocaleString()}</span>
-                                    <span className="stat-label-small">Total Invested</span>
+                                    <span className="stat-value-small">₹{totalAmount.toLocaleString()}</span>
+                                    <span className="stat-label-small">Total Amount</span>
                                 </div>
                             </div>
                         </CardContent>
@@ -87,41 +97,90 @@ const Holdings = () => {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Recent Holdings</CardTitle>
+                        <CardTitle>Pending Holdings Approval</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
                             <div className="loading">Loading...</div>
+                        ) : holdings.length === 0 ? (
+                            <div className="empty-state">
+                                <CheckCircle size={48} />
+                                <h3>All caught up!</h3>
+                                <p>No pending holdings to approve.</p>
+                            </div>
                         ) : (
                             <Table>
                                 <TableHead>
                                     <TableRow>
                                         <TableHeader>Investor</TableHeader>
-                                        <TableHeader>Startup</TableHeader>
+                                        <TableHeader>Company</TableHeader>
                                         <TableHeader>Amount</TableHeader>
-                                        <TableHeader>Round</TableHeader>
                                         <TableHeader>Date</TableHeader>
+                                        <TableHeader>Documents</TableHeader>
+                                        <TableHeader>Actions</TableHeader>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {holdings.map((holding) => (
-                                        <TableRow key={holding._id}>
+                                    {holdings.map((holding, idx) => (
+                                        <TableRow key={`${holding.investorId}-${holding.investmentIndex}-${idx}`}>
                                             <TableCell>
                                                 <div className="investor-cell">
                                                     <div className="investor-avatar">
-                                                        {holding.investorName.charAt(0)}
+                                                        {(holding.investorName || 'U').charAt(0)}
                                                     </div>
-                                                    <span>{holding.investorName}</span>
+                                                    <div className="investor-info">
+                                                        <span className="investor-name">{holding.investorName}</span>
+                                                        <span className="investor-email">{holding.investorEmail}</span>
+                                                    </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{holding.startupName}</TableCell>
+                                            <TableCell>{holding.companyName}</TableCell>
                                             <TableCell>
-                                                <span className="amount">{holding.amount}</span>
+                                                <span className="amount">₹{(holding.amount || 0).toLocaleString()}</span>
                                             </TableCell>
                                             <TableCell>
-                                                <span className="round-badge">{holding.round}</span>
+                                                {holding.date ? new Date(holding.date).toLocaleDateString() : 'N/A'}
                                             </TableCell>
-                                            <TableCell>{new Date(holding.date).toLocaleDateString()}</TableCell>
+                                            <TableCell>
+                                                <div className="documents-cell">
+                                                    {holding.docs?.length > 0 ? (
+                                                        holding.docs.map((doc, docIdx) => (
+                                                            <Button
+                                                                key={docIdx}
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => openDocument(doc)}
+                                                                title="View document"
+                                                            >
+                                                                <FileText size={16} />
+                                                                <ExternalLink size={12} />
+                                                            </Button>
+                                                        ))
+                                                    ) : (
+                                                        <span className="no-docs">No docs</span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="action-buttons">
+                                                    <Button
+                                                        variant="success"
+                                                        size="sm"
+                                                        onClick={() => handleApprove(holding)}
+                                                    >
+                                                        <CheckCircle size={16} />
+                                                        Approve
+                                                    </Button>
+                                                    <Button
+                                                        variant="danger"
+                                                        size="sm"
+                                                        onClick={() => handleReject(holding)}
+                                                    >
+                                                        <XCircle size={16} />
+                                                        Reject
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>

@@ -6,7 +6,8 @@ const PreviousInvestmentSchema = new Schema({
     companyId: String,
     date: Date,
     amount: Number,
-    docs: [String]
+    docs: [String],
+    verified: { type: Boolean, default: false }
 });
 
 const InvestorDetailsSchema = new Schema(

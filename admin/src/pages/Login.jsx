@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { login as apiLogin } from '../services/api';
 import Button from '../components/ui/Button';
 import './Login.css';
 
@@ -18,16 +19,16 @@ const Login = () => {
         setLoading(true);
 
         try {
-            // Simple hardcoded admin check for now
-            // Replace with actual API call when backend is ready
-            if (email === 'admin@atmosphere.com' && password === 'admin123') {
-                login({ name: 'Admin', email }, 'admin-token-123');
-                navigate('/');
-            } else {
-                setError('Invalid credentials');
-            }
+            const response = await apiLogin({ email, password });
+            console.log(response);
+            const { token, user } = response.data;
+
+            login(user, token);
+            navigate('/');
         } catch (err) {
-            setError('Login failed. Please try again.');
+            console.error('Login error:', err);
+            const message = err.response?.data?.error || 'Login failed. Please try again.';
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -50,7 +51,7 @@ const Login = () => {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="admin@atmosphere.com"
+                            placeholder="Enter your email"
                             required
                         />
                     </div>
@@ -72,7 +73,7 @@ const Login = () => {
                 </form>
 
                 <div className="login-footer">
-                    <p>Demo: admin@atmosphere.com / admin123</p>
+                    <p>Login with an admin account</p>
                 </div>
             </div>
         </div>

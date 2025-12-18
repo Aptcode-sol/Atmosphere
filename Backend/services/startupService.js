@@ -1,4 +1,4 @@
-const { StartupDetails } = require('../models');
+const { StartupDetails, User } = require('../models');
 
 exports.createStartup = async (req, res, next) => {
     try {
@@ -65,8 +65,16 @@ exports.updateStartup = async (req, res, next) => {
 exports.listStartupCards = async (req, res, next) => {
     try {
         const { limit = 20, skip = 0 } = req.query;
-        const startups = await StartupDetails.find()
-            .populate('user', 'username displayName avatarUrl email')
+
+        // Get blocked user IDs
+        const blockedUsers = await User.find({ blocked: true }).select('_id').lean();
+        const blockedIds = blockedUsers.map(u => u._id);
+
+        // Build filter to exclude blocked users
+        const filter = blockedIds.length > 0 ? { user: { $nin: blockedIds } } : {};
+
+        const startups = await StartupDetails.find(filter)
+            .populate('user', 'username displayName avatarUrl email verified')
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip(parseInt(skip));
