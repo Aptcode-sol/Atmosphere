@@ -8,6 +8,7 @@ import {
     Image,
     ActivityIndicator,
     TouchableOpacity,
+    StatusBar,
 } from 'react-native';
 import { fetchReels, likeReel, unlikeReel, checkReelShared } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
@@ -16,8 +17,27 @@ import Video from 'react-native-video';
 import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
 
-const { width, height } = Dimensions.get('window');
-const ITEM_HEIGHT = height - BOTTOM_NAV_HEIGHT;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const STATUS_BAR_HEIGHT = StatusBar.currentHeight || 24;
+
+// Color scheme matching Atmosphere web (dark grey theme)
+const COLORS = {
+    primary: '#3d3d3d',
+    success: '#22c55e',
+    like: '#ef4444',      // Red for likes
+    text: '#f5f5f5',
+    textMuted: '#666666',
+};
+
+// Calculate 9:16 reel container dimensions
+// Content is now properly constrained by parent container in LandingPage
+const REEL_ASPECT_RATIO = 9 / 16;
+const AVAILABLE_HEIGHT = SCREEN_HEIGHT - STATUS_BAR_HEIGHT - 80; // Account for navbar
+// Use full available height, calculate optimal width for 9:16
+const REEL_HEIGHT = AVAILABLE_HEIGHT;
+const REEL_WIDTH = Math.min(SCREEN_WIDTH, REEL_HEIGHT * REEL_ASPECT_RATIO);
+// Item height for FlatList snapping
+const ITEM_HEIGHT = REEL_HEIGHT;
 
 interface ReelItem {
     _id: string;
@@ -38,9 +58,15 @@ interface ReelItem {
     isShared?: boolean;
 }
 
-const Reels = () => {
+interface ReelsProps {
+    userId?: string;
+    initialReelId?: string;
+}
+
+const Reels = ({ userId, initialReelId }: ReelsProps) => {
     // theme not required here
     const [reels, setReels] = useState<ReelItem[]>([]);
+    const flatListRef = useRef<FlatList>(null);
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -54,11 +80,34 @@ const Reels = () => {
 
     useEffect(() => {
         loadReels();
-    }, []);
+    }, [userId]);
+
+    // Scroll to initial reel if present
+    useEffect(() => {
+        if (initialReelId && reels.length > 0 && flatListRef.current) {
+            const index = reels.findIndex(r => r._id === initialReelId);
+            if (index >= 0) {
+                // Wait a tick for layout
+                setTimeout(() => {
+                    flatListRef.current?.scrollToIndex({ index, animated: false });
+                    setCurrentIndex(index);
+                }, 100);
+            }
+        }
+    }, [initialReelId, reels]);
 
     const loadReels = async () => {
         try {
-            const data = await fetchReels(30, 0);
+            let data = [];
+            if (userId) {
+                // Fetch user specific reels
+                // Using existing api.getUserReels(userId)
+                const api = await import('../lib/api');
+                data = await api.getUserReels(userId, 30, 0);
+            } else {
+                data = await fetchReels(30, 0);
+            }
+
             // Initialize with default values
             const reelsWithDefaults = data.map((reel: any) => ({
                 ...reel,
@@ -165,78 +214,80 @@ const Reels = () => {
         const displayName = item.author?.displayName || item.author?.username || 'User';
 
         return (
-            <View style={styles.reelContainer}>
-                {/* Video or Thumbnail */}
-                {isActive && item.videoUrl ? (
-                    <Video
-                        source={{ uri: item.videoUrl }}
-                        style={styles.video}
-                        resizeMode="cover"
-                        repeat
-                        paused={false}
-                        volume={1.0}
-                    />
-                ) : (
-                    <Image
-                        source={{ uri: item.thumbnailUrl || item.videoUrl }}
-                        style={styles.video}
-                        resizeMode="cover"
-                    />
-                )}
+            <View style={styles.reelWrapper}>
+                <View style={styles.reelContainer}>
+                    {/* Video or Thumbnail - using contain to preserve original aspect ratio */}
+                    {isActive && item.videoUrl ? (
+                        <Video
+                            source={{ uri: item.videoUrl }}
+                            style={styles.video}
+                            resizeMode="contain"
+                            repeat
+                            paused={false}
+                            volume={1.0}
+                        />
+                    ) : (
+                        <Image
+                            source={{ uri: item.thumbnailUrl || item.videoUrl }}
+                            style={styles.video}
+                            resizeMode="contain"
+                        />
+                    )}
 
-                {/* Overlay Content */}
-                <View style={styles.overlay}>
-                    <View style={styles.info}>
-                        <Text style={styles.username}>@{item.author.username}</Text>
-                        {item.caption && (
-                            <Text style={styles.caption} numberOfLines={2}>
-                                {item.caption}
-                            </Text>
-                        )}
-                    </View>
+                    {/* Overlay Content */}
+                    <View style={styles.overlay}>
+                        <View style={styles.info}>
+                            <Text style={styles.username}>@{item.author.username}</Text>
+                            {item.caption && (
+                                <Text style={styles.caption} numberOfLines={2}>
+                                    {item.caption}
+                                </Text>
+                            )}
+                        </View>
 
-                    {/* Actions */}
-                    <View style={styles.actions}>
-                        {/* Like */}
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => handleLike(item._id)}
-                            disabled={likeLoading.has(item._id)}
-                        >
-                            <Icon
-                                name={item.isLiked ? "heart" : "heart-outline"}
-                                size={32}
-                                color={item.isLiked ? "#ec4899" : "#fff"}
-                            />
-                            <Text style={styles.actionText}>{item.likesCount}</Text>
-                        </TouchableOpacity>
+                        {/* Actions */}
+                        <View style={styles.actions}>
+                            {/* Like */}
+                            <TouchableOpacity
+                                style={styles.actionBtn}
+                                onPress={() => handleLike(item._id)}
+                                disabled={likeLoading.has(item._id)}
+                            >
+                                <Icon
+                                    name={item.isLiked ? "heart" : "heart-outline"}
+                                    size={32}
+                                    color={item.isLiked ? COLORS.like : "#fff"}
+                                />
+                                <Text style={styles.actionText}>{item.likesCount}</Text>
+                            </TouchableOpacity>
 
-                        {/* Comment */}
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => handleOpenComments(item._id)}
-                        >
-                            <Icon name="chatbubble-outline" size={28} color="#fff" />
-                            <Text style={styles.actionText}>{item.commentsCount}</Text>
-                        </TouchableOpacity>
+                            {/* Comment */}
+                            <TouchableOpacity
+                                style={styles.actionBtn}
+                                onPress={() => handleOpenComments(item._id)}
+                            >
+                                <Icon name="chatbubble-outline" size={28} color="#fff" />
+                                <Text style={styles.actionText}>{item.commentsCount}</Text>
+                            </TouchableOpacity>
 
-                        {/* Share */}
-                        <TouchableOpacity
-                            style={styles.actionBtn}
-                            onPress={() => handleOpenShare(item._id)}
-                        >
-                            <Icon
-                                name={item.isShared ? "paper-plane" : "paper-plane-outline"}
-                                size={28}
-                                color={item.isShared ? "#ec4899" : "#fff"}
-                            />
-                            <Text style={styles.actionText}>{item.sharesCount || 0}</Text>
-                        </TouchableOpacity>
+                            {/* Share */}
+                            <TouchableOpacity
+                                style={styles.actionBtn}
+                                onPress={() => handleOpenShare(item._id)}
+                            >
+                                <Icon
+                                    name={item.isShared ? "paper-plane" : "paper-plane-outline"}
+                                    size={28}
+                                    color={item.isShared ? COLORS.success : "#fff"}
+                                />
+                                <Text style={styles.actionText}>{item.sharesCount || 0}</Text>
+                            </TouchableOpacity>
 
-                        {/* Views */}
-                        <View style={styles.actionBtn}>
-                            <Icon name="eye-outline" size={28} color="#fff" />
-                            <Text style={styles.actionText}>{item.viewsCount}</Text>
+                            {/* Views */}
+                            <View style={styles.actionBtn}>
+                                <Icon name="eye-outline" size={28} color="#fff" />
+                                <Text style={styles.actionText}>{item.viewsCount}</Text>
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -253,7 +304,7 @@ const Reels = () => {
     if (loading) {
         return (
             <View style={[styles.container, styles.center]}>
-                <ActivityIndicator size="large" color="#ec4899" />
+                <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
         );
     }
@@ -270,7 +321,8 @@ const Reels = () => {
     return (
         <View style={styles.container}>
             <FlatList
-                data={reels}
+                ref={flatListRef}
+                data={reels} // Use local reels state
                 renderItem={renderReel}
                 keyExtractor={(item) => item._id}
                 pagingEnabled
@@ -285,6 +337,11 @@ const Reels = () => {
                     index,
                 })}
                 extraData={[likeLoading]}
+                onScrollToIndexFailed={(info) => {
+                    setTimeout(() => {
+                        flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+                    }, 500);
+                }}
             />
 
             {/* Comments Modal */}
@@ -322,10 +379,19 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    reelContainer: {
-        width,
+    reelWrapper: {
+        width: SCREEN_WIDTH,
         height: ITEM_HEIGHT,
         backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    reelContainer: {
+        width: REEL_WIDTH,
+        height: REEL_HEIGHT,
+        backgroundColor: '#000',
+        borderRadius: 12,
+        overflow: 'hidden',
     },
     video: {
         width: '100%',
@@ -340,7 +406,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        // Removed solid background - use transparent to show full video
     },
     info: {
         flex: 1,
@@ -351,10 +417,16 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         marginBottom: 8,
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
     caption: {
         color: '#fff',
         fontSize: 14,
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
     actions: {
         alignItems: 'center',
@@ -367,6 +439,9 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 12,
         marginTop: 4,
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
     emptyText: {
         color: '#666',

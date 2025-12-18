@@ -27,6 +27,7 @@ const LandingPage = () => {
     const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [reelContext, setReelContext] = useState<{ userId?: string; initialReelId?: string }>({});
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const { theme } = useContext(ThemeContext);
 
@@ -79,9 +80,17 @@ const LandingPage = () => {
             case 'chats':
                 return <Chats onChatSelect={handleChatSelect} />;
             case 'reels':
-                return <Reels />;
+                return <Reels userId={reelContext.userId} initialReelId={reelContext.initialReelId} />;
             case 'profile':
-                return <Profile onNavigate={(r: RouteKey) => setRoute(r)} onCreatePost={() => setShowCreateMenu(true)} onPostPress={handlePostPress} />;
+                return <Profile
+                    onNavigate={(r: RouteKey) => setRoute(r)}
+                    onCreatePost={() => setShowCreateMenu(true)}
+                    onPostPress={handlePostPress}
+                    onReelSelect={(reelId, userId) => {
+                        setReelContext({ userId, initialReelId: reelId });
+                        setRoute('reels');
+                    }}
+                />;
             case 'setup':
                 return <SetupProfile onDone={() => setRoute('profile')} onClose={() => setRoute('profile')} />;
             case 'topstartups':
@@ -153,12 +162,18 @@ const LandingPage = () => {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-            {renderContent()}
+            {/* Content wrapper - takes remaining space above navbar */}
+            <View style={styles.contentWrapper}>
+                {renderContent()}
+            </View>
+
+            {/* Bottom Nav - takes solid space at bottom */}
             {!selectedChatId && <BottomNav activeRoute={mapRouteToBottom(route)} onRouteChange={(r) => {
                 // Clear any overlay states for immediate navigation
                 setSelectedPostId(null);
                 setSelectedChatId(null);
                 setSelectedProfileId(null);
+                if (r !== 'reels') setReelContext({}); // Clear reel context if navigating away
                 setRoute(mapBottomToRoute(r));
             }} />}
 
@@ -175,6 +190,7 @@ const LandingPage = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, flexDirection: 'column' },
+    contentWrapper: { flex: 1 },
     content: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
     // header and headerTitle removed, now handled by TopNavbar
     text: { fontSize: 16 },

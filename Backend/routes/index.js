@@ -30,7 +30,7 @@ router.use('/saved', require('./saved'));
 router.use('/search', require('./search'));
 router.use('/shares', require('./shares'));
 router.use('/grants', require('./grants'));
-router.use('/events', require('events'));
+router.use('/events', require('./events'));
 router.use('/opportunities', require('./opportunities'));
 router.use('/startup', require('./startup'));
 router.use('/trade', require('./trade'));

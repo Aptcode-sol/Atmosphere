@@ -105,7 +105,7 @@ const normalizeProfile = (profileData: any) => {
 
 type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup';
 
-const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPostPress }: { onNavigate?: (route: RouteKey) => void; userId?: string | null; onClose?: () => void; onCreatePost?: () => void; onPostPress?: (postId: string) => void }) => {
+const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPostPress, onReelSelect }: { onNavigate?: (route: RouteKey) => void; userId?: string | null; onClose?: () => void; onCreatePost?: () => void; onPostPress?: (postId: string) => void; onReelSelect?: (reelId: string, userId: string) => void }) => {
     const { theme } = useContext(ThemeContext);
     const [data, setData] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
@@ -477,7 +477,13 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                             reelsLoading={reelsLoading}
                             theme={theme}
                             onPostPress={onPostPress}
-                            onReelPress={() => onNavigate?.('reels')}
+                            onReelPress={(reelId) => {
+                                if (onReelSelect && (viewingUserId || ownProfileId)) {
+                                    onReelSelect(reelId, String(viewingUserId || ownProfileId));
+                                } else {
+                                    onNavigate?.('reels');
+                                }
+                            }}
                         />
                     </>
                 )}
