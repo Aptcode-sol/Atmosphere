@@ -10,6 +10,21 @@ exports.getUserByIdentifier = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+exports.searchUsers = async (req, res, next) => {
+    try {
+        const { q } = req.query;
+        if (!q) return res.json({ users: [] });
+        const users = await User.find({
+            $or: [
+                { username: { $regex: q, $options: 'i' } },
+                { displayName: { $regex: q, $options: 'i' } },
+                { email: { $regex: q, $options: 'i' } }
+            ]
+        }).select('username displayName avatarUrl verified').limit(10);
+        res.json({ users });
+    } catch (err) { next(err); }
+};
+
 exports.updateUser = async (req, res, next) => {
     try {
         const { id } = req.params;

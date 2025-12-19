@@ -119,29 +119,66 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
     const [showSearchBar, setShowSearchBar] = useState(false);
     const [_userRole, setUserRole] = useState<string>('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+
+    // Date Picker State
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [dateMode, setDateMode] = useState<'date' | 'time'>('date');
+    const [dateField, setDateField] = useState<'start' | 'end'>('start');
+
+    // Participant Search State
+    const [participantQuery, setParticipantQuery] = useState('');
+    const [participantResults, setParticipantResults] = useState<any[]>([]);
+    const [searchingParticipants, setSearchingParticipants] = useState(false);
+    const [selectedParticipants, setSelectedParticipants] = useState<any[]>([]);
+
     const [createForm, setCreateForm] = useState({
         title: '',
         description: '',
-        scheduledAt: '',
-        duration: '60',
-        meetingLink: '',
+        scheduledAt: new Date(),
+        endScheduledAt: new Date(new Date().getTime() + 60 * 60000), // Default 1 hour later
         location: '',
     });
 
-    // Add debug logging
-    React.useEffect(() => {
+    const DateTimePicker = require('@react-native-community/datetimepicker').default;
+
+    // Search Users Debounce
+    useEffect(() => {
+        if (!participantQuery.trim()) {
+            setParticipantResults([]);
+            return;
+        }
+        const delay = setTimeout(async () => {
+            setSearchingParticipants(true);
+            try {
+                const baseUrl = await getBaseUrl();
+                const res = await fetch(`${baseUrl}/api/users/search?q=${encodeURIComponent(participantQuery)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    // Filter out already selected
+                    const filtered = (data.users || []).filter((u: any) => !selectedParticipants.some(sp => sp._id === u._id));
+                    setParticipantResults(filtered);
+                }
+            } catch (e) {
+                console.error('User search failed', e);
+            } finally {
+                setSearchingParticipants(false);
+            }
+        }, 500);
+        return () => clearTimeout(delay);
+    }, [participantQuery, selectedParticipants]);
+
+
+    useEffect(() => {
         console.log('Meetings screen mounted, theme ready:', !!context?.theme);
     }, [context?.theme]);
 
     const fetchMeetings = async (force: boolean = false) => {
-        console.log('=== fetchMeetings START, force=', force);
         try {
             setLoading(true);
             _setError(null);
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
 
-            // Get current user ID
             let currentUserId = await AsyncStorage.getItem('userId');
             if (!currentUserId) {
                 const userJson = await AsyncStorage.getItem('user');
@@ -150,85 +187,44 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                         const user = JSON.parse(userJson);
                         currentUserId = user._id || user.id;
                     } catch (parseErr) {
-                        console.error('Failed to parse user:', parseErr);
+                        // ignore
                     }
                 }
             }
 
-            console.log('baseUrl=', baseUrl, 'hasToken=', !!token, 'currentUserId=', currentUserId);
-
             const headers: any = { 'Content-Type': 'application/json' };
             if (token) headers.Authorization = `Bearer ${token}`;
-            let url = `${baseUrl}/api/meetings`;
-            if (force) url = `${url}?_ts=${Date.now()}`;
-            console.log('Fetching meetings from', url);
+            let url = `${baseUrl}/api/meetings?filter=all`;
+            if (force) url = `${url}&_ts=${Date.now()}`;
+
             const res = await fetch(url, { headers });
-            console.log('Meetings response status', res.status, 'ok=', res.ok);
 
-            if (res.status === 304) {
-                console.log('Meetings: 304 Not Modified — keeping current list');
+            if (res.status === 304 || res.status === 204) {
                 setLoading(false);
-                return;
-            }
-
-            if (res.status === 204) {
-                console.log('Meetings: 204 No Content — setting empty list');
-                setMeetings([]);
-                setLoading(false);
+                if (res.status === 204) setMeetings([]);
                 return;
             }
 
             if (!res.ok) {
-                const text = await res.text().catch(() => '');
-                console.error('Meetings fetch failed:', res.status, text);
-                throw new Error(`Failed to fetch (${res.status}) ${text}`);
+                throw new Error('Failed to fetch meetings');
             }
 
-            let data: any = null;
-            try {
-                const rawText = await res.text();
-                console.log('Raw response length:', rawText.length);
-                if (rawText.trim()) {
-                    data = JSON.parse(rawText);
-                    console.log('Parsed meetings data:', data);
-                }
-            } catch (e) {
-                console.warn('Failed to parse meetings JSON response', e);
-                data = null;
-            }
+            const data = await res.json();
+            const meetingsArray = data.meetings || [];
+            setMeetings(meetingsArray);
 
-            if (!data) {
-                console.log('No data parsed, setting empty meetings');
-                setMeetings([]);
-            } else {
-                const meetingsArray = data.meetings || [];
-                console.log('Setting meetings count:', meetingsArray.length);
-                setMeetings(meetingsArray);
-
-                // Extract meetings where current user is a participant (not just organizer)
-                if (currentUserId) {
-                    const joinedIds = meetingsArray
-                        .filter((m: Meeting) => {
-                            const participants = Array.isArray(m.participants)
-                                ? m.participants
-                                : (Array.isArray(m.participantsDetail) ? m.participantsDetail : []);
-                            return participants.some((p: any) => {
-                                const uid = p?.userId?._id || p?.userId || p;
-                                return String(uid) === String(currentUserId);
-                            });
-                        })
-                        .map((m: Meeting) => String(m._id || m.id));
-
-                    console.log('User is participant in:', joinedIds.length, 'meetings');
-                    setMyMeetings(joinedIds);
-                }
+            if (currentUserId) {
+                // Since the backend now strictly returns ONLY meetings where the user is 
+                // Organizer OR Participant, we can safely assume ALL these meetings are "My Meetings".
+                // This resolves any issues with ID matching or filtering on the frontend.
+                const allIds = meetingsArray.map((m: Meeting) => String(m._id || m.id));
+                setMyMeetings(allIds);
             }
         } catch (err) {
             console.error('fetchMeetings ERROR:', err);
             _setError(err instanceof Error ? err.message : String(err));
         } finally {
             setLoading(false);
-            console.log('=== fetchMeetings END');
         }
     };
 
@@ -257,79 +253,58 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
         return m.title.toLowerCase().includes(q) || (m.host?.displayName || '').toLowerCase().includes(q);
     });
 
-    const publicMeetings = filtered.filter(m => !myMeetings.includes(String(m._id || m.id)));
-    const myMeetingsList = meetings.filter(m => myMeetings.includes(String(m._id || m.id)));
+    // "All" tab shows everything returned (which is just the user's meetings now)
+    const publicMeetings = filtered;
+    // "My Meetings" shows the same list since privacy is enforced
+    const myMeetingsList = filtered;
 
     const handleJoin = async (meeting: Meeting) => {
         try {
-            console.log('=== handleJoin START for meeting', meeting._id || meeting.id);
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
-
-            // Try to get userId from multiple possible storage keys
             let userId = await AsyncStorage.getItem('userId');
             if (!userId) {
                 const userJson = await AsyncStorage.getItem('user');
                 if (userJson) {
-                    try {
-                        const user = JSON.parse(userJson);
-                        userId = user._id || user.id;
-                        console.log('Extracted userId from user object:', userId);
-                    } catch (e) {
-                        console.error('Failed to parse user JSON:', e);
-                    }
+                    const user = JSON.parse(userJson);
+                    userId = user._id || user.id;
                 }
             }
 
-            console.log('baseUrl=', baseUrl, 'hasToken=', !!token, 'userId=', userId);
-
-            if (!token) {
-                _setError('No auth token found. Please log in.');
-                return;
-            }
-            if (!userId) {
-                _setError('User ID not found. Please log in again.');
+            if (!token || !userId) {
+                _setError('Auth error. Please log in.');
                 return;
             }
 
-            const headers: any = { 'Content-Type': 'application/json' };
-            headers.Authorization = `Bearer ${token}`;
+            const headers: any = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
             const url = `${baseUrl}/api/meetings/${meeting._id || meeting.id}/add-participant`;
-            console.log('Calling', url, 'with userId=', userId);
 
             const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ userId }) });
-            console.log('Join response status:', res.status);
+            if (!res.ok) throw new Error('Failed to join');
 
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-                console.error('Join failed:', errorData);
-                throw new Error(errorData.error || `Failed to join (${res.status})`);
-            }
-
-            console.log('Successfully joined meeting');
             setMyMeetings(prev => [...prev, String(meeting._id || meeting.id)]);
-
-            // Navigate to video call if callback provided
-            if (onJoinMeeting) {
-                onJoinMeeting(String(meeting._id || meeting.id));
-            } else {
-                setActiveTab('my');
-            }
+            if (onJoinMeeting) onJoinMeeting(String(meeting._id || meeting.id));
+            else setActiveTab('my');
         } catch (err) {
-            console.error('handleJoin ERROR:', err);
-            _setError(err instanceof Error ? err.message : String(err));
+            console.error(err);
+            Alert.alert('Error', 'Failed to join meeting');
         }
     };
 
-    // removal helper intentionally removed; implement when removal UI is added
-
     const handleCreateMeeting = async () => {
         try {
-            const { title, description, scheduledAt, duration, meetingLink, location } = createForm;
-            if (!title || !scheduledAt) {
-                Alert.alert('Error', 'Title and scheduled time are required');
+            const { title, description, scheduledAt, endScheduledAt, location } = createForm;
+            if (!title) {
+                Alert.alert('Error', 'Title is required');
                 return;
             }
+            // Calculate duration in minutes
+            const diffMs = endScheduledAt.getTime() - scheduledAt.getTime();
+            if (diffMs <= 0) {
+                Alert.alert('Error', 'End time must be after start time');
+                return;
+            }
+            const duration = Math.ceil(diffMs / 60000);
 
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
@@ -345,26 +320,71 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                 body: JSON.stringify({
                     title,
                     description,
-                    scheduledAt: new Date(scheduledAt).toISOString(),
-                    duration: parseInt(duration, 10) || 60,
-                    meetingLink,
+                    scheduledAt: scheduledAt.toISOString(),
+                    startTime: scheduledAt.toISOString(),
+                    endTime: endScheduledAt.toISOString(),
+                    duration,
                     location,
+                    participants: selectedParticipants.map(p => ({ userId: p._id, status: 'invited' })),
                 }),
             });
 
             if (!res.ok) {
-                const errorData = await res.json().catch(() => ({ error: 'Failed to create meeting' }));
-                throw new Error(errorData.error || 'Failed to create meeting');
+                const error = await res.json();
+                throw new Error(error.error || 'Failed to create meeting');
             }
 
             Alert.alert('Success', 'Meeting created successfully');
             setShowCreateModal(false);
-            setCreateForm({ title: '', description: '', scheduledAt: '', duration: '60', meetingLink: '', location: '' });
+            // Reset form
+            setCreateForm({
+                title: '',
+                description: '',
+                scheduledAt: new Date(),
+                endScheduledAt: new Date(new Date().getTime() + 3600000),
+                location: ''
+            });
+            setSelectedParticipants([]);
             fetchMeetings(true);
         } catch (err) {
             console.error('Create meeting error:', err);
             Alert.alert('Error', err instanceof Error ? err.message : 'Failed to create meeting');
         }
+    };
+
+    const onDateChange = (event: any, selectedDate?: Date) => {
+        setShowDatePicker(false);
+        if (selectedDate && event.type !== 'dismissed') {
+            if (dateField === 'start') {
+                setCreateForm(prev => {
+                    const newStart = new Date(selectedDate);
+                    // Auto adjust end time if it becomes before start
+                    let newEnd = prev.endScheduledAt;
+                    if (newEnd <= newStart) {
+                        newEnd = new Date(newStart.getTime() + 3600000);
+                    }
+                    return { ...prev, scheduledAt: newStart, endScheduledAt: newEnd };
+                });
+            } else {
+                setCreateForm(prev => ({ ...prev, endScheduledAt: selectedDate }));
+            }
+        }
+    };
+
+    const openDatePicker = (field: 'start' | 'end', mode: 'date' | 'time') => {
+        setDateField(field);
+        setDateMode(mode);
+        setShowDatePicker(true);
+    };
+
+    const addParticipant = (user: any) => {
+        setSelectedParticipants(prev => [...prev, user]);
+        setParticipantResults(prev => prev.filter(u => u._id !== user._id));
+        setParticipantQuery('');
+    };
+
+    const removeParticipant = (userId: string) => {
+        setSelectedParticipants(prev => prev.filter(u => u._id !== userId));
     };
 
     return (
@@ -375,9 +395,6 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                     <TouchableOpacity onPress={() => setShowSearchBar(s => !s)} style={styles.iconBtn}>
                         <MaterialIcons name="search" size={22} color={theme.text} />
                     </TouchableOpacity>
-                    {/* {(userRole.toLowerCase() === 'investor' || userRole.toLowerCase() === 'startup') && (
-                        
-                    )} */}
                     <TouchableOpacity onPress={() => setShowCreateModal(true)} style={styles.iconBtn}>
                         <MaterialIcons name="add" size={24} color={theme.text} />
                     </TouchableOpacity>
@@ -393,8 +410,6 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                 </View>
             )}
 
-
-
             <View style={styles.tabsRow}>
                 <TabButton label="All" isActive={activeTab === 'public'} onPress={() => setActiveTab('public')} />
                 <TabButton label="My meetings" isActive={activeTab === 'my'} onPress={() => setActiveTab('my')} />
@@ -406,16 +421,23 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                 ) : (
                     <>
                         {activeTab === 'public' && (
-                            publicMeetings.length ? (
+                            // Show all relevant meetings as 'public' tab is slightly misnamed now based on privacy, but serves as 'Incoming/All'
+                            meetings.length ? (
                                 <FlatList
-                                    data={publicMeetings}
+                                    data={meetings} // Just show what backend returns (which is now filtered)
                                     keyExtractor={(item) => String(item._id || item.id)}
                                     contentContainerStyle={styles.listPadding}
                                     renderItem={({ item }) => (
                                         <MeetingCard
                                             meeting={item}
-                                            onJoin={() => handleJoin(item)}
-                                            joinLabel="Join"
+                                            joinLabel={myMeetings.includes(String(item._id || item.id)) ? "Enter" : "Join"}
+                                            onJoin={() => {
+                                                if (myMeetings.includes(String(item._id || item.id))) {
+                                                    if (onJoinMeeting) onJoinMeeting(String(item._id || item.id));
+                                                } else {
+                                                    handleJoin(item);
+                                                }
+                                            }}
                                         />
                                     )}
                                     refreshing={loading}
@@ -425,6 +447,12 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                         )}
 
                         {activeTab === 'my' && (
+                            // Keeping 'my meetings' tab for explicit 'ones I have joined' vs 'ones I am invited to' differentiation if needed, 
+                            // but simplifying to just show same list for now if backend filter overlaps.
+                            // Actually user said "meetings will be only shown to the participant who were in the list". 
+                            // So 'meetings' state already contains ONLY that.
+                            // We can just reuse the list or filter by 'accepted' status if we had that detail easily avail.
+                            // For now, My Meetings can strictly be "Where I am Participant".
                             myMeetingsList.length ? (
                                 <FlatList
                                     data={myMeetingsList}
@@ -462,7 +490,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView style={styles.modalForm}>
+                        <ScrollView style={styles.modalForm} contentContainerStyle={{ paddingBottom: 40 }}>
                             <Text style={[styles.label, { color: theme.text }]}>Title *</Text>
                             <TextInput
                                 value={createForm.title}
@@ -483,33 +511,66 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                                 numberOfLines={3}
                             />
 
-                            <Text style={[styles.label, { color: theme.text }]}>Scheduled Date & Time *</Text>
-                            <TextInput
-                                value={createForm.scheduledAt}
-                                onChangeText={(v) => setCreateForm(prev => ({ ...prev, scheduledAt: v }))}
-                                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                                placeholder="YYYY-MM-DD HH:MM (e.g., 2025-12-10 15:30)"
-                                placeholderTextColor={theme.placeholder}
-                            />
+                            {/* Date Time Pickers */}
+                            <Text style={[styles.label, { color: theme.text }]}>Start Time *</Text>
+                            <View style={styles.dateRow}>
+                                <TouchableOpacity onPress={() => openDatePicker('start', 'date')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
+                                    <Text style={{ color: theme.text }}>{createForm.scheduledAt.toLocaleDateString()}</Text>
+                                    <MaterialIcons name="calendar-today" size={16} color={theme.placeholder} />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => openDatePicker('start', 'time')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
+                                    <Text style={{ color: theme.text }}>{formatAMPM(createForm.scheduledAt)}</Text>
+                                    <MaterialIcons name="access-time" size={16} color={theme.placeholder} />
+                                </TouchableOpacity>
+                            </View>
 
-                            <Text style={[styles.label, { color: theme.text }]}>Duration (minutes)</Text>
-                            <TextInput
-                                value={createForm.duration}
-                                onChangeText={(v) => setCreateForm(prev => ({ ...prev, duration: v }))}
-                                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                                placeholder="60"
-                                placeholderTextColor={theme.placeholder}
-                                keyboardType="numeric"
-                            />
+                            <Text style={[styles.label, { color: theme.text }]}>End Time *</Text>
+                            <View style={styles.dateRow}>
+                                <TouchableOpacity onPress={() => openDatePicker('end', 'date')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
+                                    <Text style={{ color: theme.text }}>{createForm.endScheduledAt.toLocaleDateString()}</Text>
+                                    <MaterialIcons name="calendar-today" size={16} color={theme.placeholder} />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => openDatePicker('end', 'time')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
+                                    <Text style={{ color: theme.text }}>{formatAMPM(createForm.endScheduledAt)}</Text>
+                                    <MaterialIcons name="access-time" size={16} color={theme.placeholder} />
+                                </TouchableOpacity>
+                            </View>
 
-                            <Text style={[styles.label, { color: theme.text }]}>Meeting Link</Text>
+                            <Text style={[styles.label, { color: theme.text }]}>Participants</Text>
+                            {/* Selected Participants Chips */}
+                            {selectedParticipants.length > 0 && (
+                                <View style={styles.chipsContainer}>
+                                    {selectedParticipants.map(u => (
+                                        <View key={u._id} style={[styles.chip, { backgroundColor: theme.primary }]}>
+                                            <Text style={styles.chipText}>{u.displayName || u.username}</Text>
+                                            <TouchableOpacity onPress={() => removeParticipant(u._id)}>
+                                                <MaterialIcons name="close" size={16} color="#fff" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+
                             <TextInput
-                                value={createForm.meetingLink}
-                                onChangeText={(v) => setCreateForm(prev => ({ ...prev, meetingLink: v }))}
+                                value={participantQuery}
+                                onChangeText={setParticipantQuery}
                                 style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                                placeholder="https://meet.google.com/..."
+                                placeholder="Search & Add Participants..."
                                 placeholderTextColor={theme.placeholder}
                             />
+                            {/* Search Results */}
+                            {participantResults.length > 0 && (
+                                <View style={[styles.searchResults, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                                    {participantResults.map(u => (
+                                        <TouchableOpacity key={u._id} style={styles.searchResultItem} onPress={() => addParticipant(u)}>
+                                            <Text style={{ color: theme.text }}>{u.displayName || u.username}</Text>
+                                            <MaterialIcons name="add" size={20} color={theme.placeholder} />
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+                            {searchingParticipants && <ActivityIndicator size="small" color={theme.primary} style={{ marginTop: 8 }} />}
+
 
                             <Text style={[styles.label, { color: theme.text }]}>Location</Text>
                             <TextInput
@@ -530,6 +591,17 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                     </View>
                 </View>
             </Modal>
+
+            {showDatePicker && (
+                <DateTimePicker
+                    value={dateField === 'start' ? createForm.scheduledAt : createForm.endScheduledAt}
+                    mode={dateMode}
+                    is24Hour={false}
+                    display="default"
+                    onChange={onDateChange}
+                />
+            )}
+
         </View>
     );
 };
@@ -574,6 +646,14 @@ const styles = StyleSheet.create({
     tabIndicator: { height: 2, marginTop: 6 },
     row: { flexDirection: 'row' },
     listPadding: { padding: 12 },
+    // New Styles
+    dateRow: { flexDirection: 'row', justifyContent: 'space-between' },
+    dateBtn: { flex: 0.48, height: 44, borderWidth: 1, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10 },
+    chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
+    chip: { borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
+    chipText: { color: '#fff', marginRight: 4, fontSize: 12 },
+    searchResults: { borderWidth: 1, borderRadius: 8, marginTop: 4, maxHeight: 150 },
+    searchResultItem: { padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
 });
 
 export default Meetings;

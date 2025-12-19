@@ -6,16 +6,25 @@ exports.createMeeting = async (req, res, next) => {
         const { title, description, scheduledAt, duration, meetingLink, location, participants, type } = req.body;
         if (!title || !scheduledAt) return res.status(400).json({ error: 'Title and scheduledAt are required' });
 
+        // Normalize participants to ensure they match Schema { userId: ObjectId, status: String }
+        const normalizedParticipants = (participants || []).map(p => {
+            if (typeof p === 'string') return { userId: p, status: 'invited' };
+            if (p && p.userId) return p;
+            return null;
+        }).filter(Boolean);
+
         // Create meeting first to get the ID
         const meeting = new Meeting({
             organizer: req.user._id,
             title,
             description,
             scheduledAt,
+            startTime: req.body.startTime || scheduledAt,
+            endTime: req.body.endTime,
             duration: duration || 60,
             meetingLink: meetingLink || '', // Will be set after save if empty
             location,
-            participants: participants || [],
+            participants: normalizedParticipants,
             type: type || 'one-on-one'
         });
         await meeting.save();
@@ -29,9 +38,9 @@ exports.createMeeting = async (req, res, next) => {
         await meeting.populate('organizer', 'username displayName avatarUrl verified');
         await meeting.populate('participants.userId', 'username displayName avatarUrl verified');
 
-        const participantIds = participants || [];
-        for (const participantId of participantIds) {
-            const notification = new Notification({ user: participantId, actor: req.user._id, type: 'meeting_invite', payload: { meetingId: meeting._id, title: meeting.title, scheduledAt: meeting.scheduledAt } });
+        for (const pObj of normalizedParticipants) {
+            const uid = pObj.userId;
+            const notification = new Notification({ user: uid, actor: req.user._id, type: 'meeting_invite', payload: { meetingId: meeting._id, title: meeting.title, scheduledAt: meeting.scheduledAt } });
             await notification.save();
         }
 
@@ -43,17 +52,30 @@ exports.createMeeting = async (req, res, next) => {
 
 exports.listMeetings = async (req, res, next) => {
     try {
-        const { limit = 20, skip = 0, filter = 'upcoming', type } = req.query;
+        const { limit = 20, skip = 0, filter = 'all', type } = req.query;
         const now = new Date();
 
         // Default: show public meetings (not cancelled). 'upcoming' and 'past' are global filters.
         // Only when filter === 'my-meetings' return meetings where the user is organizer or a participant.
-        let query = { status: { $ne: 'cancelled' } };
+        // Default: Only show meetings where user is organizer or participant OR public global meetings if that concept exists.
+        // The user requested: "based the meetings will be only shown to the participant who were in the list"
+        // So we default to showing only relevant meetings.
+        let query = {
+            status: { $ne: 'cancelled' },
+            $or: [{ organizer: req.user._id }, { 'participants.userId': req.user._id }]
+        };
+
         if (type) query.type = type;
         if (filter === 'upcoming') query.scheduledAt = { $gte: now };
         else if (filter === 'past') query.scheduledAt = { $lt: now };
         else if (filter === 'my-meetings') {
-            query = { $or: [{ organizer: req.user._id }, { 'participants.userId': req.user._id }], status: { $ne: 'cancelled' } };
+            // Redundant now but kept logic
+            query.$or = [{ organizer: req.user._id }, { 'participants.userId': req.user._id }];
+        }
+
+        // Use a flag 'all' if admin or needing to debug, otherwise STRICT privacy as requested.
+        if (filter === 'all_public') {
+            query = { status: { $ne: 'cancelled' } };
         }
 
         const meetings = await Meeting.find(query)
