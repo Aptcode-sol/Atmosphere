@@ -23,4 +23,5 @@ module.exports = {
     Grant: require('./Grant'),
     Event: require('./Event'),
     Trade: require('./Trade'),
+    Reel: require('./Reel'),
 };

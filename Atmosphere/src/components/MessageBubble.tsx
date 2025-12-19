@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Linking } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getImageSource } from '../lib/image';
@@ -7,6 +7,7 @@ import { getImageSource } from '../lib/image';
 interface Message {
     _id: string;
     body: string;
+    type?: 'text' | 'image' | 'file' | 'video' | 'audio' | 'share';
     sender: {
         _id: string;
         displayName: string;
@@ -20,6 +21,15 @@ interface Message {
         body: string;
         sender?: { displayName: string };
     };
+    meta?: {
+        sharedContent?: {
+            id: string;
+            type: 'post' | 'reel' | 'startup';
+            title?: string;
+            image?: string;
+            owner?: string;
+        };
+    };
 }
 
 interface MessageBubbleProps {
@@ -28,6 +38,7 @@ interface MessageBubbleProps {
     showSenderName?: boolean;
     onLongPress?: (message: Message) => void;
     onReplyPress?: (message: Message) => void;
+    onContentPress?: (content: any) => void; // Handler for shared content click
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -35,7 +46,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     isMe,
     showSenderName = false,
     onLongPress,
-    onReplyPress
+    onReplyPress,
+    onContentPress
 }) => {
     const { theme } = useContext(ThemeContext);
 
@@ -61,6 +73,54 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         }
     };
 
+    const renderSharedContent = () => {
+        if (message.type !== 'share' || !message.meta?.sharedContent) return null;
+
+        const content = message.meta.sharedContent;
+        const isStartup = content.type === 'startup';
+        const isReel = content.type === 'reel';
+
+        return (
+            <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.sharedCard, { backgroundColor: theme.background || '#222' }]}
+                onPress={() => onContentPress?.(content)}
+            >
+                {/* Header / Owner info */}
+                <View style={styles.sharedHeader}>
+                    <Image
+                        source={getImageSource(isStartup ? (content.image || '') : (content.owner || ''))} // Use logo for startup, avatar for others usually
+                        style={styles.sharedAvatar}
+                    />
+                    <Text style={[styles.sharedOwner, { color: theme.text }]} numberOfLines={1}>
+                        {content.title || (isReel ? 'Reel' : 'Post')}
+                    </Text>
+                    <MaterialIcons name="chevron-right" size={20} color={theme.placeholder} />
+                </View>
+
+                {/* Main Media Preview */}
+                {content.image ? (
+                    <Image
+                        source={getImageSource(content.image)}
+                        style={[styles.sharedImage, isReel ? { aspectRatio: 9 / 16 } : { aspectRatio: 16 / 9 }]}
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View style={[styles.sharedImage, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
+                        <MaterialIcons name={isReel ? "videocam" : isStartup ? "business" : "article"} size={32} color="#666" />
+                    </View>
+                )}
+
+                {/* Footer / Type badge */}
+                <View style={[styles.sharedFooter, { borderTopColor: theme.border }]}>
+                    <Text style={[styles.sharedType, { color: theme.primary }]}>
+                        {isReel ? 'Watch Reel' : isStartup ? 'View Startup' : 'View Post'}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
     return (
         <TouchableOpacity
             activeOpacity={0.8}
@@ -82,7 +142,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 styles.messageBubble,
                 isMe
                     ? [styles.myMessage, { backgroundColor: theme.primary }]
-                    : [styles.theirMessage, { backgroundColor: theme.cardBackground || '#3B3B3B' }]
+                    : [styles.theirMessage, { backgroundColor: theme.cardBackground || '#3B3B3B' }],
+                message.type === 'share' && styles.sharedBubble // Special style for shared content
             ]}>
                 {/* Reply preview */}
                 {message.replyTo && (
@@ -108,8 +169,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
                 {/* Message content */}
                 <View style={styles.messageContent}>
-                    <Text style={styles.messageText}>{message.body}</Text>
-                    <View style={styles.metaRow}>
+                    {message.type === 'share' ? (
+                        renderSharedContent()
+                    ) : (
+                        <Text style={styles.messageText}>{message.body}</Text>
+                    )}
+
+                    <View style={[styles.metaRow, message.type === 'share' && { marginTop: 4 }]}>
                         <Text style={styles.timestamp}>{timestamp}</Text>
                         {renderStatus()}
                     </View>
@@ -148,6 +214,12 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.08,
         shadowRadius: 2
+    },
+    sharedBubble: {
+        paddingHorizontal: 4, // Less padding for card
+        paddingTop: 4,
+        maxWidth: '80%',
+        backgroundColor: 'transparent' // Let card handle bg
     },
     myMessage: {
         borderBottomRightRadius: 6
@@ -196,6 +268,44 @@ const styles = StyleSheet.create({
     timestamp: {
         fontSize: 11,
         color: 'rgba(255,255,255,0.55)'
+    },
+    // Shared content styles
+    sharedCard: {
+        borderRadius: 16,
+        overflow: 'hidden',
+        minWidth: 200,
+    },
+    sharedHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        gap: 8
+    },
+    sharedAvatar: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#444'
+    },
+    sharedOwner: {
+        fontSize: 13,
+        fontWeight: '600',
+        flex: 1
+    },
+    sharedImage: {
+        width: '100%',
+        height: undefined, // Controlled by aspect ratio
+        backgroundColor: '#000'
+    },
+    sharedFooter: {
+        padding: 10,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        alignItems: 'center'
+    },
+    sharedType: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase'
     }
 });
 

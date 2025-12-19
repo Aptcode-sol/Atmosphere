@@ -18,6 +18,7 @@ interface TradeCardProps {
     onToggleExpand: () => void;
     onToggleSave: () => void;
     onPhotoIndexChange: (index: number) => void;
+    onExpressInterest: () => void;
 }
 
 export const TradeCard: React.FC<TradeCardProps> = ({
@@ -28,6 +29,7 @@ export const TradeCard: React.FC<TradeCardProps> = ({
     onToggleExpand,
     onToggleSave,
     onPhotoIndexChange,
+    onExpressInterest,
 }) => {
     // Animation value for opacity (uses native driver for smoothness)
     const opacityAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
@@ -206,7 +208,7 @@ export const TradeCard: React.FC<TradeCardProps> = ({
                     )}
 
                     {/* Express Interest Button */}
-                    <TouchableOpacity style={styles.expressInterestButton}>
+                    <TouchableOpacity style={styles.expressInterestButton} onPress={onExpressInterest}>
                         <Text style={styles.expressInterestText}>Express Interest</Text>
                     </TouchableOpacity>
                 </Animated.View>

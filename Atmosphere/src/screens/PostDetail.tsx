@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, SafeAreaView } from 'react-native';
-import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark } from 'lucide-react-native';
+import { ArrowLeft, Heart, MessageCircle, Send, Bookmark } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl, DEFAULT_BASE_URL } from '../lib/config';
@@ -267,25 +267,25 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         <View style={[styles.actionsRow, { borderColor: theme.border }]}>
           {/* Like */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleLike} disabled={likeLoading}>
-            <Heart size={26} color={liked ? '#FF3B5C' : theme.text} fill={liked ? '#FF3B5C' : 'none'} />
+            <Heart size={26} color={liked ? '#FF3B5C' : '#fff'} fill={liked ? '#FF3B5C' : 'none'} />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.likesCount || 0}</Text>
           </TouchableOpacity>
 
           {/* Comment */}
           <TouchableOpacity style={styles.actionBtn} onPress={() => setShowComments(true)}>
-            <MessageCircle size={26} color={theme.text} />
+            <MessageCircle size={26} color="#fff" />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.commentsCount || 0}</Text>
           </TouchableOpacity>
 
           {/* Share */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleShareClick}>
-            <Share2 size={26} color={shared ? theme.primary : theme.text} />
+            <Send size={26} color="#fff" />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.sharesCount || 0}</Text>
           </TouchableOpacity>
 
           {/* Save */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleSave} disabled={saveLoading}>
-            <Bookmark size={26} color={saved ? theme.primary : theme.text} fill={saved ? theme.primary : 'none'} />
+            <Bookmark size={26} color={saved ? theme.primary : '#fff'} fill={saved ? theme.primary : 'none'} />
           </TouchableOpacity>
         </View>
 
@@ -326,6 +326,9 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
         onClose={() => setShowShareModal(false)}
         onShareComplete={handleShareComplete}
         alreadyShared={shared}
+        contentTitle={post.content ? (post.content.length > 30 ? post.content.substring(0, 30) + '...' : post.content) : 'New Post'}
+        contentImage={images[0]}
+        contentOwner={authorName}
       />
     </SafeAreaView>
   );

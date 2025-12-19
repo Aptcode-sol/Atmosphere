@@ -5,7 +5,7 @@ const MessageSchema = new Schema(
     {
         chat: { type: Schema.Types.ObjectId, ref: 'Chat', required: true },
         sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-        type: { type: String, enum: ['text', 'image', 'file', 'video', 'audio'], default: 'text' },
+        type: { type: String, enum: ['text', 'image', 'file', 'video', 'audio', 'share'], default: 'text' },
         body: { type: String },
         attachments: [{ url: String, type: String, name: String, size: Number }],
         // Message status tracking

@@ -12,6 +12,7 @@ import { crownStartup, uncrownStartup } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Heart, Crown, MessageCircle, Send, Bookmark } from 'lucide-react-native';
 import VerifiedBadge from './VerifiedBadge';
+import ShareModal from './ShareModal';
 
 type StartupCard = {
     id: string;
@@ -319,7 +320,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                     </TouchableOpacity>
 
                     {/* Share/Send */}
-                    <TouchableOpacity style={styles.statItem}>
+                    <TouchableOpacity style={styles.statItem} onPress={() => setShareModalVisible(true)}>
                         <Send size={24} color="#fff" />
                         <Text style={styles.statCount}>{stats.shares}</Text>
                     </TouchableOpacity>

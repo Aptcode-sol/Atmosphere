@@ -58,4 +58,83 @@ router.get('/check/:postId', authMiddleware, async (req, res) => {
   }
 });
 
+// Send content to chats (Unified Share)
+router.post('/send', authMiddleware, async (req, res) => {
+    try {
+        const { userIds, contentId, contentType, contentTitle, contentImage, contentOwner } = req.body; // Expecting generic content details
+        
+        if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+            return res.status(400).json({ error: 'No recipients selected' });
+        }
+
+        const { Chat, Message, User, Post, Reel, Trade, StartupDetails } = require('../models');
+
+        // Logic to increment share count based on type
+        // This is done once per share action, regardless of number of recipients
+        if (contentType === 'post') {
+            await Post.findByIdAndUpdate(contentId, { $inc: { sharesCount: 1 } });
+        } else if (contentType === 'reel') {
+            await Reel.findByIdAndUpdate(contentId, { $inc: { sharesCount: 1 } });
+        } else if (contentType === 'trade') {
+            await Trade.findByIdAndUpdate(contentId, { $inc: { sharesCount: 1 } });
+        }
+        // Startup share count logic if exists? For now skipping if no field
+
+        const results = [];
+
+        // Send message to each user
+        for (const recipientId of userIds) {
+            try {
+                // 1. Find or create chat
+                let chat = await Chat.findOne({
+                    participants: { $all: [req.user._id, recipientId], $size: 2 },
+                    isGroup: false
+                });
+
+                if (!chat) {
+                    chat = new Chat({ participants: [req.user._id, recipientId], isGroup: false });
+                    await chat.save();
+                }
+
+                // 2. Create Message
+                const message = new Message({
+                    chat: chat._id,
+                    sender: req.user._id,
+                    type: 'share',
+                    body: `Shared a ${contentType}`, 
+                    meta: {
+                        sharedContent: {
+                            id: contentId,
+                            type: contentType,
+                            title: contentTitle || '',
+                            image: contentImage || '',
+                            owner: contentOwner || '' 
+                        }
+                    }
+                });
+                await message.save();
+
+                // 3. Update Chat
+                chat.lastMessage = message._id;
+                 if (!chat.unreadCount) chat.unreadCount = new Map();
+                const currentUnread = chat.unreadCount.get(recipientId.toString()) || 0;
+                chat.unreadCount.set(recipientId.toString(), currentUnread + 1);
+                await chat.save();
+
+                results.push({ recipientId, status: 'sent', messageId: message._id });
+
+            } catch (err) {
+                console.error(`Failed to send share to ${recipientId}:`, err);
+                results.push({ recipientId, status: 'failed', error: err.message });
+            }
+        }
+
+        res.status(200).json({ message: 'Share processed', results });
+
+    } catch (error) {
+        console.error('Unified share error:', error);
+        res.status(500).json({ error: 'Failed to process share' });
+    }
+});
+
 module.exports = router;

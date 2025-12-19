@@ -516,6 +516,11 @@ export async function getAllTrades(limit = 20, skip = 0, filters = {}) {
     return data.trades || [];
 }
 
+export async function getTrade(tradeId: string) {
+    const data = await request(`/api/trade/trades/${encodeURIComponent(tradeId)}`, {}, { method: 'GET' });
+    return data.trade || null;
+}
+
 export async function updateTrade(id: string, tradeData: any) {
     return request(`/api/trade/trades/${id}`, tradeData, { method: 'PUT' });
 }
@@ -664,6 +669,18 @@ export async function checkReelShared(reelId: string) {
     return data || { shared: false, shareId: null, sharedWith: [] };
 }
 
+// Unified Share API
+export async function shareContent(payload: {
+    userIds: string[];
+    contentId: string;
+    contentType: 'post' | 'reel' | 'startup' | 'trade';
+    contentTitle?: string;
+    contentImage?: string;
+    contentOwner?: string;
+}) {
+    return request('/api/shares/send', payload, { method: 'POST' });
+}
+
 // Upload video for reels
 export async function uploadVideo(videoUri: string): Promise<{ url: string; thumbnailUrl: string; duration: number }> {
     const base = await getBaseUrl().catch(() => DEFAULT_BASE_URL);
@@ -726,4 +743,22 @@ export async function getKycStatus() {
 
 export async function markKycComplete() {
     return request('/api/settings/kyc', {}, { method: 'PUT' });
+}
+
+// My Teams APIs
+export async function fetchMyTeam() {
+    const data = await request('/api/my-team', {}, { method: 'GET' });
+    return data || [];
+}
+
+export async function addToMyTeam(memberId: string) {
+    return request('/api/my-team', { memberId }, { method: 'POST' });
+}
+
+export async function removeFromMyTeam(memberId: string) {
+    return request(`/api/my-team/${encodeURIComponent(memberId)}`, {}, { method: 'DELETE' });
+}
+
+export async function sendMessage(chatId: string, content: string) {
+    return request(`/api/messages/${chatId}`, { content }, { method: 'POST' });
 }

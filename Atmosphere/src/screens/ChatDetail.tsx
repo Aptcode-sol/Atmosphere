@@ -36,9 +36,10 @@ interface ChatDetailProps {
     chatId: string;
     onBackPress?: () => void;
     onProfileOpen?: (userId: string) => void;
+    onContentPress?: (content: any) => void;
 }
 
-const ChatDetail = ({ chatId, onBackPress, onProfileOpen }: ChatDetailProps) => {
+const ChatDetail = ({ chatId, onBackPress, onProfileOpen, onContentPress }: ChatDetailProps) => {
     const { theme } = useContext(ThemeContext);
     const flatListRef = useRef<FlatList>(null);
     const [messageText, setMessageText] = useState('');
@@ -286,6 +287,7 @@ const ChatDetail = ({ chatId, onBackPress, onProfileOpen }: ChatDetailProps) => 
                 isMe={isMe}
                 showSenderName={chatDetails?.isGroup && !isMe}
                 onLongPress={handleLongPress}
+                onContentPress={onContentPress}
             />
         );
     };

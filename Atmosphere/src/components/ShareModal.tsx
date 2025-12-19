@@ -17,7 +17,7 @@ import {
     Image,
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { getFollowersList, getProfile, shareReel, sharePost } from '../lib/api';
+import { getFollowersList, getProfile, shareContent } from '../lib/api';
 import { getImageSource } from '../lib/image';
 import Icon from 'react-native-vector-icons/Feather';
 
@@ -33,7 +33,10 @@ type Follower = {
 
 type ShareModalProps = {
     contentId: string;
-    type?: 'reel' | 'post';
+    type?: 'reel' | 'post' | 'startup'; // Extended type
+    contentTitle?: string; // New: Title of shared content (e.g. Startup Name, Post snippet)
+    contentImage?: string; // New: Preview image
+    contentOwner?: string; // New: Owner name/id
     visible: boolean;
     onClose: () => void;
     onShareComplete?: (sharesCount: number) => void;
@@ -43,6 +46,9 @@ type ShareModalProps = {
 const ShareModal: React.FC<ShareModalProps> = ({
     contentId,
     type = 'reel',
+    contentTitle,
+    contentImage,
+    contentOwner,
     visible,
     onClose,
     onShareComplete,
@@ -135,16 +141,22 @@ const ShareModal: React.FC<ShareModalProps> = ({
         if (submitting) return;
         setSubmitting(true);
         try {
-            let result;
-            if (type === 'reel') {
-                result = await shareReel(contentId, Array.from(selectedIds));
-            } else {
-                result = await sharePost(contentId, Array.from(selectedIds));
+            await shareContent({
+                userIds: Array.from(selectedIds),
+                contentId,
+                contentType: type,
+                contentTitle,
+                contentImage,
+                contentOwner
+            });
+
+            // Use a slight delay or optimistic response for share count
+            // Since unified share might process differently, for now just pass back 1 or generic count
+            // if we need accurate count, we'd depend on the response from shareContent
+            if (onShareComplete) {
+                onShareComplete(1); // Indicate success
             }
 
-            if (onShareComplete) {
-                onShareComplete(result?.sharesCount || 1);
-            }
             // Close modal after share
             Animated.timing(anim, {
                 toValue: 0,
@@ -154,6 +166,9 @@ const ShareModal: React.FC<ShareModalProps> = ({
             }).start(() => onClose && onClose());
         } catch (err) {
             console.warn('ShareModal: share failed', err);
+            // @ts-ignore
+            const { Alert } = require('react-native');
+            Alert.alert('Share Failed', 'Could not send share. Please try again.');
         } finally {
             setSubmitting(false);
         }
@@ -215,13 +230,8 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     </View>
 
                     <Text style={[styles.title, { color: theme?.text }]}>
-                        {alreadyShared ? 'Share Again' : `Share ${type === 'reel' ? 'Reel' : 'Post'}`}
+                        {alreadyShared ? 'Share Again' : `Send to...`}
                     </Text>
-                    {alreadyShared && (
-                        <Text style={[styles.subtitle, { color: theme?.placeholder }]}>
-                            You've already shared this {type === 'reel' ? 'reel' : 'post'}
-                        </Text>
-                    )}
 
                     {/* Search */}
                     <View style={[styles.searchRow, { borderColor: theme?.border || '#333' }]}>
@@ -238,7 +248,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     {/* Followers list */}
                     <View style={styles.listWrap}>
                         {loading ? (
-                            <ActivityIndicator size="large" color="#ec4899" />
+                            <ActivityIndicator size="large" color="#fff" />
                         ) : filteredFollowers.length === 0 ? (
                             <View style={styles.emptyWrap}>
                                 <Text style={[styles.emptyText, { color: theme?.placeholder }]}>
@@ -318,15 +328,15 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     >
                         <Text style={styles.shareBtnText}>
                             {submitting
-                                ? 'Sharing...'
+                                ? 'Send...'
                                 : selectedIds.size > 0
-                                    ? `Share with ${selectedIds.size} follower${selectedIds.size > 1 ? 's' : ''}`
-                                    : 'Select followers'}
+                                    ? `Send to ${selectedIds.size} person${selectedIds.size > 1 ? 's' : ''}`
+                                    : 'Select people'}
                         </Text>
                     </TouchableOpacity>
                 </Animated.View>
             </KeyboardAvoidingView>
-        </Modal>
+        </Modal >
     );
 };
 
@@ -444,11 +454,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     checkboxSelected: {
-        backgroundColor: '#ec4899',
-        borderColor: '#ec4899',
+        backgroundColor: '#fff',
+        borderColor: '#fff',
     },
     shareBtn: {
-        backgroundColor: '#ec4899',
+        backgroundColor: '#fff',
         paddingVertical: 14,
         borderRadius: 12,
         alignItems: 'center',
@@ -458,7 +468,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#555',
     },
     shareBtnText: {
-        color: '#fff',
+        color: '#000',
         fontSize: 16,
         fontWeight: '700',
     },

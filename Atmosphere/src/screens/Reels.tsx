@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { fetchReels, likeReel, unlikeReel, checkReelShared } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
-import { Heart, MessageCircle, Send, Eye, Video as VideoIcon } from 'lucide-react-native';
+import { Heart, MessageCircle, Send, Eye, Video, ArrowLeft as VideoIcon } from 'lucide-react-native';
 import Video from 'react-native-video';
 import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
@@ -62,11 +62,15 @@ interface ReelItem {
 interface ReelsProps {
     userId?: string;
     initialReelId?: string;
+    onBack?: () => void;
 }
 
-const Reels = ({ userId, initialReelId }: ReelsProps) => {
+
+
+const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
     // theme not required here
     const [reels, setReels] = useState<ReelItem[]>([]);
+
     const flatListRef = useRef<FlatList>(null);
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -99,13 +103,15 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
     }, []);
 
     useEffect(() => {
+        console.log('Reels mounted/updated with userId:', userId, 'initialReelId:', initialReelId);
         loadReels();
-    }, [userId]);
+    }, [userId, initialReelId]);
 
     // Scroll to initial reel if present
     useEffect(() => {
         if (initialReelId && reels.length > 0 && flatListRef.current) {
             const index = reels.findIndex(r => r._id === initialReelId);
+            console.log('Scrolling to initial reel index:', index, 'id:', initialReelId);
             if (index >= 0) {
                 // Wait a tick for layout
                 setTimeout(() => {
@@ -118,14 +124,38 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
 
     const loadReels = async () => {
         try {
-            let data = [];
+            console.log('Loading reels...');
+            let data: any[] = [];
+            const api = await import('../lib/api');
+
             if (userId) {
                 // Fetch user specific reels
-                // Using existing api.getUserReels(userId)
-                const api = await import('../lib/api');
                 data = await api.getUserReels(userId, 30, 0);
             } else {
-                data = await fetchReels(30, 0);
+                data = await api.fetchReels(30, 0);
+            }
+
+            // Check if we need to fetch the initial reel specifically
+            if (initialReelId) {
+                console.log('Checking for initial reel:', initialReelId);
+                const alreadyExists = data.find((r: any) => r._id === initialReelId);
+                if (!alreadyExists) {
+                    try {
+                        console.log('Fetching missing initial reel...');
+                        const targetReel = await api.getReel(initialReelId);
+                        if (targetReel) {
+                            console.log('Found target reel, prepending...');
+                            // Prepend the target reel
+                            data = [targetReel, ...data];
+                        } else {
+                            console.warn('Target reel not found on server');
+                        }
+                    } catch (e) {
+                        console.warn('Failed to load initial reel:', e);
+                    }
+                } else {
+                    console.log('Initial reel already in batch');
+                }
             }
 
             // Initialize with default values
@@ -238,7 +268,7 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
                 <View style={styles.reelContainer}>
                     {/* Video or Thumbnail - using contain to preserve original aspect ratio */}
                     {isActive && item.videoUrl ? (
-                        <Video
+                        <VideoPlayer
                             source={{ uri: item.videoUrl }}
                             style={styles.video}
                             resizeMode="contain"
@@ -321,9 +351,23 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
         }
     }).current;
 
+    const renderBackButton = () => {
+        if (!onBack) return null;
+        return (
+            <TouchableOpacity
+                style={styles.backButton}
+                onPress={onBack}
+                activeOpacity={0.7}
+            >
+                <ArrowLeft size={28} color="#fff" />
+            </TouchableOpacity>
+        );
+    };
+
     if (loading) {
         return (
             <View style={[styles.container, styles.center]}>
+                {renderBackButton()}
                 <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
         );
@@ -332,6 +376,7 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
     if (reels.length === 0) {
         return (
             <View style={[styles.container, styles.center]}>
+                {renderBackButton()}
                 <VideoIcon size={64} color="#666" />
                 <Text style={styles.emptyText}>No reels yet</Text>
             </View>
@@ -340,6 +385,7 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
 
     return (
         <View style={styles.container}>
+            {renderBackButton()}
             <FlatList
                 ref={flatListRef}
                 data={reels} // Use local reels state
@@ -384,6 +430,9 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
                     onClose={() => setShareReelId(null)}
                     onShareComplete={handleShareComplete}
                     alreadyShared={shareAlreadyShared}
+                    contentTitle={reels.find(r => r._id === shareReelId)?.caption || 'Reel'}
+                    contentImage={reels.find(r => r._id === shareReelId)?.thumbnailUrl || reels.find(r => r._id === shareReelId)?.videoUrl}
+                    contentOwner={reels.find(r => r._id === shareReelId)?.author.displayName || reels.find(r => r._id === shareReelId)?.author.username}
                 />
             )}
         </View>
@@ -467,6 +516,15 @@ const styles = StyleSheet.create({
         color: '#666',
         fontSize: 16,
         marginTop: 16,
+    },
+    backButton: {
+        position: 'absolute',
+        top: STATUS_BAR_HEIGHT + 10,
+        left: 16,
+        zIndex: 50,
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(0,0,0,0.5)',
     },
 });
 

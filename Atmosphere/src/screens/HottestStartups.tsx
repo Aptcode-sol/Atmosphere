@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { Image } from 'react-native';
-import { Crown, Heart, Flame } from 'lucide-react-native';
+import { Crown, Heart, Flame, Send } from 'lucide-react-native';
+import ShareModal from '../components/ShareModal';
 import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -158,6 +159,14 @@ const HottestStartups = () => {
         );
     };
 
+    const [shareModalVisible, setShareModalVisible] = useState(false);
+    const [sharingContent, setSharingContent] = useState<any>(null);
+
+    const openShare = (item: any) => {
+        setSharingContent(item);
+        setShareModalVisible(true);
+    };
+
     const renderListItem = ({ item }: { item: any }) => (
         <View style={styles.listCard}>
             <View style={styles.listAvatar}>
@@ -181,9 +190,14 @@ const HottestStartups = () => {
                     </View>
                 </View>
             </View>
-            <TouchableOpacity style={styles.viewBtn} onPress={() => { /* navigate to profile */ }}>
-                <Text style={styles.viewBtnText}>View {'>'}</Text>
-            </TouchableOpacity>
+            <View style={styles.actionsRight}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => openShare(item)}>
+                    <Send size={20} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.viewBtn} onPress={() => { /* navigate to profile */ }}>
+                    <Text style={styles.viewBtnText}>View {'>'}</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 
@@ -215,6 +229,17 @@ const HottestStartups = () => {
                     />
                 }
             />
+            {sharingContent && (
+                <ShareModal
+                    visible={shareModalVisible}
+                    onClose={() => setShareModalVisible(false)}
+                    contentId={String(sharingContent._startupId || sharingContent.id || sharingContent._id)}
+                    type="startup"
+                    contentTitle={sharingContent.name || sharingContent.companyName || 'Startup'}
+                    contentImage={sharingContent.logo || sharingContent.profileImage || sharingContent.image}
+                    contentOwner={sharingContent.name || sharingContent.companyName}
+                />
+            )}
         </View>
     );
 };
@@ -274,6 +299,8 @@ const styles = StyleSheet.create({
     championImage: { width: 84, height: 84, borderRadius: 14 },
     listName: { color: '#fff', fontWeight: '700', maxWidth: width - 160 },
     listTag: { color: '#9CA3AF', fontSize: 12, maxWidth: width - 200 },
+    actionsRight: { flexDirection: 'row', alignItems: 'center' },
+    iconBtn: { padding: 8, marginRight: 4 },
     viewBtn: { backgroundColor: '#000', borderWidth: 1, borderColor: '#333', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 24, marginLeft: 8 },
     viewBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 }
     , separator: { height: 12 },

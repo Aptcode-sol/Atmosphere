@@ -13,6 +13,7 @@ router.post('/order', authMiddleware, tradeService.placeOrder);
 router.post('/trades', authMiddleware, tradeService.createTrade);
 router.get('/trades/my', authMiddleware, tradeService.getMyTrades);
 router.get('/trades', optionalAuth, tradeService.getAllTrades);
+router.get('/trades/:id', optionalAuth, tradeService.getTradeById);
 router.put('/trades/:id', authMiddleware, tradeService.updateTrade);
 router.delete('/trades/:id', authMiddleware, tradeService.deleteTrade);
 router.post('/trades/:id/view', optionalAuth, tradeService.incrementViews);

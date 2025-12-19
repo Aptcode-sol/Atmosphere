@@ -169,6 +169,22 @@ exports.getAllTrades = async (req, res, next) => {
     }
 };
 
+// Get single trade by ID
+exports.getTradeById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const trade = await Trade.findById(id).populate('user', 'username displayName avatarUrl').lean();
+
+        if (!trade) {
+            return res.status(404).json({ error: 'Trade not found' });
+        }
+
+        res.json({ trade });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // Update a trade
 exports.updateTrade = async (req, res, next) => {
     try {

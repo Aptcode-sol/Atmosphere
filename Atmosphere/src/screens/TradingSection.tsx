@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades } from '../lib/api';
+import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades, createOrFindChat, sendMessage, shareContent } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -103,10 +103,10 @@ const Trading = () => {
     const [companyType] = useState<string[]>([]);
     const [videoUri, setVideoUri] = useState<string>('');
     const [imageUris, setImageUris] = useState<string[]>([]);
-    const [_videoS3Url, _setVideoS3Url] = useState<string>('');
-    const [_videoThumbnailUrl, _setVideoThumbnailUrl] = useState<string>('');
-    const [_imageS3Urls, _setImageS3Urls] = useState<string[]>([]);
-    const [_uploading, _setUploading] = useState<boolean>(false);
+    const [_videoS3Url, setVideoS3Url] = useState<string>('');
+    const [_videoThumbnailUrl, setVideoThumbnailUrl] = useState<string>('');
+    const [_imageS3Urls, setImageS3Urls] = useState<string[]>([]);
+    const [uploading, setUploading] = useState<boolean>(false);
     const [externalLinkHeading, setExternalLinkHeading] = useState<string>('');
     const [externalLinkUrl, setExternalLinkUrl] = useState<string>('');
     const [selectedCompanyName, setSelectedCompanyName] = useState<string>('');
@@ -603,6 +603,45 @@ const Trading = () => {
         }
     };
 
+    const handleExpressInterest = async (trade: ActiveTrade) => {
+        try {
+            // @ts-ignore - Assuming trade.user or trade.startupUsername is available
+            const ownerId = trade.user?._id || trade.user;
+            const ownerName = trade.companyName || 'the company';
+
+            if (!ownerId) {
+                Alert.alert('Error', 'Contact information not available for this trade.');
+                return;
+            }
+
+            const response = await createOrFindChat(ownerId);
+            const chat = response?.chat || response; // Handle both { chat: ... } and direct chat object if API changes
+
+            if (chat && (chat._id || chat.id)) {
+                const chatId = chat._id || chat.id;
+                await sendMessage(chatId, `Hi, I'm interested in ${ownerName}`);
+
+                // Share the trade card as well
+                await shareContent({
+                    userIds: [ownerId],
+                    contentId: trade._id!,
+                    contentType: 'trade',
+                    contentTitle: trade.companyName,
+                    contentImage: trade.imageUrls?.[0] || '',
+                    contentOwner: trade.startupUsername,
+                });
+
+                Alert.alert('Success', 'Interest expressed! A message and trade card have been sent to the owner.');
+            } else {
+                console.warn('Chat creation response mismatch:', response);
+                Alert.alert('Error', 'Failed to start chat with the owner.');
+            }
+        } catch (error) {
+            console.error('Express interest error:', error);
+            Alert.alert('Error', 'Failed to send interest message.');
+        }
+    };
+
     const renderInvestorPortfolios = () => {
         if (investorsLoading) {
             return (
@@ -1074,6 +1113,7 @@ const Trading = () => {
                             }}
                             onToggleSave={() => toggleSaveItem(String(tradeId))}
                             onPhotoIndexChange={(index) => setCurrentPhotoIndex(prev => ({ ...prev, [tradeId]: index }))}
+                            onExpressInterest={() => handleExpressInterest(item)}
                         />
                     );
                 }}
