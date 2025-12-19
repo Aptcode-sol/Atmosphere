@@ -14,6 +14,7 @@ import {
     Dimensions,
     RefreshControl,
     ScrollView,
+    Linking,
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -52,6 +53,19 @@ const getBadgeColor = (type: string) => {
     }
 };
 
+// Helper to format date as "Dec 31, 2024"
+const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'TBD';
+    try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    } catch {
+        return dateStr;
+    }
+};
+
 // Grant/Event Card Component (matches web design)
 function GrantEventCard({ item, type }: { item: any; type: 'Grant' | 'Event' }) {
     const [expanded, setExpanded] = useState(false);
@@ -63,7 +77,7 @@ function GrantEventCard({ item, type }: { item: any; type: 'Grant' | 'Event' }) 
     const companyName = type === 'Grant' ? (item.organization || 'Unknown Org') : (item.organizer || 'Unknown Host');
 
     const cardBg = '#000';
-    const borderColor = '#333';
+    const borderColor = '#202122';
     const textColor = '#f2f2f2';
     const subTextColor = '#888';
     const primaryColor = '#3b82f6';
@@ -87,35 +101,37 @@ function GrantEventCard({ item, type }: { item: any; type: 'Grant' | 'Event' }) 
 
     return (
         <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-            {/* Header: Title + Badge */}
-            {/* Header: Company + Badge (Matches RoleCard) */}
-            {/* Header: Company + Badge (Matches RoleCard) */}
+            {/* Header: Title + Badge on same line */}
             <View style={styles.cardHeaderRow}>
-                <View style={styles.companyRow}>
-                    <View style={[styles.companyIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                        <MaterialIcons name={type === 'Grant' ? 'monetization-on' : 'event'} size={24} color="#3b82f6" />
-                    </View>
-                    <View style={styles.companyInfo}>
-                        <View style={styles.companyNameRow}>
-                            <Text style={[styles.companyName, { color: textColor }]} numberOfLines={1}>
-                                {companyName}
-                            </Text>
-                            <View style={[styles.myAdBadge, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-                                <Text style={[styles.myAdText, { color: '#22c55e' }]}>{badgeType}</Text>
-                            </View>
-                        </View>
-                        <Text style={[styles.companyType, { color: subTextColor }]}>
-                            {item.sector || 'Various Sectors'}
-                        </Text>
+                <View style={styles.titleBadgeRow}>
+                    <Text style={[styles.roleTitle, { color: textColor, flex: 1 }]} numberOfLines={2}>
+                        {item.name || item.title}
+                    </Text>
+                    <View style={[styles.myAdBadge, { backgroundColor: 'rgba(100, 100, 100, 0.3)', marginLeft: 12 }]}>
+                        <Text style={[styles.myAdText, { color: '#aaa' }]}>{badgeType}</Text>
                     </View>
                 </View>
             </View>
 
-            {/* Title + Location (Matches RoleCard roleSection) */}
-            <View style={styles.roleSection}>
-                <Text style={[styles.roleTitle, { color: textColor }]} numberOfLines={2}>
-                    {item.name || item.title}
+            {/* Organization/Company Name */}
+            <Text style={[styles.companySubtitle, { color: subTextColor }]}>
+                {companyName}
+            </Text>
+
+            {/* Description */}
+            <View style={[styles.descContainer, { marginTop: 8 }]}>
+                <Text style={[styles.cardDesc, { color: subTextColor }]} numberOfLines={expanded || showFullDesc ? undefined : 2}>
+                    {description}
                 </Text>
+                {!expanded && description.length > 80 && (
+                    <TouchableOpacity onPress={() => setShowFullDesc(!showFullDesc)}>
+                        <Text style={styles.moreLess}>{showFullDesc ? 'Less' : 'More'}</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            {/* Location + Deadline Row */}
+            <View style={styles.roleSection}>
                 <View style={styles.locationRow}>
                     <View style={styles.metaItem}>
                         <MaterialIcons name="place" size={14} color={subTextColor} style={{ marginRight: 4 }} />
@@ -126,22 +142,10 @@ function GrantEventCard({ item, type }: { item: any; type: 'Grant' | 'Event' }) 
                     <View style={styles.metaItem}>
                         <MaterialIcons name="event" size={14} color={subTextColor} style={{ marginRight: 4 }} />
                         <Text style={[styles.metaText, { color: subTextColor }]}>
-                            {item.deadline || item.date || 'TBD'}
+                            {formatDate(item.deadline || item.date)}
                         </Text>
                     </View>
                 </View>
-            </View>
-
-            {/* Description */}
-            <View style={styles.descContainer}>
-                <Text style={[styles.cardDesc, { color: subTextColor }]} numberOfLines={expanded || showFullDesc ? undefined : 2}>
-                    {description}
-                </Text>
-                {!expanded && description.length > 80 && (
-                    <TouchableOpacity onPress={() => setShowFullDesc(!showFullDesc)}>
-                        <Text style={styles.moreLess}>{showFullDesc ? 'Less' : 'More'}</Text>
-                    </TouchableOpacity>
-                )}
             </View>
 
             {/* Expanded Form Section */}
@@ -209,7 +213,7 @@ function GrantEventCard({ item, type }: { item: any; type: 'Grant' | 'Event' }) 
                     {/* Left side info: Amount or Attendees */}
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         {type === 'Grant' && (
-                            <Text style={[styles.employmentText, { color: '#22c55e', fontWeight: '600' }]}>
+                            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
                                 {item.amount || 'Varies'}
                             </Text>
                         )}
@@ -223,19 +227,23 @@ function GrantEventCard({ item, type }: { item: any; type: 'Grant' | 'Event' }) 
                         )}
                     </View>
 
-                    {/* Right side: Expand/Apply Button */}
-                    {applied ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ color: '#22c55e', marginRight: 4 }}>✓ Applied</Text>
-                        </View>
-                    ) : (
-                        <TouchableOpacity onPress={() => setExpanded(true)} style={styles.applicantsBtn}>
-                            <Text style={[styles.applicantsText, { color: '#fff', fontWeight: 'bold', fontSize: 13 }]}>
-                                {type === 'Grant' ? 'Apply Now' : 'Register'}
-                            </Text>
-                            <Text style={[styles.chevron, { color: '#fff', marginLeft: 4, transform: [{ rotate: '-90deg' }] }]}>▼</Text>
-                        </TouchableOpacity>
-                    )}
+                    {/* Right side: Apply Button - Opens URL */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            const url = item.url || item.applicationUrl;
+                            if (url) {
+                                Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open link'));
+                            } else {
+                                Alert.alert('Info', 'No application link available');
+                            }
+                        }}
+                        style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#333', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
+                    >
+                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                            {type === 'Grant' ? 'Apply' : 'Register'}
+                        </Text>
+                        <MaterialIcons name="open-in-new" size={16} color="#fff" style={{ marginLeft: 6 }} />
+                    </TouchableOpacity>
                 </View>
             )}
         </View>
@@ -1305,9 +1313,8 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     roleTitle: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: '600',
-        marginBottom: 8,
     },
     locationRow: {
         flexDirection: 'row',
@@ -1646,6 +1653,15 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 12,
         marginTop: 8,
+    },
+    titleBadgeRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+    },
+    companySubtitle: {
+        fontSize: 14,
+        marginTop: -8,
     },
 });
 

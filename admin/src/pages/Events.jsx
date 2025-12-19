@@ -4,22 +4,25 @@ import Header from '../components/Layout/Header';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import Table, { TableHead, TableBody, TableRow, TableHeader, TableCell } from '../components/ui/Table';
 import Button from '../components/ui/Button';
+import Alert, { useAlert } from '../components/ui/Alert';
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../services/api';
 import './Events.css';
 
 const Events = () => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const { alertState, hideAlert, success, error: showError, confirm } = useAlert();
     const [formData, setFormData] = useState({
         name: '',
         organizer: '',
         location: '',
         date: '',
         time: '',
+        type: 'physical',
         description: '',
         url: '',
     });
@@ -30,13 +33,12 @@ const Events = () => {
 
     const loadEvents = async () => {
         setLoading(true);
-        setError('');
         try {
             const response = await getEvents();
             setEvents(response.data?.events || response.data || []);
         } catch (err) {
             console.error('Failed to load events:', err);
-            setError(err.response?.data?.error || 'Failed to load events');
+            showError('Error', err.response?.data?.error || 'Failed to load events');
         } finally {
             setLoading(false);
         }
@@ -45,19 +47,20 @@ const Events = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
-        setError('');
 
         try {
             if (editingEvent) {
                 await updateEvent(editingEvent._id, formData);
+                success('Success', 'Event updated successfully!');
             } else {
                 await createEvent(formData);
+                success('Success', 'Event created successfully!');
             }
             loadEvents();
             closeModal();
         } catch (err) {
             console.error('Failed to save event:', err);
-            setError(err.response?.data?.error || 'Failed to save event');
+            showError('Error', err.response?.data?.error || 'Failed to save event');
         } finally {
             setSaving(false);
         }
@@ -71,6 +74,7 @@ const Events = () => {
             location: event.location || '',
             date: event.date?.split('T')[0] || '',
             time: event.time || '',
+            type: event.type || 'physical',
             description: event.description || '',
             url: event.url || '',
         });
@@ -78,22 +82,25 @@ const Events = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this event?')) {
+        setDeleteTarget(id);
+        confirm('Delete Event', 'Are you sure you want to delete this event?', async () => {
             try {
                 await deleteEvent(id);
                 setEvents(events.filter(e => e._id !== id));
+                success('Deleted', 'Event deleted successfully');
             } catch (err) {
                 console.error('Failed to delete event:', err);
-                setError(err.response?.data?.error || 'Failed to delete event');
+                showError('Error', err.response?.data?.error || 'Failed to delete event');
             }
-        }
+            setDeleteTarget(null);
+        });
     };
 
     const closeModal = () => {
         setShowModal(false);
         setEditingEvent(null);
         setFormData({
-            name: '', organizer: '', location: '', date: '', time: '', description: '', url: '',
+            name: '', organizer: '', location: '', date: '', time: '', type: 'physical', description: '', url: '',
         });
     };
 
@@ -101,8 +108,9 @@ const Events = () => {
         <div className="events-page">
             <Header title="Events" />
 
+            <Alert {...alertState} onClose={hideAlert} />
+
             <div className="page-content">
-                {error && <div className="error-banner">{error}</div>}
 
                 <Card>
                     <CardHeader>
@@ -129,6 +137,7 @@ const Events = () => {
                                     <TableRow>
                                         <TableHeader>Event</TableHeader>
                                         <TableHeader>Organizer</TableHeader>
+                                        <TableHeader>Type</TableHeader>
                                         <TableHeader>Location</TableHeader>
                                         <TableHeader>Date & Time</TableHeader>
                                         <TableHeader>Actions</TableHeader>
@@ -144,6 +153,9 @@ const Events = () => {
                                                 </div>
                                             </TableCell>
                                             <TableCell>{event.organizer}</TableCell>
+                                            <TableCell>
+                                                <span className={`type-badge type-${event.type || 'physical'}`}>{event.type || 'physical'}</span>
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="location-cell">
                                                     <MapPin size={14} />
@@ -224,13 +236,25 @@ const Events = () => {
                                 <div className="form-group">
                                     <label>Time</label>
                                     <input
-                                        type="text"
+                                        type="time"
                                         value={formData.time}
                                         onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                                        placeholder="e.g. 10:00 AM"
                                         required
                                     />
                                 </div>
+                                <div className="form-group">
+                                    <label>Event Type</label>
+                                    <select
+                                        value={formData.type}
+                                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                    >
+                                        <option value="physical">Physical</option>
+                                        <option value="virtual">Virtual</option>
+                                        <option value="hybrid">Hybrid</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="form-row">
                                 <div className="form-group">
                                     <label>URL</label>
                                     <input

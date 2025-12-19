@@ -439,6 +439,21 @@ export async function getStartupComments(startupId: string) {
     return data.comments || [];
 }
 
+export async function getStartupCommentReplies(commentId: string) {
+    const data = await request(`/api/startup-comments/comment/${encodeURIComponent(commentId)}/replies`, {}, { method: 'GET' });
+    return data.replies || [];
+}
+
+export async function getCommentReplies(commentId: string) {
+    const data = await request(`/api/comments/${encodeURIComponent(commentId)}/replies`, {}, { method: 'GET' });
+    return data.replies || [];
+}
+
+export async function getReelCommentReplies(commentId: string) {
+    const data = await request(`/api/reels/comments/${encodeURIComponent(commentId)}/replies`, {}, { method: 'GET' });
+    return data.replies || [];
+}
+
 export async function sharePost(postId: string, userIds: string[] = []) {
     return request('/api/shares', { postId, userIds }, { method: 'POST' });
 }

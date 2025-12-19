@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Building2, MapPin, ChevronDown, ExternalLink } from 'lucide-react-native';
 
 interface OpportunityCardProps {
@@ -24,6 +24,26 @@ export default function OpportunityCard({ item, type, onExpand, expanded }: Oppo
     const isRemote = item.isRemote || item.locationType === 'Remote';
     const applicantsCount = item.applicantsCount || 0;
 
+    const handleSendApplication = async () => {
+        const url = item.url || item.applicationUrl || item.link;
+        if (!url) {
+            Alert.alert('No Link Available', 'This opportunity does not have an application link.');
+            return;
+        }
+
+        try {
+            const canOpen = await Linking.canOpenURL(url);
+            if (canOpen) {
+                await Linking.openURL(url);
+            } else {
+                Alert.alert('Cannot Open Link', 'Unable to open the application link.');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Failed to open the application link.');
+            console.error('Error opening URL:', error);
+        }
+    };
+
     return (
         <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
             {/* Header: Icon + Startup Name + Company Type */}
@@ -34,7 +54,7 @@ export default function OpportunityCard({ item, type, onExpand, expanded }: Oppo
                 <View style={styles.headerTextContainer}>
                     <View style={styles.headerTopRow}>
                         <Text style={[styles.startupName, { color: textColor }]} numberOfLines={1}>
-                            {item.poster?.displayName || item.startupName || item.organization || 'Unknown'}
+                            {item.poster?.displayName || item.startupName || item.organiser || item.organizer || 'Unknown'}
                         </Text>
                         <View style={[styles.badge, { backgroundColor: badgeBg }]}>
                             <Text style={[styles.badgeText, { color: subTextColor }]}>{type.toLowerCase()}</Text>
@@ -105,7 +125,17 @@ export default function OpportunityCard({ item, type, onExpand, expanded }: Oppo
                     <Text style={[styles.expandedText, { color: subTextColor }]}>
                         {item.compensation || item.amount || 'Competitive compensation'}
                     </Text>
-                    <TouchableOpacity style={styles.sendBtn} onPress={() => Alert.alert('Application sent!')}>
+                    {item.deadline && (
+                        <Text style={[styles.deadlineText, { color: subTextColor }]}>
+                            Deadline: {new Date(item.deadline).toLocaleDateString()}
+                        </Text>
+                    )}
+                    {item.date && (
+                        <Text style={[styles.deadlineText, { color: subTextColor }]}>
+                            Date: {new Date(item.date).toLocaleDateString()} {item.time ? `at ${item.time}` : ''}
+                        </Text>
+                    )}
+                    <TouchableOpacity style={styles.sendBtn} onPress={handleSendApplication}>
                         <Text style={styles.sendBtnText}>Send Application</Text>
                         <ExternalLink size={14} color="#fff" />
                     </TouchableOpacity>
@@ -142,7 +172,8 @@ const styles = StyleSheet.create({
     employmentInfo: { fontSize: 12, fontWeight: '500' },
     expandedBox: { marginTop: 16, borderRadius: 12, padding: 16, borderWidth: 1 },
     expandedTitle: { fontWeight: 'bold', marginBottom: 8, fontSize: 15 },
-    expandedText: { fontSize: 13, marginBottom: 16 },
+    expandedText: { fontSize: 13, marginBottom: 8 },
+    deadlineText: { fontSize: 12, marginBottom: 12 },
     sendBtn: { backgroundColor: '#1a1a1a', borderRadius: 8, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
     sendBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

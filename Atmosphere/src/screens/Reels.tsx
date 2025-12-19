@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { fetchReels, likeReel, unlikeReel, checkReelShared } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
-import { Heart, MessageCircle, Send, Eye, Video } from 'lucide-react-native';
-import VideoPlayer from 'react-native-video';
+import { Heart, MessageCircle, Send, Eye, Video as VideoIcon } from 'lucide-react-native';
+import Video from 'react-native-video';
 import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
 
@@ -273,10 +273,10 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
                                 onPress={() => handleLike(item._id)}
                                 disabled={likeLoading.has(item._id)}
                             >
-                                <Icon
-                                    name={item.isLiked ? "heart" : "heart-outline"}
+                                <Heart
                                     size={32}
                                     color={item.isLiked ? COLORS.like : "#fff"}
+                                    fill={item.isLiked ? COLORS.like : "transparent"}
                                 />
                                 <Text style={styles.actionText}>{item.likesCount}</Text>
                             </TouchableOpacity>
@@ -286,7 +286,7 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
                                 style={styles.actionBtn}
                                 onPress={() => handleOpenComments(item._id)}
                             >
-                                <Icon name="chatbubble-outline" size={28} color="#fff" />
+                                <MessageCircle size={28} color="#fff" />
                                 <Text style={styles.actionText}>{item.commentsCount}</Text>
                             </TouchableOpacity>
 
@@ -295,17 +295,17 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
                                 style={styles.actionBtn}
                                 onPress={() => handleOpenShare(item._id)}
                             >
-                                <Icon
-                                    name={item.isShared ? "paper-plane" : "paper-plane-outline"}
+                                <Send
                                     size={28}
                                     color={item.isShared ? COLORS.success : "#fff"}
+                                    fill={item.isShared ? COLORS.success : "transparent"}
                                 />
                                 <Text style={styles.actionText}>{item.sharesCount || 0}</Text>
                             </TouchableOpacity>
 
                             {/* Views */}
                             <View style={styles.actionBtn}>
-                                <Icon name="eye-outline" size={28} color="#fff" />
+                                <Eye size={28} color="#fff" />
                                 <Text style={styles.actionText}>{item.viewsCount}</Text>
                             </View>
                         </View>
@@ -332,7 +332,7 @@ const Reels = ({ userId, initialReelId }: ReelsProps) => {
     if (reels.length === 0) {
         return (
             <View style={[styles.container, styles.center]}>
-                <Video size={64} color="#666" />
+                <VideoIcon size={64} color="#666" />
                 <Text style={styles.emptyText}>No reels yet</Text>
             </View>
         );

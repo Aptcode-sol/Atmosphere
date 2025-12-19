@@ -4,16 +4,17 @@ import Header from '../components/Layout/Header';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import Table, { TableHead, TableBody, TableRow, TableHeader, TableCell } from '../components/ui/Table';
 import Button from '../components/ui/Button';
+import Alert, { useAlert } from '../components/ui/Alert';
 import { getGrants, createGrant, updateGrant, deleteGrant } from '../services/api';
 import './Grants.css';
 
 const Grants = () => {
     const [grants, setGrants] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingGrant, setEditingGrant] = useState(null);
     const [saving, setSaving] = useState(false);
+    const { alertState, hideAlert, success, error: showError, confirm } = useAlert();
     const [formData, setFormData] = useState({
         name: '',
         organization: '',
@@ -32,13 +33,12 @@ const Grants = () => {
 
     const loadGrants = async () => {
         setLoading(true);
-        setError('');
         try {
             const response = await getGrants();
             setGrants(response.data?.grants || response.data || []);
         } catch (err) {
             console.error('Failed to load grants:', err);
-            setError(err.response?.data?.error || 'Failed to load grants');
+            showError('Error', err.response?.data?.error || 'Failed to load grants');
         } finally {
             setLoading(false);
         }
@@ -47,19 +47,20 @@ const Grants = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
-        setError('');
 
         try {
             if (editingGrant) {
                 await updateGrant(editingGrant._id, formData);
+                success('Success', 'Grant updated successfully!');
             } else {
                 await createGrant(formData);
+                success('Success', 'Grant created successfully!');
             }
             loadGrants();
             closeModal();
         } catch (err) {
             console.error('Failed to save grant:', err);
-            setError(err.response?.data?.error || 'Failed to save grant');
+            showError('Error', err.response?.data?.error || 'Failed to save grant');
         } finally {
             setSaving(false);
         }
@@ -82,15 +83,16 @@ const Grants = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this grant?')) {
+        confirm('Delete Grant', 'Are you sure you want to delete this grant?', async () => {
             try {
                 await deleteGrant(id);
                 setGrants(grants.filter(g => g._id !== id));
+                success('Deleted', 'Grant deleted successfully');
             } catch (err) {
                 console.error('Failed to delete grant:', err);
-                setError(err.response?.data?.error || 'Failed to delete grant');
+                showError('Error', err.response?.data?.error || 'Failed to delete grant');
             }
-        }
+        });
     };
 
     const closeModal = () => {
@@ -106,8 +108,9 @@ const Grants = () => {
         <div className="grants-page">
             <Header title="Grants & Programs" />
 
+            <Alert {...alertState} onClose={hideAlert} />
+
             <div className="page-content">
-                {error && <div className="error-banner">{error}</div>}
 
                 <Card>
                     <CardHeader>

@@ -1,0 +1,145 @@
+.alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.alert-modal {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 16px;
+    padding: 24px;
+    min-width: 320px;
+    max-width: 420px;
+    text-align: center;
+    position: relative;
+    animation: slideIn 0.25s ease;
+}
+
+.alert-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.alert-close:hover {
+    color: #fff;
+}
+
+.alert-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.alert-success .alert-icon {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.alert-error .alert-icon {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.alert-warning .alert-icon {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.alert-info .alert-icon {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.alert-title {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+}
+
+.alert-message {
+    color: #888;
+    font-size: 14px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.alert-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.alert-btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.alert-btn-primary {
+    background: #fff;
+    color: #000;
+}
+
+.alert-btn-primary:hover {
+    background: #e0e0e0;
+}
+
+.alert-btn-secondary {
+    background: #333;
+    color: #fff;
+}
+
+.alert-btn-secondary:hover {
+    background: #444;
+}

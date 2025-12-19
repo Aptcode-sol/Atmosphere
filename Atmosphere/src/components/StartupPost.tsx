@@ -7,6 +7,7 @@ import { getImageSource } from '../lib/image';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
 import CommentsOverlay from './CommentsOverlay';
+import CustomAlert from './CustomAlert';
 import { crownStartup, uncrownStartup } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Heart, Crown, MessageCircle, Send, Bookmark } from 'lucide-react-native';
@@ -46,6 +47,8 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     const [saved, setSaved] = useState(Boolean((companyData as any).isSaved));
     const [savedId, setSavedId] = useState<string | null>((companyData as any).savedId || null);
     const [saveLoading, setSaveLoading] = useState(false);
+    const [alertVisible, setAlertVisible] = useState(false);
+    const [alertConfig, setAlertConfig] = useState<{ type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string }>({ type: 'info', title: '', message: '' });
 
     useEffect(() => {
         // follow and liked state are provided by the feed as flags (likedByCurrentUser, isFollowing)
@@ -124,7 +127,11 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     };
 
     const toggleCrown = async () => {
-        if (!isInvestor) { Alert.alert('Not allowed', 'Only investors can crown profiles'); return; }
+        if (!isInvestor) {
+            setAlertConfig({ type: 'warning', title: 'Not Allowed', message: 'Only investors can crown profiles' });
+            setAlertVisible(true);
+            return;
+        }
         if (crownLoading) return;
         const id = String((companyData as any).originalId || (companyData as any).id || (companyData as any).userId || (companyData as any).user);
         const prev = crowned;
@@ -295,8 +302,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                     {/* Crown */}
                     <TouchableOpacity
                         style={styles.statItem}
-                        onPress={isInvestor ? toggleCrown : undefined}
-                        disabled={!isInvestor}
+                        onPress={toggleCrown}
                     >
                         <Crown
                             size={24}
@@ -358,6 +364,15 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                     </View>
                 </View>
             </View>
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertVisible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={() => setAlertVisible(false)}
+            />
         </View>
     );
 };

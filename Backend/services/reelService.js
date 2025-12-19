@@ -216,23 +216,45 @@ exports.addComment = async (req, res) => {
     }
 };
 
-// Get comments for a reel
+// Get comments for a reel (top-level only)
 exports.getComments = async (req, res) => {
     try {
         const { id } = req.params;
         const { limit = 50, skip = 0 } = req.query;
 
-        const comments = await ReelComment.find({ reel: id })
+        const comments = await ReelComment.find({ reel: id, parent: null })
             .sort({ createdAt: -1 })
             .skip(parseInt(skip))
             .limit(parseInt(limit))
             .populate('author', 'username displayName avatarUrl')
             .lean();
 
+        // Add reply count to each comment
+        for (const comment of comments) {
+            comment.repliesCount = await ReelComment.countDocuments({ parent: comment._id });
+        }
+
         res.json({ comments });
     } catch (error) {
         console.error('Get comments error:', error);
         res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+};
+
+// Get replies for a comment
+exports.getCommentReplies = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+
+        const replies = await ReelComment.find({ parent: commentId })
+            .sort({ createdAt: 1 })
+            .populate('author', 'username displayName avatarUrl')
+            .lean();
+
+        res.json({ replies });
+    } catch (error) {
+        console.error('Get comment replies error:', error);
+        res.status(500).json({ error: 'Failed to fetch replies' });
     }
 };
 
