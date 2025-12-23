@@ -289,7 +289,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    listContent: { padding: 0, paddingBottom: 20, paddingTop: 65 },
+    listContent: { padding: 0, paddingBottom: 80, paddingTop: 65 },
     centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 20 },
     loadingText: { marginTop: 12, fontSize: 14 },
     errorText: { fontSize: 14 },

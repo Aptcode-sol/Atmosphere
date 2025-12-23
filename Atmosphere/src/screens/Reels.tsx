@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { fetchReels, likeReel, unlikeReel, checkReelShared } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
-import { Heart, MessageCircle, Send, Eye, Video, ArrowLeft as VideoIcon } from 'lucide-react-native';
+import { Heart, MessageCircle, Send, Eye, Video as VideoIcon, ArrowLeft } from 'lucide-react-native';
 import Video from 'react-native-video';
 import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
@@ -268,7 +268,7 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                 <View style={styles.reelContainer}>
                     {/* Video or Thumbnail - using contain to preserve original aspect ratio */}
                     {isActive && item.videoUrl ? (
-                        <VideoPlayer
+                        <Video
                             source={{ uri: item.videoUrl }}
                             style={styles.video}
                             resizeMode="contain"

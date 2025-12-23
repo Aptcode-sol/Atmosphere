@@ -175,7 +175,7 @@ export default function ProfilePager({ posts, reels = [], postsLoading, reelsLoa
                                 keyExtractor={(it) => `${it._type}-${String(it._id || it.id || Math.random())}`}
                                 numColumns={3}
                                 scrollEnabled={false}
-                                contentContainerStyle={{ paddingHorizontal: 1 }}
+                                contentContainerStyle={{ paddingHorizontal: 1, paddingBottom: 80 }}
                                 columnWrapperStyle={{ gap: 2, marginBottom: 2 }}
                                 renderItem={renderGridItem}
                             />

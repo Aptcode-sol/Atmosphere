@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { Image } from 'react-native';
-import { Crown, Heart, Flame, Send } from 'lucide-react-native';
-import ShareModal from '../components/ShareModal';
+import { Crown, Heart, Flame } from 'lucide-react-native';
 import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -159,13 +158,7 @@ const HottestStartups = () => {
         );
     };
 
-    const [shareModalVisible, setShareModalVisible] = useState(false);
-    const [sharingContent, setSharingContent] = useState<any>(null);
 
-    const openShare = (item: any) => {
-        setSharingContent(item);
-        setShareModalVisible(true);
-    };
 
     const renderListItem = ({ item }: { item: any }) => (
         <View style={styles.listCard}>
@@ -191,9 +184,6 @@ const HottestStartups = () => {
                 </View>
             </View>
             <View style={styles.actionsRight}>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => openShare(item)}>
-                    <Send size={20} color="#fff" />
-                </TouchableOpacity>
                 <TouchableOpacity style={styles.viewBtn} onPress={() => { /* navigate to profile */ }}>
                     <Text style={styles.viewBtnText}>View {'>'}</Text>
                 </TouchableOpacity>
@@ -229,24 +219,14 @@ const HottestStartups = () => {
                     />
                 }
             />
-            {sharingContent && (
-                <ShareModal
-                    visible={shareModalVisible}
-                    onClose={() => setShareModalVisible(false)}
-                    contentId={String(sharingContent._startupId || sharingContent.id || sharingContent._id)}
-                    type="startup"
-                    contentTitle={sharingContent.name || sharingContent.companyName || 'Startup'}
-                    contentImage={sharingContent.logo || sharingContent.profileImage || sharingContent.image}
-                    contentOwner={sharingContent.name || sharingContent.companyName}
-                />
-            )}
+
         </View>
     );
 };
 
 const Separator = () => <View style={styles.separator} />;
 
-const Header = ({ theme, renderPodium }: { theme: any; renderPodium: () => JSX.Element | null; }) => () => (
+const Header = ({ theme, renderPodium }: { theme: any; renderPodium: () => React.ReactNode | null; }) => () => (
     <>
         <View style={styles.headerCenter}>
             <View style={styles.headerHeadingRow}>
@@ -262,7 +242,7 @@ const Header = ({ theme, renderPodium }: { theme: any; renderPodium: () => JSX.E
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#0f1724' },
-    content: { padding: 16, paddingBottom: 40 },
+    content: { padding: 16, paddingBottom: 80 },
     headerCenter: { alignItems: 'center', marginBottom: 18 },
     heading: { color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 8 },
     sub: { color: '#9CA3AF', fontSize: 12, textAlign: 'center', marginTop: 6, maxWidth: width - 40 },

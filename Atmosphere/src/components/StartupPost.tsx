@@ -50,6 +50,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
     const [saveLoading, setSaveLoading] = useState(false);
     const [alertVisible, setAlertVisible] = useState(false);
     const [alertConfig, setAlertConfig] = useState<{ type: 'info' | 'warning' | 'error' | 'success'; title: string; message: string }>({ type: 'info', title: '', message: '' });
+    const [shareModalVisible, setShareModalVisible] = useState(false);
 
     useEffect(() => {
         // follow and liked state are provided by the feed as flags (likedByCurrentUser, isFollowing)
@@ -181,8 +182,9 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
 
 
 
-    const totalFunding = (companyData.fundingRaised || 0) + (companyData.fundingNeeded || 0);
-    const fundingPercent = totalFunding > 0 ? ((companyData.fundingRaised || 0) / totalFunding) * 100 : 0;
+    const fundingGoal = companyData.fundingNeeded || 0;
+    const fundingRaised = companyData.fundingRaised || 0;
+    const fundingPercent = fundingGoal > 0 ? Math.min(100, (fundingRaised / fundingGoal) * 100) : 0;
 
     const formatCurrency = (num: number) => {
         if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
@@ -373,6 +375,17 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: { post?: S
                 title={alertConfig.title}
                 message={alertConfig.message}
                 onClose={() => setAlertVisible(false)}
+            />
+
+            {/* Share Modal */}
+            <ShareModal
+                contentId={String((companyData as any).originalId || (companyData as any).id || (companyData as any).userId || (companyData as any).user)}
+                type="startup"
+                visible={shareModalVisible}
+                onClose={() => setShareModalVisible(false)}
+                contentTitle={companyData.name}
+                contentImage={companyData.profileImage}
+                contentOwner={companyData.displayName || companyData.name}
             />
         </View>
     );

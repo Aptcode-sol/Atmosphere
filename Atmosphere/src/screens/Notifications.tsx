@@ -235,7 +235,7 @@ const Notifications = () => {
                 data={notifications}
                 keyExtractor={(item) => item._id}
                 renderItem={renderNotification}
-                contentContainerStyle={notifications.length === 0 ? styles.emptyList : undefined}
+                contentContainerStyle={notifications.length === 0 ? styles.emptyList : { paddingBottom: 80 }}
                 ListEmptyComponent={renderEmptyState}
                 refreshControl={
                     <ThemedRefreshControl
