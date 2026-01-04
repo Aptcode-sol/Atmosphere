@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const otpService = require('../services/otpService');
 const emailService = require('../services/emailService');
-const { getOtpEmailTemplate } = require('../services/emailTemplates');
+const { getOtpEmailTemplate, getPasswordResetTemplate } = require('../services/emailTemplates');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
@@ -237,6 +237,84 @@ router.post('/resend-otp', async (req, res, next) => {
         emailService.sendEmail(userEmail, emailSubject, emailBody).catch(console.error);
 
         res.json({ message: 'OTP resent successfully' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST /api/auth/forgot-password - Request password reset
+router.post('/forgot-password', async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) {
+            // Determine if we should reveal user existence. Usually security best practice is to say "If that email exists..."
+            // But for this internal/MVP app, we might return 404 to be helpful, or just pretend success.
+            // Let's pretend success to avoid enumeration, but log it.
+            return res.status(200).json({ message: 'If an account exists with this email, a verification code has been sent.' });
+        }
+
+        const otp = otpService.createOtp(user.email);
+        const emailSubject = 'Reset your password - Atmosphere';
+        const emailBody = getPasswordResetTemplate(otp, user.username);
+
+        emailService.sendEmail(user.email, emailSubject, emailBody).catch(console.error);
+
+        res.json({ message: 'If an account exists with this email, a verification code has been sent.' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST /api/auth/verify-otp - Check if OTP is valid (without consuming it)
+router.post('/verify-otp', async (req, res, next) => {
+    try {
+        const { email, code } = req.body;
+        if (!email || !code) {
+            return res.status(400).json({ error: 'Email and code are required' });
+        }
+
+        // Verify without deleting
+        const verification = otpService.verifyOtp(email, code, false);
+
+        if (!verification.valid) {
+            return res.status(400).json({ error: verification.message });
+        }
+
+        res.json({ success: true, message: 'Code is valid.' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST /api/auth/reset-password - Reset password with OTP
+router.post('/reset-password', async (req, res, next) => {
+    try {
+        const { email, code, newPassword } = req.body;
+        if (!email || !code || !newPassword) {
+            return res.status(400).json({ error: 'Email, code, and new password are required' });
+        }
+
+        // Verify and delete
+        const verification = otpService.verifyOtp(email, code, true);
+        if (!verification.valid) {
+            return res.status(400).json({ error: verification.message });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        user.passwordHash = passwordHash;
+        await user.save();
+
+        res.json({ success: true, message: 'Password has been reset successfully.' });
     } catch (err) {
         next(err);
     }

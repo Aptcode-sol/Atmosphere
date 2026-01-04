@@ -18,7 +18,7 @@ const createOtp = (email) => {
     return otp;
 };
 
-const verifyOtp = (email, otp) => {
+const verifyOtp = (email, otp, deleteOnVerified = true) => {
     const record = otpStore[email];
 
     if (!record) {
@@ -35,7 +35,9 @@ const verifyOtp = (email, otp) => {
     }
 
     // OTP matches and is valid
-    delete otpStore[email]; // Clear OTP after successful use
+    if (deleteOnVerified) {
+        delete otpStore[email]; // Clear OTP after successful use
+    }
     return { valid: true };
 };
 

@@ -84,6 +84,18 @@ export async function register({ email, username, password, displayName, account
     return request('/api/auth/register', { email, username, password, displayName, accountType });
 }
 
+export async function forgotPassword(email: string) {
+    return request('/api/auth/forgot-password', { email }, { method: 'POST' });
+}
+
+export async function verifyOtpCheck(email: string, code: string) {
+    return request('/api/auth/verify-otp', { email, code }, { method: 'POST' });
+}
+
+export async function resetPassword(email: string, code: string, newPassword: string) {
+    return request('/api/auth/reset-password', { email, code, newPassword }, { method: 'POST' });
+}
+
 
 export async function fetchStartupPosts(limit = 20, skip = 0) {
     const data = await request('/api/startup-details', { limit, skip }, { method: 'GET' });

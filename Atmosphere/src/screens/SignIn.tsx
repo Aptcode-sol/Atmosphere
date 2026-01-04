@@ -5,7 +5,7 @@ import Logo from '../components/Logo';
 import { login } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SignIn = ({ onSignUp, onSignedIn }: { onSignUp?: () => void; onSignedIn?: () => void }) => {
+const SignIn = ({ onSignUp, onSignedIn, onForgotPassword }: { onSignUp?: () => void; onSignedIn?: () => void; onForgotPassword?: () => void }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -87,7 +87,7 @@ const SignIn = ({ onSignUp, onSignedIn }: { onSignUp?: () => void; onSignedIn?: 
                     </TouchableOpacity>
 
                     {/* Forgot Password */}
-                    <TouchableOpacity onPress={() => Alert.alert('Forgot password')}>
+                    <TouchableOpacity onPress={() => { if (onForgotPassword) onForgotPassword(); }}>
                         <Text style={styles.forgotText}>Forgot password?</Text>
                     </TouchableOpacity>
                 </View>

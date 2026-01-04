@@ -13,13 +13,14 @@ import {
 import LandingPage from './src/screens/LandingPage';
 import SignIn from './src/screens/SignIn';
 import SignUp from './src/screens/SignUp';
+import ForgotPassword from './src/screens/ForgotPassword';
 import ThemeProvider from './src/contexts/ThemeContext';
 import { TOP_PANEL_HEIGHT, BOTTOM_NAV_HEIGHT } from './src/lib/layout';
 
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
-  const [route, setRoute] = useState<'signin' | 'signup' | 'home'>('signin');
+  const [route, setRoute] = useState<'signin' | 'signup' | 'home' | 'forgotpw'>('signin');
 
   useEffect(() => {
     // On app start, check for existing token and user to persist login
@@ -49,10 +50,20 @@ function App() {
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={viewStyle}>
           {route === 'signin' && (
-            <SignIn onSignUp={() => setRoute('signup')} onSignedIn={() => setRoute('home')} />
+            <SignIn
+              onSignUp={() => setRoute('signup')}
+              onSignedIn={() => setRoute('home')}
+              onForgotPassword={() => setRoute('forgotpw')}
+            />
           )}
           {route === 'signup' && (
             <SignUp onSignedUp={() => setRoute('home')} onSignIn={() => setRoute('signin')} />
+          )}
+          {route === 'forgotpw' && (
+            <ForgotPassword
+              onBack={() => setRoute('signin')}
+              onResetSuccess={() => setRoute('signin')}
+            />
           )}
           {route === 'home' && <LandingPage />}
         </View>
