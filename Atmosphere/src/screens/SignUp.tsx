@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, ScrollView } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Logo from '../components/Logo';
-import { register } from '../lib/api';
+import { register, checkUsernameAvailability } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AccountType = 'personal' | 'startup' | 'investor';
@@ -26,6 +26,26 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
     const [loading, setLoading] = useState(false);
     const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
     const [verifyMessage, setVerifyMessage] = useState('');
+    const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+
+    const handleCheckUsername = async () => {
+        if (!username || username.length < 3) {
+            Alert.alert('Invalid username', 'Username must be at least 3 characters');
+            return;
+        }
+        setUsernameStatus('checking');
+        try {
+            const data = await checkUsernameAvailability(username);
+            if (data.available) {
+                setUsernameStatus('available');
+            } else {
+                setUsernameStatus('taken');
+            }
+        } catch (error) {
+            setUsernameStatus('idle');
+            Alert.alert('Error', 'Failed to check username availability');
+        }
+    };
 
     const handleSignUp = async () => {
         if (!email || !username || !password) {
@@ -142,14 +162,35 @@ const SignUp = ({ onSignedUp, onSignIn }: { onSignedUp?: () => void; onSignIn?: 
                         autoCapitalize="none"
                     />
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Username"
-                        placeholderTextColor="#8e8e8e"
-                        value={username}
-                        onChangeText={setUsername}
-                        autoCapitalize="none"
-                    />
+                    <View style={styles.usernameContainer}>
+                        <TextInput
+                            style={[styles.input, styles.usernameInput]}
+                            placeholder="Username"
+                            placeholderTextColor="#8e8e8e"
+                            value={username}
+                            onChangeText={(text) => { setUsername(text); setUsernameStatus('idle'); }}
+                            autoCapitalize="none"
+                        />
+                        <TouchableOpacity
+                            style={styles.checkButton}
+                            onPress={handleCheckUsername}
+                            disabled={usernameStatus === 'checking' || !username}
+                        >
+                            {usernameStatus === 'checking' ? (
+                                <ActivityIndicator size="small" color="#8e8e8e" />
+                            ) : usernameStatus === 'available' ? (
+                                <View style={[styles.statusIcon, styles.statusSuccess]}>
+                                    <MaterialCommunityIcons name="check" size={16} color="#4ade80" />
+                                </View>
+                            ) : usernameStatus === 'taken' ? (
+                                <View style={[styles.statusIcon, styles.statusError]}>
+                                    <MaterialCommunityIcons name="close" size={16} color="#ef4444" />
+                                </View>
+                            ) : (
+                                <Text style={styles.checkText}>Check</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
 
                     <TextInput
                         style={styles.input}
@@ -549,6 +590,41 @@ const styles = StyleSheet.create({
         color: '#8e8e8e',
         fontSize: 15,
         fontWeight: '600',
+    },
+    usernameContainer: {
+        marginBottom: 8,
+        position: 'relative',
+        justifyContent: 'center',
+    },
+    usernameInput: {
+        marginBottom: 0,
+        paddingRight: 70, // Make room for the button
+    },
+    checkButton: {
+        position: 'absolute',
+        right: 10,
+        height: '100%',
+        justifyContent: 'center',
+        paddingHorizontal: 5,
+    },
+    checkText: {
+        color: '#0095f6',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    statusIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statusSuccess: {
+        borderColor: '#4ade80',
+    },
+    statusError: {
+        borderColor: '#ef4444',
     },
 });
 

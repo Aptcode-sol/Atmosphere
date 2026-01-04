@@ -97,6 +97,11 @@ export async function resetPassword(email: string, code: string, newPassword: st
 }
 
 
+export async function checkUsernameAvailability(username: string) {
+    const data = await request(`/api/users/check/${encodeURIComponent(username)}`, {}, { method: 'GET' });
+    return data;
+}
+
 export async function fetchStartupPosts(limit = 20, skip = 0) {
     const data = await request('/api/startup-details', { limit, skip }, { method: 'GET' });
     return data.startups ?? [];

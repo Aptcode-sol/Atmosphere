@@ -45,3 +45,10 @@ exports.getUserPosts = async (req, res, next) => {
         res.json({ posts });
     } catch (err) { next(err); }
 };
+exports.checkUsername = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+        res.json({ available: !user });
+    } catch (err) { next(err); }
+};
