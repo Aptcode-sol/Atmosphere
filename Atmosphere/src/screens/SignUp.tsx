@@ -8,8 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 type AccountType = 'personal' | 'startup' | 'investor';
 
 const ACCOUNT_TYPES: { value: AccountType; label: string; description: string }[] = [
-    { value: 'personal', label: 'Personal', description: 'For individual users' },
-    { value: 'startup', label: 'Startup', description: 'For startups and founders' },
+    { value: 'personal', label: 'Personal', description: 'For individual users and founders' },
+    { value: 'startup', label: 'Startup', description: 'For startups and companies' },
     { value: 'investor', label: 'Investor', description: 'For investors and VCs' },
 ];
 
