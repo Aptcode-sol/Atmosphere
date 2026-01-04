@@ -10,16 +10,17 @@ const ForgotPassword = ({ onBack, onResetSuccess }: { onBack: () => void; onRese
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleRequestOtp = async () => {
-        if (!email) { Alert.alert('Error', 'Please enter your email'); return; }
+        setErrorMessage('');
+        if (!email) { setErrorMessage('Please enter your email'); return; }
         setLoading(true);
         try {
             await forgotPassword(email);
             setStep(2);
-            Alert.alert('Success', 'If an account exists, a verification code has been sent.');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to send OTP');
+            setErrorMessage(err.message || 'Failed to send OTP');
         } finally { setLoading(false); }
     };
 
@@ -74,26 +75,32 @@ const ForgotPassword = ({ onBack, onResetSuccess }: { onBack: () => void; onRese
                     </Text>
 
                     {step === 1 && (
-                        <TextInput
-                            value={email}
-                            onChangeText={setEmail}
-                            placeholder="Email address"
-                            placeholderTextColor="#8e8e8e"
-                            style={styles.input}
-                            autoCapitalize="none"
-                            keyboardType="email-address"
-                        />
+                        <>
+                            <TextInput
+                                value={email}
+                                onChangeText={(text) => { setEmail(text); setErrorMessage(''); }}
+                                placeholder="Email address"
+                                placeholderTextColor="#8e8e8e"
+                                style={[styles.input, errorMessage ? styles.inputError : null]}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                            />
+                            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+                        </>
                     )}
 
                     {step === 2 && (
-                        <TextInput
-                            value={otp}
-                            onChangeText={setOtp}
-                            placeholder="Verification Code"
-                            placeholderTextColor="#8e8e8e"
-                            style={styles.input}
-                            keyboardType="number-pad"
-                        />
+                        <>
+                            <Text style={styles.successText}>OTP is sent to your mail</Text>
+                            <TextInput
+                                value={otp}
+                                onChangeText={setOtp}
+                                placeholder="Verification Code"
+                                placeholderTextColor="#8e8e8e"
+                                style={styles.input}
+                                keyboardType="number-pad"
+                            />
+                        </>
                     )}
 
                     {step === 3 && (
@@ -187,6 +194,23 @@ const styles = StyleSheet.create({
         color: '#fff',
         borderWidth: 1,
         borderColor: '#363636',
+    },
+    inputError: {
+        borderColor: '#cf6679',
+    },
+    errorText: {
+        color: '#cf6679',
+        fontSize: 12,
+        marginBottom: 12,
+        marginTop: -8,
+        marginLeft: 4,
+    },
+    successText: {
+        color: '#4caf50',
+        fontSize: 14,
+        marginBottom: 16,
+        textAlign: 'center',
+        fontWeight: '500',
     },
     primaryButton: {
         backgroundColor: '#404040',

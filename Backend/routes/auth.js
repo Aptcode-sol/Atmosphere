@@ -252,10 +252,7 @@ router.post('/forgot-password', async (req, res, next) => {
 
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) {
-            // Determine if we should reveal user existence. Usually security best practice is to say "If that email exists..."
-            // But for this internal/MVP app, we might return 404 to be helpful, or just pretend success.
-            // Let's pretend success to avoid enumeration, but log it.
-            return res.status(200).json({ message: 'If an account exists with this email, a verification code has been sent.' });
+            return res.status(404).json({ error: 'No account found with this email address.' });
         }
 
         const otp = otpService.createOtp(user.email);
@@ -264,7 +261,7 @@ router.post('/forgot-password', async (req, res, next) => {
 
         emailService.sendEmail(user.email, emailSubject, emailBody).catch(console.error);
 
-        res.json({ message: 'If an account exists with this email, a verification code has been sent.' });
+        res.json({ message: 'Verification code sent successfully.' });
     } catch (err) {
         next(err);
     }
