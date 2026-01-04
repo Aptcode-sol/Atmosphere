@@ -10,8 +10,6 @@ import {
     TouchableOpacity,
     StatusBar,
     TextInput,
-    KeyboardAvoidingView,
-    Platform,
 } from 'react-native';
 import { fetchReels, likeReel, unlikeReel, checkReelShared, followUser, unfollowUser, getReel, getUserReels } from '../lib/api';
 import { Heart, MessageCircle, Send, Eye, Video as VideoIcon } from 'lucide-react-native';
@@ -34,7 +32,7 @@ const COLORS = {
 };
 
 // Reel height - full screen minus bottom nav
-const BOTTOM_NAV_HEIGHT = 80;
+const BOTTOM_NAV_HEIGHT = 100;
 const ITEM_HEIGHT = SCREEN_HEIGHT - BOTTOM_NAV_HEIGHT;
 
 interface ReelItem {
@@ -305,7 +303,14 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                             resizeMode="cover"
                             repeat
                             paused={false}
-                            volume={1.0}
+                            muted={false}
+                            bufferConfig={{
+                                minBufferMs: 2000,
+                                maxBufferMs: 5000,
+                                bufferForPlaybackMs: 1000,
+                                bufferForPlaybackAfterRebufferMs: 2000,
+                            }}
+                            onError={(e) => console.log('Video error:', e)}
                         />
                     ) : (
                         <Image
@@ -455,10 +460,7 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
     }
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={styles.container}>
             <FlatList
                 ref={flatListRef}
                 data={reels}
@@ -467,12 +469,8 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                 showsVerticalScrollIndicator={false}
                 snapToInterval={ITEM_HEIGHT}
                 snapToAlignment="start"
-                decelerationRate="fast"
-                bounces={false}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={3}
-                windowSize={5}
-                initialNumToRender={2}
+                decelerationRate={0.9}
+                disableIntervalMomentum={true}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
                 getItemLayout={(_, index) => ({
@@ -480,7 +478,7 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                     offset: ITEM_HEIGHT * index,
                     index,
                 })}
-                extraData={[likeLoading, followLoading, expandedCaptions]}
+                contentContainerStyle={{ flexGrow: 1 }}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
@@ -514,7 +512,7 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                     contentOwner={reels.find(r => r._id === shareReelId)?.author.displayName || reels.find(r => r._id === shareReelId)?.author.username}
                 />
             )}
-        </KeyboardAvoidingView>
+        </View>
     );
 };
 
