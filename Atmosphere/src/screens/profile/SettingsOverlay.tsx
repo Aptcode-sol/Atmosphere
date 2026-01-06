@@ -17,6 +17,7 @@ type Props = {
     theme: any;
     accountType?: 'investor' | 'startup' | 'personal';
     onClose: () => void;
+    onNavigate?: (route: string) => void;
 };
 
 type Settings = {
@@ -63,7 +64,7 @@ function Collapsible({ title, open, onToggle, children, theme }: any) {
     );
 }
 
-export default function SettingsOverlay({ src, theme, accountType = 'personal', onClose }: Props) {
+export default function SettingsOverlay({ src, theme, accountType = 'personal', onClose, onNavigate }: Props) {
     const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width)).current;
     const width = Dimensions.get('window').width;
 
@@ -757,10 +758,13 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 </View>
                                 <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
+                            <TouchableOpacity style={styles.settingRow} onPress={() => {
+                                handleClose();
+                                if (onNavigate) onNavigate('saved');
+                            }}>
                                 <View style={styles.settingLeft}>
                                     <Text style={[styles.settingTitle, themeTextStyle]}>Saved Content</Text>
-                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Access your saved posts and startups</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Access your saved posts and reels</Text>
                                 </View>
                                 <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
@@ -786,6 +790,21 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 <View style={styles.settingLeft}>
                                     <Text style={[styles.settingTitle, themeTextStyle]}>Connect</Text>
                                     <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Manage direct message permissions</Text>
+                                </View>
+                                <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.sectionLabel, themePlaceholderStyle]}>VERIFICATION</Text>
+                        <View style={[styles.sectionCard, themeBorderStyle]}>
+                            <TouchableOpacity style={styles.settingRow} onPress={() => {
+                                // Navigate to verification page
+                                handleClose();
+                                if (onNavigate) onNavigate('setup');
+                            }}>
+                                <View style={styles.settingLeft}>
+                                    <Text style={[styles.settingTitle, themeTextStyle]}>Get Verified</Text>
+                                    <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>Verify your account to get a badge</Text>
                                 </View>
                                 <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>

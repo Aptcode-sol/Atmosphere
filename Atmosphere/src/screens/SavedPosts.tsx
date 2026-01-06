@@ -75,8 +75,9 @@ const SavedPosts = ({ onClose, onPostPress }: SavedPostsProps) => {
     };
 
     const handlePostPress = (item: SavedItem) => {
-        const postId = typeof item.postId === 'string' ? item.postId : item.postId._id;
-        onPostPress?.(postId);
+        if (!item || !item.postId) return;
+        const postId = typeof item.postId === 'string' ? item.postId : item.postId?._id;
+        if (postId) onPostPress?.(postId);
     };
 
     const getPostImageUrl = (item: SavedItem): string | null => {

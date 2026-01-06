@@ -686,6 +686,24 @@ export async function checkReelShared(reelId: string) {
     return data || { shared: false, shareId: null, sharedWith: [] };
 }
 
+// Save reel bookmark
+export async function saveReel(reelId: string) {
+    return request('/api/saved', { reelId }, { method: 'POST' });
+}
+
+export async function unsaveReel(savedId: string) {
+    return request(`/api/saved/${encodeURIComponent(savedId)}`, {}, { method: 'DELETE' });
+}
+
+export async function checkReelSaved(reelId: string) {
+    try {
+        const data = await request(`/api/saved/check/${encodeURIComponent(reelId)}?type=reel`, {}, { method: 'GET' });
+        return data || { saved: false, savedId: null };
+    } catch {
+        return { saved: false, savedId: null };
+    }
+}
+
 // Unified Share API
 export async function shareContent(payload: {
     userIds: string[];

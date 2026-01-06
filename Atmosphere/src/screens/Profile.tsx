@@ -229,6 +229,9 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
     const [followLoading, setFollowLoading] = useState(false);
     const [followersModalVisible, setFollowersModalVisible] = useState(false);
     const [followersModalInitialTab, setFollowersModalInitialTab] = useState<'followers' | 'following'>('followers');
+    const [trades, setTrades] = useState<any[]>([]);
+    const [tradesLoading, setTradesLoading] = useState(true);
+    const [investorDetails, setInvestorDetails] = useState<any>(null);
 
     // 2. Posts Effect
     useEffect(() => {
@@ -392,6 +395,64 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
         return () => { mounted = false; };
     }, [viewingUserId]);
 
+    // Fetch trades for the profile
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            setTradesLoading(true);
+            try {
+                const api = await import('../lib/api');
+                const userId = viewingUserId || ownProfileId;
+                let userTrades: any[] = [];
+
+                if (viewingUserId) {
+                    // Viewing another user - get their trades if API supports it
+                    if (typeof api.getAllTrades === 'function') {
+                        const result = await api.getAllTrades(20, 0, { userId: viewingUserId });
+                        userTrades = result?.trades || result || [];
+                    }
+                } else {
+                    // Own profile - get my trades
+                    if (typeof api.getMyTrades === 'function') {
+                        userTrades = await api.getMyTrades();
+                    }
+                }
+                if (mounted) setTrades(userTrades || []);
+            } catch (err) {
+                console.warn('Failed to fetch trades:', err);
+                if (mounted) setTrades([]);
+            } finally {
+                if (mounted) setTradesLoading(false);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [viewingUserId, ownProfileId, forceUpdate]);
+
+    // Fetch investor details for investor profiles
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                if (accountType !== 'investor') {
+                    if (mounted) setInvestorDetails(null);
+                    return;
+                }
+                const userId = viewingUserId || ownProfileId;
+                if (!userId) return;
+
+                const api = await import('../lib/api');
+                if (typeof api.getInvestorDetails === 'function') {
+                    const details = await api.getInvestorDetails(String(userId));
+                    if (mounted) setInvestorDetails(details);
+                }
+            } catch (err) {
+                console.warn('Failed to fetch investor details:', err);
+                if (mounted) setInvestorDetails(null);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [viewingUserId, ownProfileId, accountType]);
+
     // only open setup when user explicitly taps the pill
 
     return (
@@ -511,11 +572,16 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                                     onNavigate?.('reels');
                                 }
                             }}
+                            profileData={src}
+                            accountType={accountType}
+                            trades={trades}
+                            tradesLoading={tradesLoading}
+                            investorDetails={investorDetails}
                         />
                     </>
                 )}
             </ScrollView>
-            {leftDrawerOpen && <SettingsOverlay src={src} theme={theme} accountType={accountType} onClose={() => setLeftDrawerOpen(false)} />}
+            {leftDrawerOpen && <SettingsOverlay src={src} theme={theme} accountType={accountType} onClose={() => setLeftDrawerOpen(false)} onNavigate={(route) => onNavigate?.(route as any)} />}
             <FollowersFollowingModal
                 visible={followersModalVisible}
                 onClose={() => setFollowersModalVisible(false)}

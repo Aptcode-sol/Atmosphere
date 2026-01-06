@@ -11,15 +11,16 @@ import {
     StatusBar,
     TextInput,
 } from 'react-native';
-import { fetchReels, likeReel, unlikeReel, checkReelShared, followUser, unfollowUser, getReel, getUserReels } from '../lib/api';
-import { Heart, MessageCircle, Send, Eye, Video as VideoIcon } from 'lucide-react-native';
+import { fetchReels, likeReel, unlikeReel, checkReelShared, followUser, unfollowUser, getReel, getUserReels, saveReel, unsaveReel } from '../lib/api';
+import { Heart, MessageCircle, Send, Bookmark, Video as VideoIcon } from 'lucide-react-native';
 import Video from 'react-native-video';
 import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
 import { getImageSource } from '../lib/image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const { height: SCREEN_HEIGHT } = Dimensions.get('screen');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const STATUS_BAR_HEIGHT = StatusBar.currentHeight || 0;
 const COMMENT_INPUT_HEIGHT = 56;
 
@@ -32,8 +33,8 @@ const COLORS = {
     textMuted: '#666666',
 };
 
-// Reel height - use window dimensions for consistent snapping
-const ITEM_HEIGHT = Dimensions.get('window').height;
+// Reel height - use full window height for clean snapping with no bleed-through
+const ITEM_HEIGHT = SCREEN_HEIGHT;
 
 interface ReelItem {
     _id: string;
@@ -55,34 +56,52 @@ interface ReelItem {
     isLiked?: boolean;
     isShared?: boolean;
     isFollowing?: boolean;
+    isSaved?: boolean;
+    savedId?: string;
 }
 
 interface ReelsProps {
     userId?: string;
     initialReelId?: string;
     onBack?: () => void;
+    onOpenProfile?: (userId: string) => void;
 }
 
-const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
+const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => {
     const [reels, setReels] = useState<ReelItem[]>([]);
     const flatListRef = useRef<FlatList>(null);
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     // Modal states
     const [commentsReelId, setCommentsReelId] = useState<string | null>(null);
     const [shareReelId, setShareReelId] = useState<string | null>(null);
     const [shareAlreadyShared, setShareAlreadyShared] = useState(false);
 
-    // Like and follow loading states
+    // Like, follow, save loading states
     const [likeLoading, setLikeLoading] = useState<Set<string>>(new Set());
     const [followLoading, setFollowLoading] = useState<Set<string>>(new Set());
+    const [saveLoading, setSaveLoading] = useState<Set<string>>(new Set());
 
     // Expanded caption states - track which reels have expanded captions
     const [expandedCaptions, setExpandedCaptions] = useState<Set<string>>(new Set());
 
     // Comment input
     const [commentText, setCommentText] = useState('');
+
+    // Get current user ID
+    useEffect(() => {
+        (async () => {
+            try {
+                const stored = await AsyncStorage.getItem('user');
+                if (stored) {
+                    const u = JSON.parse(stored);
+                    setCurrentUserId(u?._id || u?.id || null);
+                }
+            } catch { }
+        })();
+    }, []);
 
     useEffect(() => {
         loadReels();
@@ -279,6 +298,56 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
         });
     };
 
+    const handleSave = useCallback(async (reelId: string) => {
+        if (saveLoading.has(reelId)) return;
+
+        const reel = reels.find(r => r._id === reelId);
+        if (!reel) return;
+
+        const wasSaved = reel.isSaved;
+
+        setReels(prev => prev.map(r =>
+            r._id === reelId
+                ? { ...r, isSaved: !wasSaved }
+                : r
+        ));
+
+        setSaveLoading(prev => new Set(prev).add(reelId));
+
+        try {
+            if (wasSaved && reel.savedId) {
+                await unsaveReel(reel.savedId);
+            } else {
+                const result = await saveReel(reelId);
+                if (result?.savedId || result?._id) {
+                    setReels(prev => prev.map(r =>
+                        r._id === reelId
+                            ? { ...r, savedId: result.savedId || result._id }
+                            : r
+                    ));
+                }
+            }
+        } catch (err) {
+            setReels(prev => prev.map(r =>
+                r._id === reelId
+                    ? { ...r, isSaved: wasSaved }
+                    : r
+            ));
+        } finally {
+            setSaveLoading(prev => {
+                const next = new Set(prev);
+                next.delete(reelId);
+                return next;
+            });
+        }
+    }, [reels, saveLoading]);
+
+    const handleProfilePress = useCallback((authorId: string) => {
+        if (authorId && onOpenProfile) {
+            onOpenProfile(authorId);
+        }
+    }, [onOpenProfile]);
+
     const renderReel = ({ item, index }: { item: ReelItem; index: number }) => {
         const isActive = index === currentIndex;
         const authorName = item.author.displayName || item.author.username || 'User';
@@ -326,7 +395,10 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                         <View style={styles.leftContent}>
                             {/* User row */}
                             <View style={styles.userRow}>
-                                <TouchableOpacity style={styles.avatarContainer}>
+                                <TouchableOpacity
+                                    style={styles.avatarContainer}
+                                    onPress={() => item.author._id && handleProfilePress(item.author._id)}
+                                >
                                     {authorAvatar ? (
                                         <Image source={getImageSource(authorAvatar)} style={styles.avatar} />
                                     ) : (
@@ -335,8 +407,11 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                                         </View>
                                     )}
                                 </TouchableOpacity>
-                                <Text style={styles.username}>{item.author.username}</Text>
-                                {!item.isFollowing && item.author._id && (
+                                <TouchableOpacity onPress={() => item.author._id && handleProfilePress(item.author._id)}>
+                                    <Text style={styles.username}>{item.author.username}</Text>
+                                </TouchableOpacity>
+                                {/* Only show follow button if NOT the current user's reel and not already following */}
+                                {!item.isFollowing && item.author._id && item.author._id !== currentUserId && (
                                     <TouchableOpacity
                                         style={styles.followBtn}
                                         onPress={() => handleFollow(item.author._id!, item._id)}
@@ -411,11 +486,18 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                                 <Text style={styles.actionText}>{item.sharesCount || 0}</Text>
                             </TouchableOpacity>
 
-                            {/* Views */}
-                            <View style={styles.actionBtn}>
-                                <Eye size={26} color="#fff" />
-                                <Text style={styles.actionText}>{item.viewsCount}</Text>
-                            </View>
+                            {/* Save */}
+                            <TouchableOpacity
+                                style={styles.actionBtn}
+                                onPress={() => handleSave(item._id)}
+                                disabled={saveLoading.has(item._id)}
+                            >
+                                <Bookmark
+                                    size={26}
+                                    color={item.isSaved ? COLORS.success : "#fff"}
+                                    fill={item.isSaved ? COLORS.success : "transparent"}
+                                />
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </View>
@@ -469,8 +551,9 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                 showsVerticalScrollIndicator={false}
                 snapToInterval={ITEM_HEIGHT}
                 snapToAlignment="start"
-                decelerationRate={0.9}
+                decelerationRate="fast"
                 disableIntervalMomentum={true}
+                bounces={false}
                 extraData={currentIndex}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
@@ -480,6 +563,10 @@ const Reels = ({ userId, initialReelId, onBack }: ReelsProps) => {
                     index,
                 })}
                 contentContainerStyle={{ flexGrow: 1 }}
+                removeClippedSubviews={true}
+                initialNumToRender={3}
+                maxToRenderPerBatch={4}
+                scrollEventThrottle={16}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({ index: info.index, animated: false });

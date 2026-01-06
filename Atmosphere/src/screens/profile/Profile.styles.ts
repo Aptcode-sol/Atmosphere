@@ -46,7 +46,7 @@ export default StyleSheet.create({
     pagerEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
     emptyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
     emptyText: { fontSize: 14, textAlign: 'center', maxWidth: 420 },
-    pagerWrap: { flex: 1 },
+    pagerWrap: { flex: 1, overflow: 'hidden' as any },
     pagerPage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     metaBlock: { paddingHorizontal: 16 },
     tagline: { fontSize: 14, fontWeight: '600', marginTop: 8 },
