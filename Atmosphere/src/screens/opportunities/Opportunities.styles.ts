@@ -770,6 +770,80 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: 'bold',
     },
+
+    // Active Job Posts Section
+    activeJobsHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#0d0d0d',
+        borderWidth: 1,
+        borderColor: '#272727',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    activeJobsTitle: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    activeJobsContainer: {
+        backgroundColor: '#0d0d0d',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#272727',
+    },
+    noActiveJobsText: {
+        color: '#666',
+        fontSize: 13,
+        textAlign: 'center',
+        paddingVertical: 16,
+    },
+    myJobCard: {
+        backgroundColor: '#111',
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#222',
+    },
+    myJobCardContent: {
+        marginBottom: 10,
+    },
+    myJobTitle: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    myJobMeta: {
+        color: '#888',
+        fontSize: 12,
+    },
+    myJobActions: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    myJobActionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    closeJobText: {
+        color: '#ef4444',
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    editJobText: {
+        color: '#888',
+        fontSize: 12,
+        fontWeight: '500',
+    },
 });
 
 export default styles;

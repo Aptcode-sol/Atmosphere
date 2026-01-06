@@ -48,7 +48,8 @@ exports.searchUsers = async (req, res, next) => {
             const searchRegex = { $regex: q.trim(), $options: 'i' };
             filter.$or = [{ username: searchRegex }, { displayName: searchRegex }, { bio: searchRegex }];
         }
-        if (role) filter.roles = role;
+        // roles is an array, so use $in operator to check if the role exists in the array
+        if (role) filter.roles = { $in: [role] };
         if (verified !== undefined) filter.verified = verified === 'true';
 
         const users = await User.find(filter).select('username displayName avatarUrl bio verified roles').sort({ verified: -1, createdAt: -1 }).limit(parseInt(limit)).skip(parseInt(skip));

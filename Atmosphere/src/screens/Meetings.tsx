@@ -1,5 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView, Modal, Alert } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+    View,
+    Text,
+    FlatList,
+    StyleSheet,
+    TouchableOpacity,
+    TextInput,
+    ActivityIndicator,
+    ScrollView,
+    Modal,
+    Alert,
+    RefreshControl,
+    Image,
+} from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl } from '../lib/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,58 +38,6 @@ type Meeting = {
     participantsDetail?: any[];
 };
 
-const MeetingCard = ({ meeting, onJoin, joinLabel = 'Join', disabled = false, showRemove: _showRemove = false, onRemove: _onRemove }: any) => {
-    const context = React.useContext(ThemeContext);
-    const theme = context?.theme || {
-        cardBackground: '#f5f5f5',
-        border: '#ddd',
-        text: '#000',
-        placeholder: '#999',
-    };
-
-    const getClockLabel = () => {
-        if (!meeting.startTime && !meeting.scheduledAt) return '';
-        const now = new Date();
-        const start = meeting.scheduledAt ? new Date(meeting.scheduledAt) : new Date(meeting.startTime);
-        const end = meeting.endTime ? new Date(meeting.endTime) : new Date(start.getTime() + 45 * 60000);
-        if (now >= start && now <= end) return 'Ongoing';
-        return `Starts at ${formatAMPM(start)}`;
-    };
-
-    return (
-        <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-            <View style={styles.cardRow}>
-                <View style={styles.flex1}>
-                    <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>{meeting.title || 'Untitled Meeting'}</Text>
-                    <Text style={[styles.subtitle, { color: theme.placeholder }]}>
-                        by {meeting.host?.displayName || meeting.hostName || meeting.organizer?.displayName || 'Unknown'}
-                    </Text>
-                    <View style={styles.metaRow}>
-                        <Text style={[styles.metaText, { color: theme.placeholder }]}>{getClockLabel()}</Text>
-                        <Text style={[styles.metaText, { color: theme.placeholder }, styles.metaTextMargin]}>
-                            {typeof meeting.participants === 'number'
-                                ? meeting.participants
-                                : (Array.isArray(meeting.participantsDetail) ? meeting.participantsDetail.length : 0)
-                            } participants
-                        </Text>
-                    </View>
-                </View>
-                <TouchableOpacity
-                    disabled={disabled}
-                    style={[styles.joinBtn, disabled && styles.disabledJoinBtn]}
-                    onPress={onJoin}
-                >
-                    <Text style={styles.whiteBoldText}>{joinLabel}</Text>
-                </TouchableOpacity>
-            </View>
-
-            {meeting.description ? (
-                <Text style={[styles.description, { color: theme.placeholder }]} numberOfLines={2}>{meeting.description}</Text>
-            ) : null}
-        </View>
-    );
-};
-
 function formatAMPM(dateLike: Date | string) {
     const d = typeof dateLike === 'string' ? new Date(dateLike) : dateLike;
     const h = d.getHours();
@@ -86,38 +47,130 @@ function formatAMPM(dateLike: Date | string) {
     return `${hour}:${String(m).padStart(2, '0')} ${period}`;
 }
 
+// MeetingCard - Exact match to web version
+const MeetingCard = ({ meeting, onJoin, joinLabel = 'Join', isExpanded, onToggleExpand }: any) => {
+    const hostName = meeting.host?.displayName || meeting.hostName || meeting.organizer?.displayName || 'Unknown';
+    const hostAvatar = meeting.host?.avatarUrl || meeting.hostAvatar || meeting.organizer?.avatarUrl;
+    const isVerified = meeting.host?.verified || meeting.isVerified || meeting.organizer?.verified;
+    const participantCount = typeof meeting.participants === 'number'
+        ? meeting.participants
+        : (Array.isArray(meeting.participantsDetail) ? meeting.participantsDetail.length : 0);
+
+    const getClockLabel = () => {
+        if (!meeting.startTime && !meeting.scheduledAt) return 'Starts soon';
+        const now = new Date();
+        const start = meeting.scheduledAt ? new Date(meeting.scheduledAt) : new Date(meeting.startTime);
+        const end = meeting.endTime ? new Date(meeting.endTime) : new Date(start.getTime() + 45 * 60000);
+        if (now >= start && now <= end) return 'Ongoing';
+        return `Starts at ${formatAMPM(start)}`;
+    };
+
+    const category = meeting.category || (meeting.industries?.[0] ? 'Pitch' : 'Networking');
+
+    return (
+        <View style={styles.card}>
+            {/* ROW 1: Avatar + Title/Host + Join Button */}
+            <View style={styles.cardRow1}>
+                {/* Avatar */}
+                <View style={styles.avatarContainer}>
+                    {hostAvatar ? (
+                        <Image source={{ uri: hostAvatar }} style={styles.avatar} />
+                    ) : (
+                        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                            <Text style={styles.avatarText}>{hostName.charAt(0).toUpperCase()}</Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Title + Host */}
+                <View style={styles.cardMiddle}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>{meeting.title || 'Untitled Meeting'}</Text>
+                    <View style={styles.hostRow}>
+                        <Text style={styles.hostText}>by {hostName}</Text>
+                        {isVerified && (
+                            <MaterialIcons name="verified" size={14} color="#666" style={{ marginLeft: 4 }} />
+                        )}
+                    </View>
+                </View>
+
+                {/* Join Button */}
+                <TouchableOpacity style={styles.joinBtn} onPress={onJoin}>
+                    <Text style={styles.joinBtnText}>{joinLabel}</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* ROW 2: Eligible + Time + Participants + Category */}
+            <View style={styles.cardRow2}>
+                {/* Left group: Eligible + Time + Participants */}
+                <View style={styles.leftGroup}>
+                    {meeting.eligible !== false && (
+                        <View style={styles.eligibleBadge}>
+                            <Text style={styles.eligibleText}>Eligible</Text>
+                        </View>
+                    )}
+                    <View style={styles.timeGroup}>
+                        <MaterialIcons name="access-time" size={12} color="#666" />
+                        <Text style={styles.metaText}>{getClockLabel()}</Text>
+                    </View>
+                    <View style={styles.participantsGroup}>
+                        <MaterialIcons name="people-outline" size={12} color="#666" />
+                        <Text style={styles.metaText}>{participantCount}</Text>
+                    </View>
+                </View>
+
+                {/* Right: Category badge */}
+                <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryText}>{category === 'pitch' ? 'Pitch' : 'Networking'}</Text>
+                </View>
+            </View>
+
+            {/* ROW 3: Expand Arrow */}
+            {meeting.description && (
+                <TouchableOpacity style={styles.expandRow} onPress={onToggleExpand}>
+                    <MaterialIcons
+                        name={isExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                        size={20}
+                        color="#666"
+                    />
+                </TouchableOpacity>
+            )}
+
+            {/* Expanded Description */}
+            {isExpanded && meeting.description && (
+                <View style={styles.expandedContent}>
+                    {meeting.industries && meeting.industries.length > 0 && (
+                        <View style={styles.industryTags}>
+                            {meeting.industries.slice(0, 2).map((tag: string, idx: number) => (
+                                <View key={idx} style={styles.industryTag}>
+                                    <Text style={styles.industryTagText}>{tag}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                    <Text style={styles.descriptionText}>{meeting.description}</Text>
+                </View>
+            )}
+        </View>
+    );
+};
+
 const NoMeetings = () => (
     <View style={styles.noMeetingsContainer}>
-        <MaterialIcons name="video-library" size={42} color="#999" />
+        <MaterialIcons name="videocam-off" size={48} color="#444" />
         <Text style={styles.noMeetingsText}>No meetings found</Text>
     </View>
 );
 
-const TabButton = ({ label, isActive, onPress }: any) => (
-    <TouchableOpacity onPress={onPress} style={styles.tabButton}>
-        <Text style={[styles.tabButtonText, isActive ? styles.tabButtonActiveText : styles.tabButtonInactiveText]}>{label}</Text>
-        <View style={[styles.tabIndicator, { backgroundColor: isActive ? '#fff' : 'transparent' }]} />
-    </TouchableOpacity>
-);
-
 const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => void }) => {
-    const context = React.useContext(ThemeContext);
-    const theme = context?.theme || {
-        background: '#fff',
-        cardBackground: '#f5f5f5',
-        border: '#ddd',
-        text: '#000',
-        placeholder: '#999',
-        primary: '#2C2C2C',
-    };
-    const [activeTab, setActiveTab] = useState<'public' | 'my'>('public');
+    const [activeTab, setActiveTab] = useState<'all' | 'my'>('all');
     const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [myMeetings, setMyMeetings] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
-    const [_error, _setError] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchBar, setShowSearchBar] = useState(false);
-    const [_userRole, setUserRole] = useState<string>('');
+    const [launchExpanded, setLaunchExpanded] = useState(false);
+    const [expandedMeetingId, setExpandedMeetingId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
     // Date Picker State
@@ -135,7 +188,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
         title: '',
         description: '',
         scheduledAt: new Date(),
-        endScheduledAt: new Date(new Date().getTime() + 60 * 60000), // Default 1 hour later
+        endScheduledAt: new Date(new Date().getTime() + 60 * 60000),
         location: '',
     });
 
@@ -154,7 +207,6 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                 const res = await fetch(`${baseUrl}/api/users/search?q=${encodeURIComponent(participantQuery)}`);
                 if (res.ok) {
                     const data = await res.json();
-                    // Filter out already selected
                     const filtered = (data.users || []).filter((u: any) => !selectedParticipants.some(sp => sp._id === u._id));
                     setParticipantResults(filtered);
                 }
@@ -167,15 +219,9 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
         return () => clearTimeout(delay);
     }, [participantQuery, selectedParticipants]);
 
-
-    useEffect(() => {
-        console.log('Meetings screen mounted, theme ready:', !!context?.theme);
-    }, [context?.theme]);
-
-    const fetchMeetings = async (force: boolean = false) => {
+    const fetchMeetings = useCallback(async (force: boolean = false) => {
         try {
-            setLoading(true);
-            _setError(null);
+            if (!refreshing) setLoading(true);
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
 
@@ -186,9 +232,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                     try {
                         const user = JSON.parse(userJson);
                         currentUserId = user._id || user.id;
-                    } catch (parseErr) {
-                        // ignore
-                    }
+                    } catch { }
                 }
             }
 
@@ -200,63 +244,41 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
             const res = await fetch(url, { headers });
 
             if (res.status === 304 || res.status === 204) {
-                setLoading(false);
                 if (res.status === 204) setMeetings([]);
                 return;
             }
 
-            if (!res.ok) {
-                throw new Error('Failed to fetch meetings');
-            }
+            if (!res.ok) throw new Error('Failed to fetch meetings');
 
             const data = await res.json();
             const meetingsArray = data.meetings || [];
             setMeetings(meetingsArray);
 
             if (currentUserId) {
-                // Since the backend now strictly returns ONLY meetings where the user is 
-                // Organizer OR Participant, we can safely assume ALL these meetings are "My Meetings".
-                // This resolves any issues with ID matching or filtering on the frontend.
                 const allIds = meetingsArray.map((m: Meeting) => String(m._id || m.id));
                 setMyMeetings(allIds);
             }
         } catch (err) {
             console.error('fetchMeetings ERROR:', err);
-            _setError(err instanceof Error ? err.message : String(err));
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
-    };
+    }, [refreshing]);
 
     useEffect(() => { fetchMeetings(); }, []);
 
-    useEffect(() => {
-        const loadUserRole = async () => {
-            try {
-                const role = await AsyncStorage.getItem('role');
-                const userJson = await AsyncStorage.getItem('user');
-                if (role) {
-                    setUserRole(role);
-                } else if (userJson) {
-                    const user = JSON.parse(userJson);
-                    setUserRole(user.role || user.accountType || '');
-                }
-            } catch (e) {
-                console.error('Failed to load user role:', e);
-            }
-        };
-        loadUserRole();
-    }, []);
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchMeetings(true);
+    }, [fetchMeetings]);
 
     const filtered = meetings.filter(m => {
         const q = searchQuery.toLowerCase();
         return m.title.toLowerCase().includes(q) || (m.host?.displayName || '').toLowerCase().includes(q);
     });
 
-    // "All" tab shows everything returned (which is just the user's meetings now)
-    const publicMeetings = filtered;
-    // "My Meetings" shows the same list since privacy is enforced
-    const myMeetingsList = filtered;
+    const myMeetingsList = filtered.filter(m => myMeetings.includes(String(m._id || m.id)));
 
     const handleJoin = async (meeting: Meeting) => {
         try {
@@ -272,7 +294,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
             }
 
             if (!token || !userId) {
-                _setError('Auth error. Please log in.');
+                Alert.alert('Error', 'Please log in to join meetings');
                 return;
             }
 
@@ -298,7 +320,6 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                 Alert.alert('Error', 'Title is required');
                 return;
             }
-            // Calculate duration in minutes
             const diffMs = endScheduledAt.getTime() - scheduledAt.getTime();
             if (diffMs <= 0) {
                 Alert.alert('Error', 'End time must be after start time');
@@ -309,7 +330,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
             const baseUrl = await getBaseUrl();
             const token = await AsyncStorage.getItem('token');
             if (!token) {
-                _setError('Please log in to create meetings');
+                Alert.alert('Error', 'Please log in to create meetings');
                 return;
             }
 
@@ -336,7 +357,7 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
 
             Alert.alert('Success', 'Meeting created successfully');
             setShowCreateModal(false);
-            // Reset form
+            setLaunchExpanded(false);
             setCreateForm({
                 title: '',
                 description: '',
@@ -358,7 +379,6 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
             if (dateField === 'start') {
                 setCreateForm(prev => {
                     const newStart = new Date(selectedDate);
-                    // Auto adjust end time if it becomes before start
                     let newEnd = prev.endScheduledAt;
                     if (newEnd <= newStart) {
                         newEnd = new Date(newStart.getTime() + 3600000);
@@ -387,161 +407,169 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
         setSelectedParticipants(prev => prev.filter(u => u._id !== userId));
     };
 
+    const displayList = activeTab === 'all' ? filtered : myMeetingsList;
+
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <View style={styles.headerRow}>
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Meetings</Text>
-                <View style={styles.row}>
-                    <TouchableOpacity onPress={() => setShowSearchBar(s => !s)} style={styles.iconBtn}>
-                        <MaterialIcons name="search" size={22} color={theme.text} />
+        <View style={styles.container}>
+            {/* Launch Meeting Button - Matches Web */}
+            <TouchableOpacity
+                style={styles.launchBtn}
+                onPress={() => setShowCreateModal(true)}
+            >
+                <View style={styles.launchBtnLeft}>
+                    <View style={styles.launchIconContainer}>
+                        <MaterialIcons name="add" size={20} color="#fff" />
+                    </View>
+                    <Text style={styles.launchBtnText}>Launch meeting</Text>
+                </View>
+                <MaterialIcons name="keyboard-arrow-down" size={24} color="#888" />
+            </TouchableOpacity>
+
+            {/* Tabs + Search - Matches Web */}
+            <View style={styles.tabsContainer}>
+                <View style={styles.tabsRow}>
+                    <TouchableOpacity
+                        style={styles.tabBtn}
+                        onPress={() => setActiveTab('all')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>All</Text>
+                        {activeTab === 'all' && <View style={styles.tabUnderline} />}
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setShowCreateModal(true)} style={styles.iconBtn}>
-                        <MaterialIcons name="add" size={24} color={theme.text} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => fetchMeetings(true)} style={styles.iconBtn}>
-                        <MaterialIcons name="refresh" size={22} color={theme.text} />
+                    <TouchableOpacity
+                        style={styles.tabBtn}
+                        onPress={() => setActiveTab('my')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'my' && styles.tabTextActive]}>My meetings</Text>
+                        {activeTab === 'my' && <View style={styles.tabUnderline} />}
                     </TouchableOpacity>
                 </View>
+                <TouchableOpacity onPress={() => setShowSearchBar(s => !s)} style={styles.searchIconBtn}>
+                    {showSearchBar ? (
+                        <MaterialIcons name="close" size={20} color="#888" />
+                    ) : (
+                        <MaterialIcons name="search" size={20} color="#888" />
+                    )}
+                </TouchableOpacity>
             </View>
 
+            {/* Search Bar */}
             {showSearchBar && (
                 <View style={styles.searchRow}>
-                    <TextInput placeholder="Search meetings" value={searchQuery} onChangeText={setSearchQuery} style={[styles.searchInput, { color: theme.text, borderColor: theme.border }]} placeholderTextColor={theme.placeholder} />
+                    <TextInput
+                        placeholder="Search meetings by title or host..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        style={styles.searchInput}
+                        placeholderTextColor="#666"
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                            <MaterialIcons name="close" size={16} color="#888" />
+                        </TouchableOpacity>
+                    )}
                 </View>
             )}
 
-            <View style={styles.tabsRow}>
-                <TabButton label="All" isActive={activeTab === 'public'} onPress={() => setActiveTab('public')} />
-                <TabButton label="My meetings" isActive={activeTab === 'my'} onPress={() => setActiveTab('my')} />
-            </View>
-
-            <View style={styles.flex1}>
-                {loading ? (
-                    <View style={styles.center}><ActivityIndicator size="large" color={theme.primary} /></View>
-                ) : (
-                    <>
-                        {activeTab === 'public' && (
-                            // Show all relevant meetings as 'public' tab is slightly misnamed now based on privacy, but serves as 'Incoming/All'
-                            meetings.length ? (
-                                <FlatList
-                                    data={meetings} // Just show what backend returns (which is now filtered)
-                                    keyExtractor={(item) => String(item._id || item.id)}
-                                    contentContainerStyle={styles.listPadding}
-                                    renderItem={({ item }) => (
-                                        <MeetingCard
-                                            meeting={item}
-                                            joinLabel={myMeetings.includes(String(item._id || item.id)) ? "Enter" : "Join"}
-                                            onJoin={() => {
-                                                if (myMeetings.includes(String(item._id || item.id))) {
-                                                    if (onJoinMeeting) onJoinMeeting(String(item._id || item.id));
-                                                } else {
-                                                    handleJoin(item);
-                                                }
-                                            }}
-                                        />
-                                    )}
-                                    refreshing={loading}
-                                    onRefresh={fetchMeetings}
-                                />
-                            ) : <NoMeetings />
-                        )}
-
-                        {activeTab === 'my' && (
-                            // Keeping 'my meetings' tab for explicit 'ones I have joined' vs 'ones I am invited to' differentiation if needed, 
-                            // but simplifying to just show same list for now if backend filter overlaps.
-                            // Actually user said "meetings will be only shown to the participant who were in the list". 
-                            // So 'meetings' state already contains ONLY that.
-                            // We can just reuse the list or filter by 'accepted' status if we had that detail easily avail.
-                            // For now, My Meetings can strictly be "Where I am Participant".
-                            myMeetingsList.length ? (
-                                <FlatList
-                                    data={myMeetingsList}
-                                    keyExtractor={(item) => String(item._id || item.id)}
-                                    contentContainerStyle={styles.listPadding}
-                                    renderItem={({ item }) => (
-                                        <MeetingCard
-                                            meeting={item}
-                                            joinLabel="Enter"
-                                            disabled={false}
-                                            onJoin={() => {
-                                                if (onJoinMeeting) {
-                                                    onJoinMeeting(String(item._id || item.id));
-                                                }
-                                            }}
-                                        />
-                                    )}
-                                    refreshing={loading}
-                                    onRefresh={fetchMeetings}
-                                />
-                            ) : <NoMeetings />
-                        )}
-                    </>
-                )}
-            </View>
+            {/* Meeting List with Pull to Refresh */}
+            {loading && !refreshing ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color="#22c55e" />
+                </View>
+            ) : (
+                <FlatList
+                    data={displayList}
+                    keyExtractor={(item) => String(item._id || item.id)}
+                    contentContainerStyle={styles.listContent}
+                    renderItem={({ item }) => (
+                        <MeetingCard
+                            meeting={item}
+                            joinLabel={myMeetings.includes(String(item._id || item.id)) ? 'Enter' : 'Join'}
+                            isExpanded={expandedMeetingId === String(item._id || item.id)}
+                            onToggleExpand={() => setExpandedMeetingId(
+                                expandedMeetingId === String(item._id || item.id) ? null : String(item._id || item.id)
+                            )}
+                            onJoin={() => {
+                                if (myMeetings.includes(String(item._id || item.id))) {
+                                    if (onJoinMeeting) onJoinMeeting(String(item._id || item.id));
+                                } else {
+                                    handleJoin(item);
+                                }
+                            }}
+                        />
+                    )}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#22c55e"
+                            colors={['#22c55e']}
+                        />
+                    }
+                    ListEmptyComponent={<NoMeetings />}
+                />
+            )}
 
             {/* Create Meeting Modal */}
             <Modal visible={showCreateModal} transparent animationType="slide">
                 <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
+                    <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: theme.text }]}>Create Meeting</Text>
+                            <Text style={styles.modalTitle}>Launch Meeting</Text>
                             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-                                <MaterialIcons name="close" size={24} color={theme.text} />
+                                <MaterialIcons name="close" size={24} color="#fff" />
                             </TouchableOpacity>
                         </View>
 
                         <ScrollView style={styles.modalForm} contentContainerStyle={{ paddingBottom: 40 }}>
-                            <Text style={[styles.label, { color: theme.text }]}>Title *</Text>
+                            <Text style={styles.label}>Title *</Text>
                             <TextInput
                                 value={createForm.title}
                                 onChangeText={(v) => setCreateForm(prev => ({ ...prev, title: v }))}
-                                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                                style={styles.input}
                                 placeholder="Meeting title"
-                                placeholderTextColor={theme.placeholder}
+                                placeholderTextColor="#666"
                             />
 
-                            <Text style={[styles.label, { color: theme.text }]}>Description</Text>
+                            <Text style={styles.label}>Description</Text>
                             <TextInput
                                 value={createForm.description}
                                 onChangeText={(v) => setCreateForm(prev => ({ ...prev, description: v }))}
-                                style={[styles.input, styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                                placeholder="Meeting description"
-                                placeholderTextColor={theme.placeholder}
+                                style={[styles.input, styles.textArea]}
+                                placeholder="Add a description for your meeting..."
+                                placeholderTextColor="#666"
                                 multiline
                                 numberOfLines={3}
                             />
 
-                            {/* Date Time Pickers */}
-                            <Text style={[styles.label, { color: theme.text }]}>Start Time *</Text>
+                            <Text style={styles.label}>Start Time *</Text>
                             <View style={styles.dateRow}>
-                                <TouchableOpacity onPress={() => openDatePicker('start', 'date')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
-                                    <Text style={{ color: theme.text }}>{createForm.scheduledAt.toLocaleDateString()}</Text>
-                                    <MaterialIcons name="calendar-today" size={16} color={theme.placeholder} />
+                                <TouchableOpacity onPress={() => openDatePicker('start', 'date')} style={styles.dateBtn}>
+                                    <Text style={styles.dateText}>{createForm.scheduledAt.toLocaleDateString()}</Text>
+                                    <MaterialIcons name="calendar-today" size={16} color="#888" />
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => openDatePicker('start', 'time')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
-                                    <Text style={{ color: theme.text }}>{formatAMPM(createForm.scheduledAt)}</Text>
-                                    <MaterialIcons name="access-time" size={16} color={theme.placeholder} />
+                                <TouchableOpacity onPress={() => openDatePicker('start', 'time')} style={styles.dateBtn}>
+                                    <Text style={styles.dateText}>{formatAMPM(createForm.scheduledAt)}</Text>
+                                    <MaterialIcons name="access-time" size={16} color="#888" />
                                 </TouchableOpacity>
                             </View>
 
-                            <Text style={[styles.label, { color: theme.text }]}>End Time *</Text>
+                            <Text style={styles.label}>End Time *</Text>
                             <View style={styles.dateRow}>
-                                <TouchableOpacity onPress={() => openDatePicker('end', 'date')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
-                                    <Text style={{ color: theme.text }}>{createForm.endScheduledAt.toLocaleDateString()}</Text>
-                                    <MaterialIcons name="calendar-today" size={16} color={theme.placeholder} />
+                                <TouchableOpacity onPress={() => openDatePicker('end', 'date')} style={styles.dateBtn}>
+                                    <Text style={styles.dateText}>{createForm.endScheduledAt.toLocaleDateString()}</Text>
+                                    <MaterialIcons name="calendar-today" size={16} color="#888" />
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => openDatePicker('end', 'time')} style={[styles.dateBtn, { borderColor: theme.border, backgroundColor: theme.background }]}>
-                                    <Text style={{ color: theme.text }}>{formatAMPM(createForm.endScheduledAt)}</Text>
-                                    <MaterialIcons name="access-time" size={16} color={theme.placeholder} />
+                                <TouchableOpacity onPress={() => openDatePicker('end', 'time')} style={styles.dateBtn}>
+                                    <Text style={styles.dateText}>{formatAMPM(createForm.endScheduledAt)}</Text>
+                                    <MaterialIcons name="access-time" size={16} color="#888" />
                                 </TouchableOpacity>
                             </View>
 
-                            <Text style={[styles.label, { color: theme.text }]}>Participants</Text>
-                            {/* Selected Participants Chips */}
+                            <Text style={styles.label}>Participants</Text>
                             {selectedParticipants.length > 0 && (
                                 <View style={styles.chipsContainer}>
                                     {selectedParticipants.map(u => (
-                                        <View key={u._id} style={[styles.chip, { backgroundColor: theme.primary }]}>
+                                        <View key={u._id} style={styles.chip}>
                                             <Text style={styles.chipText}>{u.displayName || u.username}</Text>
                                             <TouchableOpacity onPress={() => removeParticipant(u._id)}>
                                                 <MaterialIcons name="close" size={16} color="#fff" />
@@ -554,38 +582,33 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                             <TextInput
                                 value={participantQuery}
                                 onChangeText={setParticipantQuery}
-                                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                                style={styles.input}
                                 placeholder="Search & Add Participants..."
-                                placeholderTextColor={theme.placeholder}
+                                placeholderTextColor="#666"
                             />
-                            {/* Search Results */}
                             {participantResults.length > 0 && (
-                                <View style={[styles.searchResults, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                                <View style={styles.searchResults}>
                                     {participantResults.map(u => (
                                         <TouchableOpacity key={u._id} style={styles.searchResultItem} onPress={() => addParticipant(u)}>
-                                            <Text style={{ color: theme.text }}>{u.displayName || u.username}</Text>
-                                            <MaterialIcons name="add" size={20} color={theme.placeholder} />
+                                            <Text style={styles.searchResultText}>{u.displayName || u.username}</Text>
+                                            <MaterialIcons name="add" size={20} color="#888" />
                                         </TouchableOpacity>
                                     ))}
                                 </View>
                             )}
-                            {searchingParticipants && <ActivityIndicator size="small" color={theme.primary} style={{ marginTop: 8 }} />}
+                            {searchingParticipants && <ActivityIndicator size="small" color="#22c55e" style={{ marginTop: 8 }} />}
 
-
-                            <Text style={[styles.label, { color: theme.text }]}>Location</Text>
+                            <Text style={styles.label}>Location</Text>
                             <TextInput
                                 value={createForm.location}
                                 onChangeText={(v) => setCreateForm(prev => ({ ...prev, location: v }))}
-                                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                                style={styles.input}
                                 placeholder="Office, Online, etc."
-                                placeholderTextColor={theme.placeholder}
+                                placeholderTextColor="#666"
                             />
 
-                            <TouchableOpacity
-                                style={[styles.createBtn, { backgroundColor: theme.primary }]}
-                                onPress={handleCreateMeeting}
-                            >
-                                <Text style={styles.createBtnText}>Create Meeting</Text>
+                            <TouchableOpacity style={styles.createBtn} onPress={handleCreateMeeting}>
+                                <Text style={styles.createBtnText}>Launch Meeting</Text>
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
@@ -601,59 +624,386 @@ const Meetings = ({ onJoinMeeting }: { onJoinMeeting?: (meetingId: string) => vo
                     onChange={onDateChange}
                 />
             )}
-
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    headerRow: { height: 56, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    headerTitle: { fontSize: 20, fontWeight: '700' },
-    iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    searchRow: { paddingHorizontal: 12, paddingBottom: 8 },
-    searchInput: { height: 40, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10 },
-    tabsRow: { flexDirection: 'row', paddingHorizontal: 8, paddingBottom: 8 },
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    card: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12, overflow: 'hidden' },
-    cardRow: { flexDirection: 'row', alignItems: 'center' },
-    title: { fontSize: 16, fontWeight: '700' },
-    subtitle: { fontSize: 12, marginTop: 4 },
-    metaRow: { flexDirection: 'row', marginTop: 6 },
-    metaText: { fontSize: 12 },
-    joinBtn: { backgroundColor: '#2C2C2C', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
-    description: { marginTop: 8, fontSize: 13, lineHeight: 18 },
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%' },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' },
-    modalTitle: { color: '#000', fontSize: 18, fontWeight: '700' },
-    modalForm: { padding: 16 },
-    label: { fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 4 },
-    input: { height: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 14 },
-    textArea: { height: 80, paddingTop: 10, textAlignVertical: 'top' },
-    createBtn: { marginTop: 20, marginBottom: 20, paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-    createBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    flex1: { flex: 1 },
-    metaTextMargin: { marginLeft: 8 },
-    disabledJoinBtn: { backgroundColor: '#999' },
-    whiteBoldText: { color: '#fff', fontWeight: '700' },
-    noMeetingsContainer: { padding: 24, alignItems: 'center' },
-    noMeetingsText: { marginTop: 8, color: '#999' },
-    tabButton: { paddingHorizontal: 12, paddingVertical: 8 },
-    tabButtonText: { color: '#fff' },
-    tabButtonActiveText: { fontWeight: '700' },
-    tabButtonInactiveText: { fontWeight: '500' },
-    tabIndicator: { height: 2, marginTop: 6 },
-    row: { flexDirection: 'row' },
-    listPadding: { padding: 12 },
-    // New Styles
-    dateRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    dateBtn: { flex: 0.48, height: 44, borderWidth: 1, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10 },
-    chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-    chip: { borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
-    chipText: { color: '#fff', marginRight: 4, fontSize: 12 },
-    searchResults: { borderWidth: 1, borderRadius: 8, marginTop: 4, maxHeight: 150 },
-    searchResultItem: { padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
+    container: {
+        flex: 1,
+        backgroundColor: '#000',
+    },
+    // Launch Meeting Button
+    launchBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginHorizontal: 16,
+        marginTop: 25,
+        paddingVertical: 20,
+        paddingHorizontal: 20,
+        backgroundColor: '#040709',
+        borderWidth: 1,
+        borderColor: '#272727',
+        borderRadius: 20,
+    },
+    launchBtnLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    launchIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 100,
+        backgroundColor: '#1a1a1a',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    launchBtnText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    // Tabs
+    tabsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        marginTop: 24,
+        marginBottom: 16,
+        marginLeft: 10,
+    },
+    tabsRow: {
+        flexDirection: 'row',
+    },
+    tabBtn: {
+        marginRight: 20,
+        paddingBottom: 12,
+    },
+    tabText: {
+        color: '#666',
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    tabTextActive: {
+        color: '#fff',
+    },
+    tabUnderline: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 2,
+        backgroundColor: '#fff',
+    },
+    searchIconBtn: {
+        padding: 8,
+    },
+    // Search
+    searchRow: {
+        paddingHorizontal: 16,
+        marginBottom: 12,
+        position: 'relative',
+    },
+    searchInput: {
+        backgroundColor: '#111',
+        borderRadius: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        paddingLeft: 30,
+        paddingRight: 40,
+        color: '#fff',
+        fontSize: 15,
+        marginVertical: 5,
+        marginBottom: 12,
+    },
+    clearSearchBtn: {
+        position: 'absolute',
+        right: 28,
+        top: 25,
+    },
+    // List
+    listContent: {
+        paddingHorizontal: 16,
+        paddingBottom: 100,
+    },
+    center: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    // Card
+    card: {
+        backgroundColor: '#0d0d0d',
+        borderWidth: 1,
+        borderColor: '#272727',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        marginBottom: 15,
+    },
+    cardRow1: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    avatarContainer: {
+        marginRight: 12,
+    },
+    avatar: {
+        width: 45,
+        height: 45,
+        borderRadius: 30,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    avatarPlaceholder: {
+        backgroundColor: '#333',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    cardMiddle: {
+        flex: 1,
+    },
+    cardTitle: {
+        color: '#fff',
+        fontSize: 14.5,
+        fontWeight: '500',
+        marginBottom: 2,
+    },
+    hostRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    hostText: {
+        color: '#888',
+        fontSize: 13,
+    },
+    joinBtn: {
+        backgroundColor: '#2C2C2C',
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginLeft: 12,
+    },
+    joinBtnText: {
+        color: '#fff',
+        fontSize: 12.5,
+        fontWeight: '600',
+    },
+    // Row 2
+    cardRow2: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 10,
+    },
+    leftGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    eligibleBadge: {
+        backgroundColor: '#0e2416',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 10,
+    },
+    eligibleText: {
+        color: '#22c55e',
+        fontSize: 11,
+        fontWeight: '500',
+    },
+    timeGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    participantsGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    metaText: {
+        color: '#666',
+        fontSize: 11,
+    },
+    categoryBadge: {
+        backgroundColor: '#0e1118',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 10,
+        minWidth: 70,
+        alignItems: 'center',
+    },
+    categoryText: {
+        color: '#888',
+        fontSize: 11.5,
+    },
+    // Expand
+    expandRow: {
+        alignItems: 'flex-start',
+        paddingTop: 8,
+    },
+    expandedContent: {
+        paddingTop: 8,
+    },
+    industryTags: {
+        flexDirection: 'row',
+        gap: 6,
+        marginBottom: 8,
+    },
+    industryTag: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    industryTagText: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 10,
+    },
+    descriptionText: {
+        color: '#888',
+        fontSize: 12,
+        lineHeight: 18,
+    },
+    // No Meetings
+    noMeetingsContainer: {
+        padding: 48,
+        alignItems: 'center',
+    },
+    noMeetingsText: {
+        marginTop: 12,
+        color: '#666',
+        fontSize: 14,
+    },
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#111',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        maxHeight: '90%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#222',
+    },
+    modalTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    modalForm: {
+        padding: 16,
+    },
+    label: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '500',
+        marginTop: 16,
+        marginBottom: 6,
+    },
+    input: {
+        backgroundColor: '#0a0a0a',
+        borderWidth: 1,
+        borderColor: '#333',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        color: '#fff',
+        fontSize: 14,
+    },
+    textArea: {
+        height: 80,
+        textAlignVertical: 'top',
+    },
+    dateRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    dateBtn: {
+        flex: 1,
+        backgroundColor: '#0a0a0a',
+        borderWidth: 1,
+        borderColor: '#333',
+        borderRadius: 8,
+        padding: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    dateText: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    chipsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginBottom: 8,
+    },
+    chip: {
+        backgroundColor: '#22c55e',
+        borderRadius: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        marginRight: 8,
+        marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    chipText: {
+        color: '#fff',
+        marginRight: 4,
+        fontSize: 12,
+    },
+    searchResults: {
+        backgroundColor: '#0a0a0a',
+        borderWidth: 1,
+        borderColor: '#333',
+        borderRadius: 8,
+        marginTop: 4,
+        maxHeight: 150,
+    },
+    searchResultItem: {
+        padding: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#222',
+    },
+    searchResultText: {
+        color: '#fff',
+    },
+    createBtn: {
+        backgroundColor: '#fff',
+        marginTop: 24,
+        paddingVertical: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    createBtnText: {
+        color: '#000',
+        fontSize: 16,
+        fontWeight: '700',
+    },
 });
 
 export default Meetings;

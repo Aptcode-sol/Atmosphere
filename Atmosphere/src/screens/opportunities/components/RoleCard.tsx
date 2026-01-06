@@ -51,7 +51,7 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand }: RoleCard
                     <View style={styles.companyInfo}>
                         <View style={styles.companyNameRow}>
                             <Text style={[styles.companyName, { color: accentColor }]} numberOfLines={1}>
-                                {item.startupName || item.poster?.displayName || 'Unknown Startup'}
+                                {item.poster?.startupName || item.startupName || 'Unknown Startup'}
                             </Text>
                             {isMyAd && (
                                 <View style={styles.myAdBadge}>

@@ -1,4 +1,4 @@
-const { Job, Notification } = require('../models');
+const { Job, Notification, StartupDetails } = require('../models');
 
 exports.createJob = async (req, res, next) => {
     try {
@@ -19,7 +19,15 @@ exports.createJob = async (req, res, next) => {
         });
         await job.save();
         await job.populate('poster', 'username displayName avatarUrl verified');
-        res.status(201).json({ job });
+
+        // Get startup details to include company name
+        const startupDetails = await StartupDetails.findOne({ user: req.user._id });
+        const jobData = job.toObject();
+        if (startupDetails) {
+            jobData.startupName = startupDetails.companyName;
+        }
+
+        res.status(201).json({ job: jobData });
     } catch (err) {
         next(err);
     }
@@ -44,7 +52,26 @@ exports.listJobs = async (req, res, next) => {
             .skip(parseInt(skip));
         const total = await Job.countDocuments(filter);
 
-        res.json({ jobs, count: jobs.length, total });
+        // Fetch startup details for all posters to get company names
+        const posterIds = [...new Set(jobs.map(job => job.poster?._id?.toString()).filter(Boolean))];
+        const startupDetailsMap = {};
+        if (posterIds.length > 0) {
+            const startupDetails = await StartupDetails.find({ user: { $in: posterIds } });
+            startupDetails.forEach(sd => {
+                startupDetailsMap[sd.user.toString()] = sd.companyName;
+            });
+        }
+
+        // Add startupName to each job
+        const jobsWithStartupName = jobs.map(job => {
+            const jobData = job.toObject();
+            if (job.poster?._id) {
+                jobData.startupName = startupDetailsMap[job.poster._id.toString()] || '';
+            }
+            return jobData;
+        });
+
+        res.json({ jobs: jobsWithStartupName, count: jobs.length, total });
     } catch (err) {
         next(err);
     }

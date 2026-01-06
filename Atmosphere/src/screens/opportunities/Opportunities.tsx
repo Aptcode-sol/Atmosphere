@@ -62,6 +62,12 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
     const [teamRefreshed, setTeamRefreshed] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Active Job Posts state
+    const [myJobPosts, setMyJobPosts] = useState<any[]>([]);
+    const [activeJobsExpanded, setActiveJobsExpanded] = useState(false);
+    const [myJobsLoading, setMyJobsLoading] = useState(false);
+    const [editingJobId, setEditingJobId] = useState<string | null>(null);
+
     // Filter states
     const [filters, setFilters] = useState({
         grantType: 'all',
@@ -256,7 +262,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                     date: form.date, time: form.time, description: form.description, url: form.url,
                 };
             } else if (activeTab === 'Team') {
-                endpoint = '/api/jobs';
+                endpoint = editingJobId ? `/api/jobs/${editingJobId}` : '/api/jobs';
                 payload = {
                     title: form.roleTitle, startupName: form.startupName, sector: form.sector,
                     locationType: form.locationType, employmentType: form.employmentType,
@@ -266,28 +272,111 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
             }
 
             const res = await fetch(`${baseUrl}${endpoint}`, {
-                method: 'POST',
+                method: editingJobId ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(payload),
             });
             if (!res.ok) throw new Error('Failed to post');
 
             setModalVisible(false);
+            setEditingJobId(null);
             setForm({
                 name: '', organization: '', sector: '', location: '', amount: '', deadline: '', type: '',
                 description: '', url: '', organizer: '', date: '', time: '',
                 startupName: '', roleTitle: '', locationType: '', employmentType: 'Full-time',
                 compensation: '', requirements: '', isRemote: false, applicationUrl: '',
             });
-            Alert.alert('Success', 'Posted successfully!');
+            Alert.alert('Success', editingJobId ? 'Job post updated successfully!' : 'Posted successfully!');
 
             if (activeTab === 'Grants') loadGrants(0);
             else if (activeTab === 'Events') loadEvents(0);
-            else if (activeTab === 'Team') loadTeam(0);
+            else if (activeTab === 'Team') {
+                loadTeam(0);
+                loadMyJobPosts(); // Refresh user's job posts
+            }
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to post');
         }
         setPostLoading(false);
+    };
+
+    // Load user's own job posts
+    const loadMyJobPosts = useCallback(async () => {
+        setMyJobsLoading(true);
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const userJson = await AsyncStorage.getItem('user');
+            if (!token || !userJson) return;
+
+            const user = JSON.parse(userJson);
+            const userId = user._id || user.id;
+            const baseUrl = await getBaseUrl();
+
+            const res = await fetch(`${baseUrl}/api/jobs?poster=${userId}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setMyJobPosts(data.jobs || []);
+            }
+        } catch (e) {
+            console.warn('Failed to load my job posts', e);
+        } finally {
+            setMyJobsLoading(false);
+        }
+    }, []);
+
+    // Close/Delete a job post
+    const handleCloseJobPost = async (jobId: string) => {
+        Alert.alert(
+            'Close Job Post',
+            'Are you sure you want to close this job post? It will no longer accept applications.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Close',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const token = await AsyncStorage.getItem('token');
+                            const baseUrl = await getBaseUrl();
+                            const res = await fetch(`${baseUrl}/api/jobs/${jobId}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${token}` },
+                            });
+                            if (res.ok) {
+                                setMyJobPosts(prev => prev.filter(job => (job._id || job.id) !== jobId));
+                                loadTeam(0);
+                                Alert.alert('Success', 'Job post closed successfully');
+                            } else {
+                                throw new Error('Failed to close job post');
+                            }
+                        } catch (e: any) {
+                            Alert.alert('Error', e.message || 'Failed to close job post');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    // Edit a job post (opens modal with pre-filled data)
+    const handleEditJobPost = (job: any) => {
+        setEditingJobId(job._id || job.id);
+        setForm({
+            ...form,
+            roleTitle: job.title || '',
+            startupName: job.startupName || '',
+            sector: job.sector || '',
+            locationType: job.locationType || '',
+            employmentType: job.employmentType || 'Full-time',
+            compensation: job.compensation || '',
+            requirements: job.requirements || '',
+            isRemote: job.isRemote || false,
+            applicationUrl: job.applicationUrl || '',
+        });
+        setActiveTab('Team');
+        setModalVisible(true);
     };
 
     const handleTabPress = (tab: string, index: number) => {
@@ -375,14 +464,71 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                     ListHeaderComponent={() => (
                         <View>
                             {tabName === 'Team' && (
-                                <View style={styles.actionButtonsContainer}>
-                                    <TouchableOpacity style={[styles.actionBtn, styles.createBtn]} onPress={() => setModalVisible(true)}>
-                                        <Text style={styles.createBtnText}>＋ Create Job Ad</Text>
+                                <>
+                                    <View style={styles.actionButtonsContainer}>
+                                        <TouchableOpacity style={[styles.actionBtn, styles.createBtn]} onPress={() => setModalVisible(true)}>
+                                            <Text style={styles.createBtnText}>＋ Create Job Ad</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.actionBtn, styles.myTeamsBtn]} onPress={() => onNavigate && onNavigate('myTeam')}>
+                                            <Text style={styles.myTeamsBtnText}>My Teams</Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {/* Your Active Job Posts - Expandable */}
+                                    <TouchableOpacity
+                                        style={styles.activeJobsHeader}
+                                        onPress={() => {
+                                            setActiveJobsExpanded(!activeJobsExpanded);
+                                            if (!activeJobsExpanded && myJobPosts.length === 0) {
+                                                loadMyJobPosts();
+                                            }
+                                        }}
+                                    >
+                                        <Text style={styles.activeJobsTitle}>Your active job posts</Text>
+                                        <MaterialIcons
+                                            name={activeJobsExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                                            size={24}
+                                            color="#888"
+                                        />
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.actionBtn, styles.myTeamsBtn]} onPress={() => onNavigate && onNavigate('myTeam')}>
-                                        <Text style={styles.myTeamsBtnText}>My Teams</Text>
-                                    </TouchableOpacity>
-                                </View>
+
+                                    {activeJobsExpanded && (
+                                        <View style={styles.activeJobsContainer}>
+                                            {myJobsLoading ? (
+                                                <ActivityIndicator size="small" color={theme.primary} />
+                                            ) : myJobPosts.length === 0 ? (
+                                                <Text style={styles.noActiveJobsText}>No active job posts</Text>
+                                            ) : (
+                                                myJobPosts.map((job) => (
+                                                    <View key={job._id || job.id} style={styles.myJobCard}>
+                                                        <View style={styles.myJobCardContent}>
+                                                            <Text style={styles.myJobTitle} numberOfLines={1}>{job.title}</Text>
+                                                            <Text style={styles.myJobMeta}>
+                                                                {job.applicants?.length || 0} applicants • {job.employmentType || 'Full-time'}
+                                                            </Text>
+                                                        </View>
+                                                        <View style={styles.myJobActions}>
+                                                            <TouchableOpacity
+                                                                style={styles.myJobActionBtn}
+                                                                onPress={() => handleCloseJobPost(job._id || job.id)}
+                                                            >
+                                                                <MaterialIcons name="block" size={18} color="#ef4444" />
+                                                                <Text style={styles.closeJobText}>Close</Text>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity
+                                                                style={styles.myJobActionBtn}
+                                                                onPress={() => handleEditJobPost(job)}
+                                                            >
+                                                                <MaterialIcons name="edit" size={18} color="#888" />
+                                                                <Text style={styles.editJobText}>Edit</Text>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    </View>
+                                                ))
+                                            )}
+                                        </View>
+                                    )}
+                                </>
                             )}
                             <View style={styles.listHeader}>
                                 <Text style={styles.resultCount}>
@@ -470,9 +616,9 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                     <View style={[styles.modalBox, { backgroundColor: '#111' }]}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                             <Text style={[styles.modalTitle, { marginBottom: 0, flex: 1 }]}>
-                                Post a new {activeTab === 'Team' ? 'Job' : activeTab.slice(0, -1)}
+                                {editingJobId ? 'Edit Job Post' : `Post a new ${activeTab === 'Team' ? 'Job' : activeTab.slice(0, -1)}`}
                             </Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ padding: 4 }}>
+                            <TouchableOpacity onPress={() => { setModalVisible(false); setEditingJobId(null); }} style={{ padding: 4 }}>
                                 <MaterialIcons name="close" size={24} color="#fff" />
                             </TouchableOpacity>
                         </View>
@@ -503,10 +649,6 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                             )}
                             {activeTab === 'Team' && (
                                 <>
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>Startup Name</Text>
-                                        <TextInput placeholderTextColor="#666" style={styles.inputDark} placeholder="Enter your startup name" value={form.startupName} onChangeText={v => handleFormChange('startupName', v)} />
-                                    </View>
                                     <View style={styles.inputGroup}>
                                         <Text style={styles.label}>Role Title</Text>
                                         <TextInput placeholderTextColor="#666" style={styles.inputDark} placeholder="e.g., Co-Founder & CTO" value={form.roleTitle} onChangeText={v => handleFormChange('roleTitle', v)} />
@@ -573,7 +715,11 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                         </ScrollView>
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={styles.submitBtnDark} onPress={handleSubmit} disabled={postLoading}>
-                                <Text style={styles.submitText}>{postLoading ? 'Posting...' : 'Create Posting'}</Text>
+                                <Text style={styles.submitText}>
+                                    {postLoading
+                                        ? (editingJobId ? 'Updating...' : 'Posting...')
+                                        : (editingJobId ? 'Edit Job Post' : 'Create Posting')}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
