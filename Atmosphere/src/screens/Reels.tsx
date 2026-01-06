@@ -18,6 +18,7 @@ import ReelCommentsOverlay from '../components/ReelCommentsOverlay';
 import ShareModal from '../components/ShareModal';
 import { getImageSource } from '../lib/image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -33,8 +34,9 @@ const COLORS = {
     textMuted: '#666666',
 };
 
-// Reel height - use full window height for clean snapping with no bleed-through
-const ITEM_HEIGHT = SCREEN_HEIGHT;
+// Reel height - subtract bottom nav height to prevent reels from going behind it
+const ACTUAL_BOTTOM_NAV_HEIGHT = BOTTOM_NAV_HEIGHT + 41; // BottomNav component uses BOTTOM_NAV_HEIGHT + 50
+const ITEM_HEIGHT = SCREEN_HEIGHT - ACTUAL_BOTTOM_NAV_HEIGHT- 45;
 
 interface ReelItem {
     _id: string;
@@ -608,6 +610,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#000',
+        paddingBottom: ACTUAL_BOTTOM_NAV_HEIGHT,
     },
     center: {
         justifyContent: 'center',
