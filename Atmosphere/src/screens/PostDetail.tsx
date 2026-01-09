@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, SafeAreaView } from 'react-native';
+import React, { useEffect, useState, useContext, useRef } from 'react';
+import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, SafeAreaView, Animated } from 'react-native';
 import { ArrowLeft, Heart, MessageCircle, Send, Bookmark } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -38,6 +38,47 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
   // Computed images
   const images: string[] = post?.media?.map((m: any) => m.url) || (post?.image ? [post.image] : []);
   const windowWidth = Dimensions.get('window').width;
+
+  // Double-tap to like
+  const lastTap = useRef<number>(0);
+  const heartScale = useRef(new Animated.Value(0)).current;
+  const heartOpacity = useRef(new Animated.Value(0)).current;
+
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+      // Double tap - like if not liked
+      if (!liked) {
+        handleLike();
+      }
+      // Reset and animate
+      heartScale.setValue(0);
+      heartOpacity.setValue(0);
+
+      // Instagram-style animation
+      Animated.sequence([
+        // Quick pop in
+        Animated.parallel([
+          Animated.spring(heartScale, {
+            toValue: 1.2,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 6,
+          }),
+          Animated.timing(heartOpacity, { toValue: 1, duration: 50, useNativeDriver: true }),
+        ]),
+        // Brief hold
+        Animated.delay(0),
+        // Quick fade out
+        Animated.parallel([
+          Animated.timing(heartScale, { toValue: 0.9, duration: 50, useNativeDriver: true }),
+          Animated.timing(heartOpacity, { toValue: 0, duration: 50, useNativeDriver: true }),
+        ]),
+      ]).start();
+    }
+    lastTap.current = now;
+  };
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -228,30 +269,37 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
           </TouchableOpacity>
         </View>
 
-        {/* Image Slider */}
+        {/* Image Slider with double-tap to like */}
         {images.length > 0 && (
           <>
-            <FlatList
-              data={images}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={(_, idx) => `img-${idx}`}
-              renderItem={({ item }) => (
-                <View style={[styles.imageContainer, { width: windowWidth }]}>
-                  <Image
-                    source={getImageSource(item)}
-                    style={styles.postImage}
-                    resizeMode="cover"
-                    onError={(e) => { console.warn('PostDetail image error', e.nativeEvent, item); }}
-                  />
-                </View>
-              )}
-              onMomentumScrollEnd={e => {
-                const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
-                setActiveImage(index);
-              }}
-            />
+            <TouchableOpacity activeOpacity={0.95} onPress={handleDoubleTap} style={{ position: 'relative' }}>
+              <FlatList
+                data={images}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                scrollEnabled={images.length > 1}
+                keyExtractor={(_, idx) => `img-${idx}`}
+                renderItem={({ item }) => (
+                  <View style={[styles.imageContainer, { width: windowWidth }]}>
+                    <Image
+                      source={getImageSource(item)}
+                      style={styles.postImage}
+                      resizeMode="cover"
+                      onError={(e) => { console.warn('PostDetail image error', e.nativeEvent, item); }}
+                    />
+                  </View>
+                )}
+                onMomentumScrollEnd={e => {
+                  const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+                  setActiveImage(index);
+                }}
+              />
+              {/* Double-tap heart animation */}
+              <Animated.View style={[styles.doubleTapHeart, { opacity: heartOpacity, transform: [{ scale: heartScale }] }]} pointerEvents="none">
+                <Heart size={70} color="#fff" fill="#fff" strokeWidth={0} />
+              </Animated.View>
+            </TouchableOpacity>
             {/* Image indicators */}
             {images.length > 1 && (
               <View style={styles.dotsRow}>
@@ -472,7 +520,18 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 13,
     fontWeight: '500',
-  }
+  },
+  doubleTapHeart: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -35,
+    marginLeft: -35,
+    width: 70,
+    height: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default PostDetail;

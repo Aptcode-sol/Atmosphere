@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
         right: 0,
         zIndex: 50,
     },
-    listContent: { padding: 0, paddingBottom: 80, paddingTop: 65 },
+    listContent: { padding: 0, paddingTop: 65 },
     centerLoader: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 20 },
     loadingText: { marginTop: 12, fontSize: 14 },
     errorText: { fontSize: 14 },

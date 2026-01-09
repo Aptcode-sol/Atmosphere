@@ -14,15 +14,14 @@ export const COLORS = {
     textMuted: '#666666',
 };
 
-// Reel height - subtract bottom nav height to prevent reels from going behind it
-export const ACTUAL_BOTTOM_NAV_HEIGHT = BOTTOM_NAV_HEIGHT + 41;
-export const ITEM_HEIGHT = SCREEN_HEIGHT - ACTUAL_BOTTOM_NAV_HEIGHT - 45;
+// Reel height - subtract bottom nav (60px) since it's now in flow
+export const ACTUAL_BOTTOM_NAV_HEIGHT = BOTTOM_NAV_HEIGHT + 50; // 60px total
+export const ITEM_HEIGHT = SCREEN_HEIGHT - ACTUAL_BOTTOM_NAV_HEIGHT - STATUS_BAR_HEIGHT;
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#000',
-        paddingBottom: ACTUAL_BOTTOM_NAV_HEIGHT,
     },
     center: {
         justifyContent: 'center',
@@ -42,6 +41,14 @@ export const styles = StyleSheet.create({
     video: {
         width: '100%',
         height: '100%',
+    },
+    touchOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'transparent',
     },
     overlay: {
         position: 'absolute',
@@ -140,10 +147,6 @@ export const styles = StyleSheet.create({
         textShadowRadius: 3,
     },
     commentInputContainer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
         backgroundColor: '#000',
         paddingHorizontal: 16,
         paddingVertical: 10,
@@ -157,6 +160,17 @@ export const styles = StyleSheet.create({
         paddingVertical: 10,
         color: '#fff',
         fontSize: 15,
+    },
+    doubleTapHeart: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        marginTop: -35,
+        marginLeft: -35,
+        width: 70,
+        height: 70,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     emptyText: {
         color: '#666',

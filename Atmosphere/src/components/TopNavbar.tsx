@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { BlurView } from '@react-native-community/blur';
 import { Heart, Send } from 'lucide-react-native';
 
 interface TopNavbarProps {
@@ -31,12 +30,6 @@ const TopNavbar: React.FC<TopNavbarProps> = ({
 
   return (
     <Animated.View style={[styles.container, { transform: [{ translateY }] }]}>
-      <BlurView
-        style={StyleSheet.absoluteFill}
-        blurType="dark"
-        blurAmount={15}
-        overlayColor="rgba(0,0,0,0.7)"
-      />
       <View style={styles.inner}>
         {/* LEFT SIDE */}
         <View style={styles.left}>
@@ -118,8 +111,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 50,
     backgroundColor: "rgba(0, 0, 0, 0.65)",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.08)",
   },
   inner: {
     flex: 1,

@@ -1,5 +1,5 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useContext, useEffect, useRef } from 'react';
+import { View, Text, Image, TouchableOpacity, Alert, Animated } from 'react-native';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { NavigationContext } from '@react-navigation/native';
 import { followUser, unfollowUser, likePost, unlikePost, likeStartup, unlikeStartup, savePost, unsavePost, crownStartup, uncrownStartup } from '../../lib/api';
@@ -61,6 +61,47 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
 
     const contentId = getContentId(companyData);
     const fundingPercent = getFundingPercent(companyData.fundingRaised || 0, companyData.fundingNeeded || 0);
+
+    // Double-tap to like
+    const lastTap = useRef<number>(0);
+    const heartScale = useRef(new Animated.Value(0)).current;
+    const heartOpacity = useRef(new Animated.Value(0)).current;
+
+    const handleDoubleTap = () => {
+        const now = Date.now();
+        const DOUBLE_TAP_DELAY = 300;
+        if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+            // Double tap detected - like if not already liked
+            if (!liked) {
+                toggleLike();
+            }
+            // Reset values first
+            heartScale.setValue(0);
+            heartOpacity.setValue(0);
+
+            // Instagram-style heart animation
+            Animated.sequence([
+                // Quick pop in
+                Animated.parallel([
+                    Animated.spring(heartScale, {
+                        toValue: 1.2,
+                        useNativeDriver: true,
+                        tension: 100,
+                        friction: 6,
+                    }),
+                    Animated.timing(heartOpacity, { toValue: 1, duration: 50, useNativeDriver: true }),
+                ]),
+                // Brief hold
+                Animated.delay(0),
+                // Quick fade out
+                Animated.parallel([
+                    Animated.timing(heartScale, { toValue: 0.9, duration: 50, useNativeDriver: true }),
+                    Animated.timing(heartOpacity, { toValue: 0, duration: 50, useNativeDriver: true }),
+                ]),
+            ]).start();
+        }
+        lastTap.current = now;
+    };
 
     const toggleLike = async () => {
         if (likeLoading) return;
@@ -188,9 +229,12 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                     onCommentDeleted={(newCount?: number) => setCommentsCount(c => typeof newCount === 'number' ? newCount : Math.max(0, c - 1))}
                 />
 
-                <View style={styles.imageWrap}>
+                <TouchableOpacity style={styles.imageWrap} activeOpacity={0.9} onPress={handleDoubleTap}>
                     <Image source={getImageSource(companyData.profileImage)} style={styles.mainImage} resizeMode="cover" />
-                </View>
+                    <Animated.View style={[styles.doubleTapHeart, { opacity: heartOpacity, transform: [{ scale: heartScale }] }]} pointerEvents="none">
+                        <Heart size={70} color="#fff" fill="#fff" strokeWidth={0} />
+                    </Animated.View>
+                </TouchableOpacity>
 
                 <View style={styles.actionsRow}>
                     <View style={styles.statItemRow}>

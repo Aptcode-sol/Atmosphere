@@ -6,10 +6,11 @@ import {
     Image,
     ActivityIndicator,
     TouchableOpacity,
-    TextInput,
+    TouchableWithoutFeedback,
+    Animated,
 } from 'react-native';
 import { fetchReels, likeReel, unlikeReel, checkReelShared, followUser, unfollowUser, getReel, getUserReels, saveReel, unsaveReel } from '../../lib/api';
-import { Video as VideoIcon } from 'lucide-react-native';
+import { Video as VideoIcon, Heart } from 'lucide-react-native';
 import Video from 'react-native-video';
 import ReelCommentsOverlay from '../../components/ReelCommentsOverlay';
 import ShareModal from '../../components/ShareModal';
@@ -40,8 +41,21 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
     // Expanded caption states
     const [expandedCaptions, setExpandedCaptions] = useState<Set<string>>(new Set());
 
-    // Comment input
-    const [commentText, setCommentText] = useState('');
+    // Comment input removed - users tap comment button to open modal
+
+    // Double-tap to like animation refs (per-reel)
+    const doubleTapLastTap = useRef<Record<string, number>>({});
+    const heartAnimations = useRef<Record<string, { scale: Animated.Value; opacity: Animated.Value }>>({});
+
+    const getHeartAnimation = (reelId: string) => {
+        if (!heartAnimations.current[reelId]) {
+            heartAnimations.current[reelId] = {
+                scale: new Animated.Value(0),
+                opacity: new Animated.Value(0),
+            };
+        }
+        return heartAnimations.current[reelId];
+    };
 
     // Get current user ID
     useEffect(() => {
@@ -137,6 +151,47 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
             setLikeLoading(prev => { const next = new Set(prev); next.delete(reelId); return next; });
         }
     }, [reels, likeLoading]);
+
+    // Instagram-style double-tap to like with big heart animation
+    const handleDoubleTap = useCallback((reelId: string) => {
+        const now = Date.now();
+        const lastTap = doubleTapLastTap.current[reelId] || 0;
+        const DOUBLE_TAP_DELAY = 300;
+
+        if (now - lastTap < DOUBLE_TAP_DELAY) {
+            // Double tap detected - like if not already liked
+            const reel = reels.find(r => r._id === reelId);
+            if (reel && !reel.isLiked) {
+                handleLike(reelId);
+            }
+            // Show Instagram-style heart animation (big bounce)
+            const anim = getHeartAnimation(reelId);
+            // Reset values first
+            anim.scale.setValue(0);
+            anim.opacity.setValue(0);
+
+            Animated.sequence([
+                // Quick pop in
+                Animated.parallel([
+                    Animated.spring(anim.scale, {
+                        toValue: 1.2,
+                        useNativeDriver: true,
+                        tension: 100,
+                        friction: 6,
+                    }),
+                    Animated.timing(anim.opacity, { toValue: 1, duration: 50, useNativeDriver: true }),
+                ]),
+                // Brief hold
+                Animated.delay(0),
+                // Quick fade out
+                Animated.parallel([
+                    Animated.timing(anim.scale, { toValue: 0.9, duration: 50, useNativeDriver: true }),
+                    Animated.timing(anim.opacity, { toValue: 0, duration: 50, useNativeDriver: true }),
+                ]),
+            ]).start();
+        }
+        doubleTapLastTap.current[reelId] = now;
+    }, [reels, handleLike]);
 
     const handleFollow = useCallback(async (authorId: string, reelId: string) => {
         if (!authorId || followLoading.has(authorId)) return;
@@ -244,6 +299,7 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
         return (
             <View style={styles.reelWrapper}>
                 <View style={styles.reelContainer}>
+                    {/* Video/Image layer */}
                     {isActive && item.videoUrl ? (
                         <Video
                             source={{ uri: item.videoUrl }}
@@ -258,6 +314,16 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
                     ) : (
                         <Image source={{ uri: item.thumbnailUrl || item.videoUrl }} style={styles.video} resizeMode="cover" />
                     )}
+
+                    {/* Transparent touch overlay for double-tap */}
+                    <TouchableWithoutFeedback onPress={() => handleDoubleTap(item._id)}>
+                        <View style={styles.touchOverlay} />
+                    </TouchableWithoutFeedback>
+
+                    {/* Double-tap heart animation - white heart like Instagram */}
+                    <Animated.View style={[styles.doubleTapHeart, { opacity: getHeartAnimation(item._id).opacity, transform: [{ scale: getHeartAnimation(item._id).scale }] }]} pointerEvents="none">
+                        <Heart size={70} color="#fff" fill="#fff" strokeWidth={0} />
+                    </Animated.View>
 
                     <View style={styles.overlay}>
                         <View style={styles.leftContent}>
@@ -360,17 +426,6 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
                     setTimeout(() => flatListRef.current?.scrollToIndex({ index: info.index, animated: false }), 500);
                 }}
             />
-
-            <View style={styles.commentInputContainer}>
-                <TextInput
-                    style={styles.commentInput}
-                    placeholder="Add comment..."
-                    placeholderTextColor="#888"
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    onFocus={handleCommentInputPress}
-                />
-            </View>
 
             {commentsReelId && (
                 <ReelCommentsOverlay

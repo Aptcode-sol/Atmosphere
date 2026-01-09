@@ -394,8 +394,8 @@ const styles = StyleSheet.create({
     tabActive: { borderBottomColor: '#fff' },
     tabText: { fontSize: 14, fontWeight: '600' },
     loader: { margin: 20 },
-    footerSpacer: { height: 80 },
-    gridContent: { paddingHorizontal: 1, paddingBottom: 80 },
+    footerSpacer: { height: 20 },
+    gridContent: { paddingHorizontal: 1, paddingBottom: 10 },
     gridItem: {
         width: ITEM_SIZE,
         height: ITEM_SIZE,
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
     },
     reelIcon: { color: '#fff', fontSize: 12 },
-    listContent: { paddingHorizontal: 0, paddingTop: 8, paddingBottom: 80 },
+    listContent: { paddingHorizontal: 0, paddingTop: 8 },
     userItem: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -15,7 +15,13 @@ export const commentStyles = StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: 'flex-end',
-        alignItems: 'center'
+        alignItems: 'center',
+        // Ensure modal takes full screen
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
     },
     sheet: {
         backgroundColor: '#0a0a0a',
