@@ -24,7 +24,7 @@ import { styles, COLORS, SCREEN_WIDTH } from './styles';
 import ReelActions from './ReelActions';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const BOTTOM_NAV_HEIGHT = 56; // Matches BottomNav NAV_HEIGHT
+const BOTTOM_NAV_HEIGHT = 50; // Matches BottomNav NAV_HEIGHT
 
 const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => {
     // Use safe area insets for dynamic height calculation

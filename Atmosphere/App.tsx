@@ -41,10 +41,10 @@ function AppContent() {
   const isAuthRoute = ['signin', 'signup', 'forgotpw'].includes(route);
 
   // Use dynamic insets from useSafeAreaInsets - works on all phone generations
+  // Note: paddingBottom is handled by BottomNav component, not here
   const viewStyle = {
     flex: 1,
     paddingTop: isAuthRoute ? 0 : insets.top,
-    paddingBottom: isAuthRoute ? 0 : insets.bottom, // Use exact device inset, no minimum
     backgroundColor: isDarkMode ? '#000' : '#fff',
   };
 
