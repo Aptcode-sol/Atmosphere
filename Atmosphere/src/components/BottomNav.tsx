@@ -12,7 +12,7 @@ import {
   Calendar
 } from "lucide-react-native";
 import { NavigationContext, NavigationRouteContext } from "@react-navigation/native";
-import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type AppMode = "left" | "right";
 
@@ -40,6 +40,7 @@ type BottomNavProps = {
 const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => {
   const navigation = useContext(NavigationContext) as any | undefined;
   const route = useContext(NavigationRouteContext) as any | undefined;
+  const insets = useSafeAreaInsets();
 
   const [appMode, setAppMode] = useState<AppMode>("left");
   const [lastLeftPage, setLastLeftPage] = useState<string>(leftModeTabs[0].route);
@@ -112,7 +113,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
   if (shouldHideMobileNav) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={styles.row}>
         {tabs.slice(0, 2).map((tab) => {
           const active = isTabActive(tab.route);
@@ -162,24 +163,25 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
   );
 };
 
+const NAV_HEIGHT = 50; // Fixed nav bar content height
+
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#000",
-    height: BOTTOM_NAV_HEIGHT + 50,
-    paddingVertical: 0,
+    // paddingBottom is applied dynamically via insets
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
     marginHorizontal: 12,
-    height: BOTTOM_NAV_HEIGHT + 40,
+    height: NAV_HEIGHT,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    height: BOTTOM_NAV_HEIGHT + 20,
+    height: NAV_HEIGHT,
     borderRadius: 18,
     marginHorizontal: 4,
   },

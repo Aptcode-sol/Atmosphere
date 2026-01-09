@@ -8,7 +8,9 @@ import {
     TouchableOpacity,
     TouchableWithoutFeedback,
     Animated,
+    Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchReels, likeReel, unlikeReel, checkReelShared, followUser, unfollowUser, getReel, getUserReels, saveReel, unsaveReel } from '../../lib/api';
 import { Video as VideoIcon, Heart } from 'lucide-react-native';
 import Video from 'react-native-video';
@@ -18,10 +20,17 @@ import { getImageSource } from '../../lib/image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ReelItem, ReelsProps } from './types';
-import { styles, COLORS, ITEM_HEIGHT, SCREEN_WIDTH } from './styles';
+import { styles, COLORS, SCREEN_WIDTH } from './styles';
 import ReelActions from './ReelActions';
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const BOTTOM_NAV_HEIGHT = 56; // Matches BottomNav NAV_HEIGHT
+
 const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => {
+    // Use safe area insets for dynamic height calculation
+    const insets = useSafeAreaInsets();
+    const itemHeight = SCREEN_HEIGHT - insets.top - insets.bottom - BOTTOM_NAV_HEIGHT;
+
     const [reels, setReels] = useState<ReelItem[]>([]);
     const flatListRef = useRef<FlatList>(null);
     const [loading, setLoading] = useState(true);
@@ -297,8 +306,8 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
         const captionWithoutHashtags = captionText.replace(hashtagRegex, '').trim();
 
         return (
-            <View style={styles.reelWrapper}>
-                <View style={styles.reelContainer}>
+            <View style={[styles.reelWrapper, { height: itemHeight }]}>
+                <View style={[styles.reelContainer, { height: itemHeight }]}>
                     {/* Video/Image layer */}
                     {isActive && item.videoUrl ? (
                         <Video
@@ -408,7 +417,7 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
                 renderItem={renderReel}
                 keyExtractor={(item) => item._id}
                 showsVerticalScrollIndicator={false}
-                snapToInterval={ITEM_HEIGHT}
+                snapToInterval={itemHeight}
                 snapToAlignment="start"
                 decelerationRate="fast"
                 disableIntervalMomentum={true}
@@ -416,7 +425,7 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
                 extraData={currentIndex}
                 onViewableItemsChanged={onViewableItemsChanged}
                 viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
-                getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+                getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
                 contentContainerStyle={{ flexGrow: 1 }}
                 removeClippedSubviews={true}
                 initialNumToRender={3}

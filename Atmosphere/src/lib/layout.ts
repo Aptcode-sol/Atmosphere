@@ -13,7 +13,7 @@ const getStatusBarHeight = (): number => {
 };
 
 export const STATUS_BAR_HEIGHT = getStatusBarHeight();
-export const BOTTOM_NAV_HEIGHT = 10; // leave space for bottom nav / floating controls
+export const BOTTOM_NAV_HEIGHT = 0; // leave space for bottom nav / floating controls
 export const TOP_PANEL_HEIGHT = STATUS_BAR_HEIGHT; // Dynamic based on device
 
 export default { BOTTOM_NAV_HEIGHT, TOP_PANEL_HEIGHT, STATUS_BAR_HEIGHT };

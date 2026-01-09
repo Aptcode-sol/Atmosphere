@@ -8,18 +8,19 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar, useColorScheme, View } from 'react-native';
 import {
-  SafeAreaProvider
+  SafeAreaProvider,
+  useSafeAreaInsets
 } from 'react-native-safe-area-context';
 import LandingPage from './src/screens/LandingPage';
 import SignIn from './src/screens/SignIn';
 import SignUp from './src/screens/SignUp';
 import ForgotPassword from './src/screens/ForgotPassword';
 import ThemeProvider from './src/contexts/ThemeContext';
-import { TOP_PANEL_HEIGHT, BOTTOM_NAV_HEIGHT } from './src/lib/layout';
 
-
-function App() {
+// Inner component that can use the safe area hook
+function AppContent() {
   const isDarkMode = useColorScheme() === 'dark';
+  const insets = useSafeAreaInsets();
   const [route, setRoute] = useState<'signin' | 'signup' | 'home' | 'forgotpw'>('signin');
 
   useEffect(() => {
@@ -39,39 +40,49 @@ function App() {
 
   const isAuthRoute = ['signin', 'signup', 'forgotpw'].includes(route);
 
+  // Use dynamic insets from useSafeAreaInsets - works on all phone generations
   const viewStyle = {
     flex: 1,
-    paddingTop: isAuthRoute ? 0 : TOP_PANEL_HEIGHT,
-    paddingBottom: isAuthRoute ? 0 : BOTTOM_NAV_HEIGHT,
+    paddingTop: isAuthRoute ? 0 : insets.top,
+    paddingBottom: isAuthRoute ? 0 : insets.bottom, // Use exact device inset, no minimum
     backgroundColor: isDarkMode ? '#000' : '#fff',
   };
 
   return (
+    <View style={viewStyle}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      {route === 'signin' && (
+        <SignIn
+          onSignUp={() => setRoute('signup')}
+          onSignedIn={() => setRoute('home')}
+          onForgotPassword={() => setRoute('forgotpw')}
+        />
+      )}
+      {route === 'signup' && (
+        <SignUp onSignedUp={() => setRoute('home')} onSignIn={() => setRoute('signin')} />
+      )}
+      {route === 'forgotpw' && (
+        <ForgotPassword
+          onBack={() => setRoute('signin')}
+          onResetSuccess={() => setRoute('signin')}
+        />
+      )}
+      {route === 'home' && <LandingPage />}
+    </View>
+  );
+}
+
+function App() {
+  const isDarkMode = useColorScheme() === 'dark';
+
+  return (
     <ThemeProvider initialMode={isDarkMode ? 'dark' : 'light'}>
       <SafeAreaProvider>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <View style={viewStyle}>
-          {route === 'signin' && (
-            <SignIn
-              onSignUp={() => setRoute('signup')}
-              onSignedIn={() => setRoute('home')}
-              onForgotPassword={() => setRoute('forgotpw')}
-            />
-          )}
-          {route === 'signup' && (
-            <SignUp onSignedUp={() => setRoute('home')} onSignIn={() => setRoute('signin')} />
-          )}
-          {route === 'forgotpw' && (
-            <ForgotPassword
-              onBack={() => setRoute('signin')}
-              onResetSuccess={() => setRoute('signin')}
-            />
-          )}
-          {route === 'home' && <LandingPage />}
-        </View>
+        <AppContent />
       </SafeAreaProvider>
     </ThemeProvider>
   );
 }
 
 export default App;
+
