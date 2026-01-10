@@ -14,7 +14,7 @@ interface TopNavbarProps {
 const NAVBAR_HEIGHT = 56;
 
 const TopNavbar: React.FC<TopNavbarProps> = ({
-  title = 'Atmosphere',
+  title = 'Atmosphere ',
   notificationsCount = 0,
   messagesCount = 3,
   onNotificationsPress,
