@@ -1,11 +1,11 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, Alert, Animated } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Animated } from 'react-native';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { NavigationContext } from '@react-navigation/native';
 import { followUser, unfollowUser, likePost, unlikePost, likeStartup, unlikeStartup, savePost, unsavePost, crownStartup, uncrownStartup } from '../../lib/api';
 import { getImageSource } from '../../lib/image';
 import CommentsOverlay from '../CommentsOverlay';
-import CustomAlert from '../CustomAlert';
+import { useAlert } from '../CustomAlert';
 import ShareModal from '../ShareModal';
 import { Heart, Crown, MessageCircle, Send, Bookmark } from 'lucide-react-native';
 
@@ -14,6 +14,7 @@ import { styles } from './styles';
 import { formatCurrency, getFundingPercent, getContentId, checkIsInvestor, isStartupCard } from './utils';
 
 const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPostProps) => {
+    const { showAlert } = useAlert();
     const companyData = post || company;
     useContext(ThemeContext);
 
@@ -33,8 +34,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
     const [saved, setSaved] = useState(Boolean((companyData as any)?.isSaved));
     const [savedId, setSavedId] = useState<string | null>((companyData as any)?.savedId || null);
     const [saveLoading, setSaveLoading] = useState(false);
-    const [alertVisible, setAlertVisible] = useState(false);
-    const [alertConfig, setAlertConfig] = useState<AlertConfig>({ type: 'info', title: '', message: '' });
+
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
     const navigation = useContext(NavigationContext) as any | undefined;
@@ -125,8 +125,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
 
     const toggleCrown = async () => {
         if (!isInvestor) {
-            setAlertConfig({ type: 'warning', title: 'Investors Only', message: 'Only investors can crown startups' });
-            setAlertVisible(true);
+            showAlert('Investors Only', 'Only investors can crown startups');
             return;
         }
         if (crownLoading) return;
@@ -177,7 +176,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
             newState ? await followUser(String(targetId)) : await unfollowUser(String(targetId));
         } catch (err: any) {
             if (err?.message?.toLowerCase().includes('already following')) setFollowed(true);
-            else { setFollowed(!newState); Alert.alert('Error', err?.message || 'Could not update follow status'); }
+            else { setFollowed(!newState); showAlert('Error', err?.message || 'Could not update follow status'); }
         } finally {
             setFollowLoading(false);
         }
@@ -285,7 +284,6 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                 </View>
             </View>
 
-            <CustomAlert visible={alertVisible} type={alertConfig.type} title={alertConfig.title} message={alertConfig.message} onClose={() => setAlertVisible(false)} />
             <ShareModal contentId={contentId} type="startup" visible={shareModalVisible} onClose={() => setShareModalVisible(false)} contentTitle={companyData.name} contentImage={companyData.profileImage} contentOwner={companyData.displayName || companyData.name} />
         </>
     );

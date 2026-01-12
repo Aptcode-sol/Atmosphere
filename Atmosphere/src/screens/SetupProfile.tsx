@@ -1,7 +1,8 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { updateProfile, getProfile, uploadProfilePicture } from '../lib/api';
+import { useAlert } from '../components/CustomAlert';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import { ArrowLeft } from 'lucide-react-native';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
@@ -52,11 +53,12 @@ const makeLocalStyles = (theme: any) => StyleSheet.create({
 
 export default function SetupProfile({ onDone, onClose }: { onDone: () => void; onClose?: () => void }) {
     const { theme } = useContext(ThemeContext);
+    const { showAlert } = useAlert();
     const localStyles = makeLocalStyles(theme);
     const themePlaceholderStyle = useMemo(() => ({ color: theme.placeholder }), [theme.placeholder]);
     const primaryButtonStyle = useMemo(() => ({ marginTop: 12, paddingVertical: 14, borderRadius: 10, backgroundColor: theme.primary, alignItems: 'center' }), [theme.primary]);
-    const primaryButtonTextStyle = useMemo(() => ({ color: '#fff', fontWeight: '700' }), []);
-    const avatarUploadCenterOverlay = useMemo(() => ({ top: 0, bottom: 0, justifyContent: 'center' }), []);
+    const primaryButtonTextStyle = useMemo(() => ({ color: '#fff', fontWeight: '700' as const }), []);
+    const avatarUploadCenterOverlay = useMemo(() => ({ top: 0, bottom: 0, justifyContent: 'center' as const }), []);
     const roleOverlayStyle = useMemo(() => ({ backgroundColor: theme.background, position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 10 }), [theme.background]);
     const [username, setUsername] = useState('');
     const [displayName, setDisplayName] = useState('');
@@ -136,7 +138,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
 
     const submit = async () => {
         if (!username || !displayName) {
-            Alert.alert('Missing fields', 'Please fill username and full name');
+            showAlert('Missing fields', 'Please fill username and full name');
             return;
         }
         setSaving(true);
@@ -156,7 +158,7 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     setPendingAvatarUri(null);
                     setPendingAvatarMeta(null);
                 } catch (uploadErr: any) {
-                    Alert.alert('Upload failed', uploadErr.message || 'Failed to upload profile picture');
+                    showAlert('Upload failed', uploadErr.message || 'Failed to upload profile picture');
                     setSaving(false);
                     setUploadingAvatar(false);
                     return;
@@ -176,13 +178,13 @@ export default function SetupProfile({ onDone, onClose }: { onDone: () => void; 
                     ...(finalAvatarUrl && { avatarUrl: finalAvatarUrl })
                 }
             });
-            Alert.alert('Success', 'Profile saved successfully!');
+            showAlert('Success', 'Profile saved successfully!');
             if (isEditMode) {
                 if (onClose) onClose();
             }
         } catch (err: any) {
             const msg = err && err.message ? err.message : 'Unable to save profile';
-            Alert.alert('Error', msg);
+            showAlert('Error', msg);
         } finally { setSaving(false); }
     };
 

@@ -16,6 +16,7 @@ import SignIn from './src/screens/SignIn';
 import SignUp from './src/screens/SignUp';
 import ForgotPassword from './src/screens/ForgotPassword';
 import ThemeProvider from './src/contexts/ThemeContext';
+import { AlertProvider } from './src/components/CustomAlert';
 
 // Inner component that can use the safe area hook
 function AppContent() {
@@ -114,9 +115,11 @@ function App() {
 
   return (
     <ThemeProvider initialMode={isDarkMode ? 'dark' : 'light'}>
-      <SafeAreaProvider>
-        <AppContent />
-      </SafeAreaProvider>
+      <AlertProvider>
+        <SafeAreaProvider>
+          <AppContent />
+        </SafeAreaProvider>
+      </AlertProvider>
     </ThemeProvider>
   );
 }

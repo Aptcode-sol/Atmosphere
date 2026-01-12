@@ -1,6 +1,7 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions, Modal, TextInput, ActivityIndicator, Alert, StyleSheet } from 'react-native';
+import { useAlert } from '../../components/CustomAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from './Profile.styles';
 import { clearToken } from '../../lib/auth';
@@ -65,6 +66,7 @@ function Collapsible({ title, open, onToggle, children, theme }: any) {
 }
 
 export default function SettingsOverlay({ src, theme, accountType = 'personal', onClose, onNavigate }: Props) {
+    const { showAlert } = useAlert();
     const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width)).current;
     const width = Dimensions.get('window').width;
 
@@ -296,7 +298,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
             setEditModal({ visible: false, field: '', value: '' });
         } catch (err: any) {
             console.log('saveField - error:', err?.message || err);
-            Alert.alert('Error', err.message || 'Failed to update');
+            showAlert('Error', err.message || 'Failed to update');
         } finally {
             setSaving(false);
         }
@@ -304,28 +306,28 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
 
     const handleChangePassword = async () => {
         if (!currentPassword || !newPassword) {
-            Alert.alert('Error', 'Please fill in all fields');
+            showAlert('Error', 'Please fill in all fields');
             return;
         }
         if (newPassword !== confirmPassword) {
-            Alert.alert('Error', 'New passwords do not match');
+            showAlert('Error', 'New passwords do not match');
             return;
         }
         if (newPassword.length < 6) {
-            Alert.alert('Error', 'Password must be at least 6 characters');
+            showAlert('Error', 'Password must be at least 6 characters');
             return;
         }
 
         setSaving(true);
         try {
             await changePassword(currentPassword, newPassword);
-            Alert.alert('Success', 'Password changed successfully');
+            showAlert('Success', 'Password changed successfully');
             setPasswordModal(false);
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to change password');
+            showAlert('Error', err.message || 'Failed to change password');
         } finally {
             setSaving(false);
         }
@@ -352,9 +354,9 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                 })),
             };
             await updateProfile({ detailsData });
-            Alert.alert('Success', 'Investor details saved');
+            showAlert('Success', 'Investor details saved');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to save investor details');
+            showAlert('Error', err.message || 'Failed to save investor details');
         } finally {
             setSaving(false);
         }
@@ -372,9 +374,9 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                 teamMembers: teamName && teamRole ? [{ name: teamName, role: teamRole }] : [],
             };
             await saveStartupProfile(payload);
-            Alert.alert('Success', 'Company profile saved');
+            showAlert('Success', 'Company profile saved');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to save company profile');
+            showAlert('Error', err.message || 'Failed to save company profile');
         } finally {
             setSaving(false);
         }
@@ -392,9 +394,9 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                 },
             };
             await saveStartupProfile(payload);
-            Alert.alert('Success', 'Financial profile saved');
+            showAlert('Success', 'Financial profile saved');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to save financial profile');
+            showAlert('Error', err.message || 'Failed to save financial profile');
         } finally {
             setSaving(false);
         }
@@ -408,9 +410,9 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                 requiredCapital,
             };
             await saveStartupProfile(payload);
-            Alert.alert('Success', 'Round details saved');
+            showAlert('Success', 'Round details saved');
         } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to save round details');
+            showAlert('Error', err.message || 'Failed to save round details');
         } finally {
             setSaving(false);
         }
@@ -430,7 +432,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
             }
         } catch (err: any) {
             if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
-                Alert.alert('Error', 'Failed to pick document');
+                showAlert('Error', 'Failed to pick document');
             }
         }
     };
@@ -767,7 +769,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                     style={{ position: 'absolute', right: 8, top: 10, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, backgroundColor: usernameAvailable === true ? '#22c55e' : usernameAvailable === false ? '#ef4444' : theme.primary }}
                                     onPress={async () => {
                                         if (!editModal.value || editModal.value.length < 3) {
-                                            Alert.alert('Invalid', 'Username must be at least 3 characters');
+                                            showAlert('Invalid', 'Username must be at least 3 characters');
                                             return;
                                         }
                                         setUsernameChecking(true);
@@ -775,7 +777,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                             const data = await checkUsernameAvailability(editModal.value);
                                             setUsernameAvailable(data.available);
                                         } catch {
-                                            Alert.alert('Error', 'Failed to check username');
+                                            showAlert('Error', 'Failed to check username');
                                         } finally {
                                             setUsernameChecking(false);
                                         }
@@ -975,16 +977,16 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: emailOtpSent ? '#22c55e' : (theme.primary || '#1FADFF'), justifyContent: 'center' }}
                                 onPress={async () => {
                                     if (!emailModal.value || !emailModal.value.includes('@')) {
-                                        Alert.alert('Error', 'Please enter a valid email');
+                                        showAlert('Error', 'Please enter a valid email');
                                         return;
                                     }
                                     setSendingOtp(true);
                                     try {
                                         await resendOtp(emailModal.value);
                                         setEmailOtpSent(true);
-                                        Alert.alert('OTP Sent', 'Check your email for the verification code');
+                                        showAlert('OTP Sent', 'Check your email for the verification code');
                                     } catch (err: any) {
-                                        Alert.alert('Error', err.message || 'Failed to send OTP');
+                                        showAlert('Error', err.message || 'Failed to send OTP');
                                     } finally {
                                         setSendingOtp(false);
                                     }
@@ -1026,16 +1028,16 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                     style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: emailVerified ? '#22c55e' : (theme.primary || '#1FADFF'), justifyContent: 'center' }}
                                     onPress={async () => {
                                         if (!emailOtp) {
-                                            Alert.alert('Error', 'Please enter the OTP code');
+                                            showAlert('Error', 'Please enter the OTP code');
                                             return;
                                         }
                                         setSaving(true);
                                         try {
                                             await verifyEmail(emailOtp, emailModal.value);
                                             setEmailVerified(true);
-                                            Alert.alert('Success', 'Email verified! Click Save to update.');
+                                            showAlert('Success', 'Email verified! Click Save to update.');
                                         } catch (err: any) {
-                                            Alert.alert('Error', err.message || 'Invalid OTP');
+                                            showAlert('Error', err.message || 'Invalid OTP');
                                         } finally {
                                             setSaving(false);
                                         }
@@ -1072,15 +1074,15 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                     if (!emailVerified) return;
                                     setSaving(true);
                                     try {
-                                        await updateSettings({ email: emailModal.value });
+                                        await updateSettings({ email: emailModal.value } as any);
                                         setSettings(prev => ({ ...prev, email: emailModal.value }));
                                         setEmailModal({ visible: false, value: '' });
                                         setEmailOtpSent(false);
                                         setEmailOtp('');
                                         setEmailVerified(false);
-                                        Alert.alert('Success', 'Email updated successfully');
+                                        showAlert('Success', 'Email updated successfully');
                                     } catch (err: any) {
-                                        Alert.alert('Error', err.message || 'Failed to update email');
+                                        showAlert('Error', err.message || 'Failed to update email');
                                     } finally {
                                         setSaving(false);
                                     }
@@ -1214,7 +1216,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: theme.primary || '#1FADFF', alignItems: 'center' }}
                                 onPress={async () => {
                                     if (!newHoldingName || !newHoldingAmount) {
-                                        Alert.alert('Missing fields', 'Please provide company name and amount');
+                                        showAlert('Missing fields', 'Please provide company name and amount');
                                         return;
                                     }
 
@@ -1231,7 +1233,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                             );
                                             documentUrl = (uploadResult as any)?.url || (uploadResult as any)?.documentUrl;
                                         } catch (err: any) {
-                                            Alert.alert('Upload Error', err.message || 'Failed to upload document');
+                                            showAlert('Upload Error', err.message || 'Failed to upload document');
                                             setUploadingHoldingDoc(false);
                                             return;
                                         }
@@ -1266,9 +1268,9 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                                 })),
                                             },
                                         });
-                                        Alert.alert('Success', 'Holding added successfully');
+                                        showAlert('Success', 'Holding added successfully');
                                     } catch (err: any) {
-                                        Alert.alert('Error', err.message || 'Failed to save holding');
+                                        showAlert('Error', err.message || 'Failed to save holding');
                                     }
                                 }}
                                 disabled={saving || uploadingHoldingDoc}

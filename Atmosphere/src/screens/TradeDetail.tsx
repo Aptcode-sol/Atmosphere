@@ -4,6 +4,7 @@ import { TradeCard } from './Trading/components/TradeCard';
 import { getTrade, toggleTradeSave, createOrFindChat, sendMessage, shareContent } from '../lib/api';
 import { ActiveTrade } from './Trading/types';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useAlert } from '../components/CustomAlert';
 
 interface TradeDetailProps {
     route: { params: { tradeId: string } };
@@ -12,6 +13,7 @@ interface TradeDetailProps {
 
 const TradeDetail: React.FC<TradeDetailProps> = ({ route, navigation }) => {
     const { tradeId } = route.params;
+    const { showAlert } = useAlert();
     const [trade, setTrade] = useState<ActiveTrade | null>(null);
     const [loading, setLoading] = useState(true);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -30,12 +32,12 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ route, navigation }) => {
                         // We need current user ID to check this, skipping for now or defaults to false
                     }
                 } else {
-                    Alert.alert('Error', 'Trade not found');
+                    showAlert('Error', 'Trade not found');
                     navigation.goBack();
                 }
             } catch (err) {
                 console.error(err);
-                Alert.alert('Error', 'Failed to load trade details');
+                showAlert('Error', 'Failed to load trade details');
                 navigation.goBack();
             } finally {
                 setLoading(false);
@@ -63,7 +65,7 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ route, navigation }) => {
             const ownerName = trade.companyName || 'the company';
 
             if (!ownerId) {
-                Alert.alert('Error', 'Contact information not available.');
+                showAlert('Error', 'Contact information not available.');
                 return;
             }
 
@@ -86,11 +88,11 @@ const TradeDetail: React.FC<TradeDetailProps> = ({ route, navigation }) => {
                     contentOwner: trade.startupUsername,
                 });
 
-                Alert.alert('Success', 'Interest expressed! Check your messages.');
+                showAlert('Success', 'Interest expressed! Check your messages.');
             }
         } catch (error) {
             console.error('Express interest error:', error);
-            Alert.alert('Error', 'Failed to send interest message.');
+            showAlert('Error', 'Failed to send interest message.');
         }
     };
 

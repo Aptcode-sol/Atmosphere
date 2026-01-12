@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, Animated, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { useAlert } from '../../components/CustomAlert';
 import { Picker } from '@react-native-picker/picker';
 import { saveStartupProfile, getProfile, getStartupProfile, uploadDocument, searchUsers } from '../../lib/api';
 import { pick, types } from '@react-native-documents/picker';
@@ -58,6 +59,7 @@ function CollapsibleSection({ title, open, onPress, children }: any) {
 }
 
 export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
+    const { showAlert } = useAlert();
     const [activeSection, setActiveSection] = useState('');
     const [companyProfile, setCompanyProfile] = useState('');
     const [about, setAbout] = useState('');
@@ -169,13 +171,13 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             const doc = result[0];
             if (doc && doc.uri) {
                 // stage file for later upload
-                setPendingDoc({ uri: doc.uri, name: doc.name, type: doc.type });
+                setPendingDoc({ uri: doc.uri, name: doc.name ? doc.name : undefined, type: doc.type ? doc.type : undefined });
                 setUploadName(doc.name || 'document');
             }
         } catch (err: any) {
             // User cancelled or error
             if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
-                Alert.alert('Error', err.message || 'Failed to pick document');
+                showAlert('Error', err.message || 'Failed to pick document');
             }
         }
     };
@@ -192,13 +194,13 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             const doc = result[0];
             if (doc && doc.uri) {
                 // stage investor doc for upload on submit
-                setPendingInvestorDoc({ uri: doc.uri, name: doc.name, type: doc.type });
+                setPendingInvestorDoc({ uri: doc.uri, name: doc.name ? doc.name : undefined, type: doc.type ? doc.type : undefined });
                 setInvestorDoc(doc.name || 'document');
             }
         } catch (err: any) {
             // User cancelled or error
             if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
-                Alert.alert('Error', err.message || 'Failed to pick document');
+                showAlert('Error', err.message || 'Failed to pick document');
             }
         }
     };
@@ -227,13 +229,13 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             if (doc && doc.uri) {
                 setFundingRounds(fundingRounds.map(r => r.id === roundId ? {
                     ...r,
-                    pendingDoc: { uri: doc.uri, name: doc.name || undefined, type: doc.type || undefined },
+                    pendingDoc: { uri: doc.uri, name: doc.name ? doc.name : undefined, type: doc.type ? doc.type : undefined },
                     docUrl: doc.name || 'document'
                 } : r));
             }
         } catch (err: any) {
             if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
-                Alert.alert('Error', err.message || 'Failed to pick document');
+                showAlert('Error', err.message || 'Failed to pick document');
             }
         }
     };
@@ -285,7 +287,7 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
     };
 
     const sendForVerification = async () => {
-        if (!consent) return Alert.alert('Consent required', 'Please provide consent to proceed');
+        if (!consent) return showAlert('Consent required', 'Please provide consent to proceed');
 
         setUploadingDoc(true);
         setUploadingInvestorDoc(true);
@@ -294,12 +296,12 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             let finalUploadUrl = uploadUrl;
             if (pendingDoc) {
                 try {
-                    const url = await uploadDocument(pendingDoc.uri, pendingDoc.name || undefined, pendingDoc.type || undefined);
+                    const url = await uploadDocument(pendingDoc.uri, pendingDoc.name || 'document', pendingDoc.type || 'application/octet-stream');
                     finalUploadUrl = url;
                     setUploadUrl(url);
                     setPendingDoc(null);
                 } catch (e: any) {
-                    Alert.alert('Upload Failed', e?.message || 'Could not upload document');
+                    showAlert('Upload Failed', e?.message || 'Could not upload document');
                     return;
                 }
             }
@@ -307,12 +309,12 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             let finalInvestorDocUrl = investorDocUrl;
             if (pendingInvestorDoc) {
                 try {
-                    const url = await uploadDocument(pendingInvestorDoc.uri, pendingInvestorDoc.name || undefined, pendingInvestorDoc.type || undefined);
+                    const url = await uploadDocument(pendingInvestorDoc.uri, pendingInvestorDoc.name || 'document', pendingInvestorDoc.type || 'application/octet-stream');
                     finalInvestorDocUrl = url;
                     setInvestorDocUrl(url);
                     setPendingInvestorDoc(null);
                 } catch (e: any) {
-                    Alert.alert('Upload Failed', e?.message || 'Could not upload investor document');
+                    showAlert('Upload Failed', e?.message || 'Could not upload investor document');
                     return;
                 }
             }
@@ -336,10 +338,10 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                 documents: finalUploadUrl,
             };
             await saveStartupProfile(payload);
-            Alert.alert('Sent', 'Documents sent for verification');
+            showAlert('Sent', 'Documents sent for verification');
             onDone();
         } catch (error: any) {
-            Alert.alert('Error', error?.message || 'Unable to send for verification');
+            showAlert('Error', error?.message || 'Unable to send for verification');
         } finally {
             setUploadingDoc(false);
             setUploadingInvestorDoc(false);

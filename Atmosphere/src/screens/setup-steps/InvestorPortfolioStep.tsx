@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Animated, Alert, ActivityIndicator } from 'react-native';
 import { updateProfile, getProfile, uploadDocument } from '../../lib/api';
+import { useAlert } from '../../components/CustomAlert';
 import CustomCalendar from '../../components/CustomCalendar';
 import { pick, types } from '@react-native-documents/picker';
 
@@ -44,6 +45,7 @@ function Collapsible({ title, open, onToggle, children }: any) {
 }
 
 export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
+    const { showAlert } = useAlert();
     const [openInterests, setOpenInterests] = useState(false);
     const [openHoldings, setOpenHoldings] = useState(false);
 
@@ -91,13 +93,13 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
             const doc = result[0];
             if (doc && doc.uri) {
                 // Stage the file locally and show name, do NOT upload yet
-                setPendingDoc({ uri: doc.uri, name: doc.name, type: doc.type });
+                setPendingDoc({ uri: doc.uri, name: doc.name ? doc.name : undefined, type: doc.type ? doc.type : undefined });
                 setDocName(doc.name || 'document');
             }
         } catch (err: any) {
             // User cancelled or error
             if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
-                Alert.alert('Error', err.message || 'Failed to pick document');
+                showAlert('Error', err.message || 'Failed to pick document');
             }
         }
     };
@@ -148,7 +150,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
         // basic validation
         if (!companyName || !amount) {
             // minimal feedback — in real app use Alert
-            Alert.alert('Missing fields', 'Please provide company name and amount');
+            showAlert('Missing fields', 'Please provide company name and amount');
             return;
         }
 
@@ -157,12 +159,12 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
             let finalDocUrl = docUrl;
             if (pendingDoc) {
                 try {
-                    const url = await uploadDocument(pendingDoc.uri, pendingDoc.name || undefined, pendingDoc.type || undefined);
+                    const url = await uploadDocument(pendingDoc.uri, pendingDoc.name || 'document', pendingDoc.type || 'application/octet-stream');
                     finalDocUrl = url;
                     setDocUrl(url);
                     setPendingDoc(null);
                 } catch (e: any) {
-                    Alert.alert('Upload Failed', e?.message || 'Could not upload document');
+                    showAlert('Upload Failed', e?.message || 'Could not upload document');
                     return;
                 }
             }
@@ -216,7 +218,7 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
             try { await AsyncStorage.removeItem('pending.investor.details'); } catch { }
         } catch (err: any) {
             console.error('Error saving investor details', err);
-            Alert.alert('Save failed', err.message || 'Could not save investor details');
+            showAlert('Save failed', err.message || 'Could not save investor details');
         }
     }
 

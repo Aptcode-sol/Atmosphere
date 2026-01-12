@@ -6,21 +6,47 @@ import {
     Alert,
     TextInput,
     ActivityIndicator,
-    Share,
+    Share, // Keep React Native Share
     Linking,
     ScrollView,
+    Modal,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { pick, types } from '@react-native-documents/picker';
+import RNShare from 'react-native-share'; // Requires installing react-native-share if not already used, checking package.json it is there
 import { ThemeContext } from '../../../contexts/ThemeContext';
 import styles from '../Opportunities.styles';
+import { useAlert } from '../../../components/CustomAlert';
 
 const api = require('../../../lib/api');
 import RNFS from 'react-native-fs';
 
-// Owner's expanded section - shows export button only
-function OwnerExpandedSection({ item, applicantsCount }: { item: any; applicantsCount: number }) {
+
+interface RoleCardProps {
+    item: any;
+    isMyAd?: boolean;
+    expanded?: boolean;
+    onExpand: () => void;
+    onApplySuccess?: () => void;
+}
+
+function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuccess }: RoleCardProps) {
+    const { theme } = useContext(ThemeContext) as any;
+    const { showAlert } = useAlert();
+    const [showFullDesc, setShowFullDesc] = useState(false);
+    const [applicantsCount, setApplicantsCount] = useState(item.applicantsCount || item.applicantCount || 0);
+    const [applying, setApplying] = useState(false);
+    const [applied, setApplied] = useState(false);
+    const [questionAnswers, setQuestionAnswers] = useState<string[]>(
+        (item.customQuestions || []).map(() => '')
+    );
+    const [resumeFile, setResumeFile] = useState<{ uri: string; name: string; type: string } | null>(null);
+    const [uploadingResume, setUploadingResume] = useState(false);
+
+    // Export Logic State
     const [exporting, setExporting] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [exportedFilePath, setExportedFilePath] = useState('');
 
     const handleExportToExcel = async () => {
         setExporting(true);
@@ -32,7 +58,7 @@ function OwnerExpandedSection({ item, applicantsCount }: { item: any; applicants
             const applicants = data.applicants || [];
 
             if (applicants.length === 0) {
-                Alert.alert('No Data', 'There are no applicants to export.');
+                showAlert('No Data', 'There are no applicants to export.');
                 setExporting(false);
                 return;
             }
@@ -84,66 +110,16 @@ function OwnerExpandedSection({ item, applicantsCount }: { item: any; applicants
             const filePath = `${appFolderPath}/${fileName}`;
             await RNFS.writeFile(filePath, csvContent, 'utf8');
 
-            Alert.alert('Saved!', `File saved to:\nAndroid/media/com.atmosphere/${fileName}`);
+            setExportedFilePath(filePath);
+            setShowSuccessModal(true);
 
         } catch (err: any) {
             console.log('Export error:', err);
-            Alert.alert('Export Failed', err.message || 'Could not save file');
+            showAlert('Export Failed', err.message || 'Could not save file');
         } finally {
             setExporting(false);
         }
     };
-
-    return (
-        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-            <TouchableOpacity
-                style={{
-                    backgroundColor: '#22c55e',
-                    borderRadius: 8,
-                    paddingHorizontal: 24,
-                    paddingVertical: 14,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '100%',
-                }}
-                onPress={handleExportToExcel}
-                disabled={exporting}
-            >
-                {exporting ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                    <>
-                        <MaterialIcons name="file-download" size={20} color="#fff" style={{ marginRight: 8 }} />
-                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
-                            Export {applicantsCount} Applicants to CSV
-                        </Text>
-                    </>
-                )}
-            </TouchableOpacity>
-        </View>
-    );
-}
-
-interface RoleCardProps {
-    item: any;
-    isMyAd?: boolean;
-    expanded?: boolean;
-    onExpand: () => void;
-    onApplySuccess?: () => void;
-}
-
-function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuccess }: RoleCardProps) {
-    const { theme } = useContext(ThemeContext) as any;
-    const [showFullDesc, setShowFullDesc] = useState(false);
-    const [applicantsCount, setApplicantsCount] = useState(item.applicantsCount || item.applicantCount || 0);
-    const [applying, setApplying] = useState(false);
-    const [applied, setApplied] = useState(false);
-    const [questionAnswers, setQuestionAnswers] = useState<string[]>(
-        (item.customQuestions || []).map(() => '')
-    );
-    const [resumeFile, setResumeFile] = useState<{ uri: string; name: string; type: string } | null>(null);
-    const [uploadingResume, setUploadingResume] = useState(false);
 
     const cardBg = '#000000';
     const borderColor = '#333';
@@ -198,7 +174,7 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
             }
         } catch (err: any) {
             if (err.code !== 'DOCUMENT_PICKER_CANCELED') {
-                Alert.alert('Error', 'Failed to pick document');
+                showAlert('Error', 'Failed to pick document');
             }
         }
     };
@@ -211,7 +187,7 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
         );
 
         if (hasQuestions && !allAnswered) {
-            Alert.alert('Required', 'Please answer all questions before submitting.');
+            showAlert('Required', 'Please answer all questions before submitting.');
             return;
         }
 
@@ -225,7 +201,7 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                 try {
                     resumeUrl = await api.uploadDocument(resumeFile.uri, resumeFile.name, resumeFile.type);
                 } catch (uploadErr: any) {
-                    Alert.alert('Upload Error', uploadErr.message || 'Failed to upload resume');
+                    showAlert('Upload Error', uploadErr.message || 'Failed to upload resume');
                     setApplying(false);
                     setUploadingResume(false);
                     return;
@@ -331,7 +307,7 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                 {isMyAd ? (
                     <TouchableOpacity
                         style={{
-                            backgroundColor: '#22c55e',
+                            backgroundColor: '#333',
                             paddingHorizontal: 12,
                             paddingVertical: 6,
                             borderRadius: 6,
@@ -350,12 +326,95 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                 )}
             </View>
 
+
             {/* Expanded Section */}
             {expanded && (
                 <View style={styles.expandedSectionInline}>
                     {isMyAd ? (
-                        /* Owner View - Show Applicants and Export Button */
-                        <OwnerExpandedSection item={item} applicantsCount={applicantsCount} />
+                        /* Owner View - Show Applicants and Export Button directly */
+                        <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#333',
+                                    borderColor: '#444',
+                                    borderWidth: 1,
+                                    borderRadius: 22,
+                                    height: 44,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    paddingHorizontal: 24,
+                                    width: '100%'
+                                }}
+                                onPress={handleExportToExcel}
+                                disabled={exporting}
+                            >
+                                {exporting ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <>
+                                        <MaterialIcons name="file-download" size={20} color="#fff" style={{ marginRight: 8 }} />
+                                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                                            Export {applicantsCount} Applicants to CSV
+                                        </Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+
+                            <Modal
+                                visible={showSuccessModal}
+                                transparent={true}
+                                animationType="fade"
+                                onRequestClose={() => setShowSuccessModal(false)}
+                            >
+                                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                                    <View style={{ backgroundColor: '#1E1E1E', borderRadius: 16, padding: 24, width: '100%', maxWidth: 340, borderWidth: 1, borderColor: '#333' }}>
+                                        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginBottom: 12, textAlign: 'center' }}>Export Successful</Text>
+                                        <Text style={{ color: '#aaa', fontSize: 14, marginBottom: 24, textAlign: 'center', lineHeight: 20 }}>
+                                            File saved to:{'\n'}Android/media/com.atmosphere
+                                        </Text>
+
+                                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                                            <TouchableOpacity
+                                                onPress={() => setShowSuccessModal(false)}
+                                                style={{ flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: '#444', alignItems: 'center' }}
+                                            >
+                                                <Text style={{ color: '#fff', fontWeight: '600' }}>Close</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={async () => {
+                                                    try {
+                                                        const exists = await RNFS.exists(exportedFilePath);
+                                                        if (!exists) {
+                                                            showAlert('Error', 'File no longer exists');
+                                                            return;
+                                                        }
+
+                                                        // Read file as base64 - required for Android FileProvider restrictions
+                                                        const base64Content = await RNFS.readFile(exportedFilePath, 'base64');
+
+                                                        // Use saveToFiles to trigger Android's file save/open dialog
+                                                        await RNShare.open({
+                                                            title: 'Open Applicants CSV',
+                                                            url: `data:text/csv;base64,${base64Content}`,
+                                                            type: 'text/csv',
+                                                            filename: 'applicants.csv',
+                                                            saveToFiles: true, // This triggers save dialog on Android
+                                                        });
+                                                    } catch (err: any) {
+                                                        console.log('Open file error:', err);
+                                                        showAlert('Error', 'Could not open file: ' + (err?.message || 'Unknown error'));
+                                                    }
+                                                }}
+                                                style={{ flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: '#fff', alignItems: 'center' }}
+                                            >
+                                                <Text style={{ color: '#000', fontWeight: '600' }}>Open</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+                            </Modal>
+                        </View>
                     ) : !applied ? (
                         <>
                             {/* Custom Questions */}

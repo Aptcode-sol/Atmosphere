@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { useAlert } from '../../components/CustomAlert';
 import StartupPortfolioStep from './StartupPortfolioStep';
 import InvestorPortfolioStep from './InvestorPortfolioStep';
 import KycScreen from '../KycScreen';
 import { getProfile, updateProfile } from '../../lib/api';
 
 export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
+    const { showAlert } = useAlert();
     const [showPortfolio, setShowPortfolio] = useState(false);
     const [showKyc, setShowKyc] = useState(false);
     const [kycCompleted, setKycCompleted] = useState(false);
@@ -93,7 +95,7 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
     // Handle complete setup
     const handleComplete = async () => {
         if (!allDone) {
-            Alert.alert('Incomplete', 'Please complete all required steps.');
+            showAlert('Incomplete', 'Please complete all required steps.');
             return;
         }
         try {
@@ -107,7 +109,7 @@ export default function StartupVerifyStep({ onBack, onDone }: { onBack: () => vo
             });
             onDone();
         } catch {
-            Alert.alert('Error', 'Failed to complete setup');
+            showAlert('Error', 'Failed to complete setup');
         }
     };
 

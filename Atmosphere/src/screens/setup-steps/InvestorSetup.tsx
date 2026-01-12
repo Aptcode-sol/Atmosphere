@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { updateProfile } from '../../lib/api';
+import { useAlert } from '../../components/CustomAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function InvestorSetup({ onDone }: { onDone: () => void }) {
+    const { showAlert } = useAlert();
     const [about, setAbout] = useState('');
     const [location, setLocation] = useState('');
     const [investmentFocus, setInvestmentFocus] = useState('');
@@ -50,11 +52,11 @@ export default function InvestorSetup({ onDone }: { onDone: () => void }) {
     const save = async () => {
         try {
             await updateProfile({ detailsData: { about, location, investmentFocus: investmentFocus.split(',').map(s => s.trim()), interestedRounds: interestedRounds.split(',').map(s => s.trim()) } });
-            Alert.alert('Saved', 'Investor details saved');
+            showAlert('Saved', 'Investor details saved');
             try { await AsyncStorage.removeItem('pending.investor.details'); } catch { }
             onDone();
         } catch {
-            Alert.alert('Error', 'Unable to save investor details');
+            showAlert('Error', 'Unable to save investor details');
         }
     };
 

@@ -2,17 +2,19 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { updateProfile } from '../../lib/api';
+import { useAlert } from '../../components/CustomAlert';
 
 export default function PersonalSetup({ onDone }: { onDone: () => void }) {
+    const { showAlert } = useAlert();
     const [about, setAbout] = useState('');
 
     const save = async () => {
         try {
             await updateProfile({ userData: { bio: about } });
-            Alert.alert('Saved', 'Personal details saved');
+            showAlert('Saved', 'Personal details saved');
             onDone();
         } catch {
-            Alert.alert('Error', 'Unable to save personal details');
+            showAlert('Error', 'Unable to save personal details');
         }
     };
 

@@ -24,6 +24,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { getBaseUrl } from '../../lib/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAlert } from '../../components/CustomAlert';
 
 import { VideoCallProps, RemoteUser, AgoraConfig } from './types';
 import { styles, width } from './styles';
@@ -33,6 +34,7 @@ import CallControls from './CallControls';
 const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
     const context = useContext(ThemeContext);
     const theme = context?.theme || { background: '#000', text: '#fff', primary: '#2C2C2C' };
+    const { showAlert } = useAlert();
 
     const [loading, setLoading] = useState(true);
     const [joined, setJoined] = useState(false);
@@ -68,7 +70,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
                 ]);
                 if (granted['android.permission.CAMERA'] !== PermissionsAndroid.RESULTS.GRANTED ||
                     granted['android.permission.RECORD_AUDIO'] !== PermissionsAndroid.RESULTS.GRANTED) {
-                    Alert.alert('Permissions Required', 'Camera and microphone permissions are required for video calls');
+                    showAlert('Permissions Required', 'Camera and microphone permissions are required for video calls');
                     setLoading(false);
                     return;
                 }
@@ -85,7 +87,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
             _setAgoraConfig(credentials);
 
             if (!credentials.appId) {
-                Alert.alert('Error', 'Agora App ID not configured');
+                showAlert('Error', 'Agora App ID not configured');
                 setLoading(false);
                 return;
             }
@@ -122,7 +124,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
             engine.joinChannel(credentials.token || '', credentials.channelName, credentials.uid || 0, {});
         } catch (error) {
             console.error('Error initializing Agora:', error);
-            Alert.alert('Error', 'Failed to initialize video call');
+            showAlert('Error', 'Failed to initialize video call');
             setLoading(false);
         }
     }, [meetingId]);
@@ -136,7 +138,7 @@ const VideoCall: React.FC<VideoCallProps> = ({ meetingId, onLeave }) => {
     const toggleVideo = () => { engineRef.current?.muteLocalVideoStream(!videoMuted); setVideoMuted(!videoMuted); };
     const switchCamera = async () => { await engineRef.current?.switchCamera(); setFrontCamera(!frontCamera); };
     const handleLeave = () => {
-        Alert.alert('Leave Meeting', 'Are you sure you want to leave?', [
+        showAlert('Leave Meeting', 'Are you sure you want to leave?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Leave', style: 'destructive', onPress: async () => { await cleanup(); onLeave(); } },
         ]);

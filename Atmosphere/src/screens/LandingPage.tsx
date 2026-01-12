@@ -25,6 +25,7 @@ import VideoCall from './VideoCall';
 import MyTeam from './MyTeam';
 import StartupDetail from './StartupDetail';
 import KycScreen from './KycScreen';
+import StartupVerifyStep from './setup-steps/StartupVerifyStep';
 
 type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'verify' | 'chatDetail' | 'createPost' | 'createReel' | 'saved' | 'videoCall' | 'myTeam' | 'startupDetail' | 'tradeDetail' | 'portfolio';
 
@@ -296,8 +297,8 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
             case 'setup':
                 return <SetupProfile onDone={() => setRoute('profile')} onClose={() => setRoute('profile')} />;
             case 'verify':
-                // Direct navigation to KYC verification
-                return <KycScreen onComplete={() => setRoute('profile')} onBack={() => setRoute('profile')} />;
+                // Direct navigation to Get Verified (StartupVerifyStep)
+                return <StartupVerifyStep onDone={() => setRoute('profile')} onBack={() => setRoute('profile')} />;
             case 'portfolio':
                 // Show appropriate portfolio step based on account type
                 if (accountType === 'investor') {

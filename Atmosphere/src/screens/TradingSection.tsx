@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, Alert, FlatList, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, FlatList, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades, createOrFindChat, sendMessage, shareContent } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
@@ -12,6 +12,7 @@ import { categories, Investment, InvestorPortfolio } from './Trading/types';
 import { styles } from './Trading/styles';
 import { TradingForm } from './Trading/components/TradingForm';
 import { TradeCard } from './Trading/components/TradeCard';
+import { useAlert } from '../components/CustomAlert';
 // import { FilterBar } from './Trading/components/FilterBar';
 // import { getYearsAgo } from './Trading/utils';
 
@@ -47,6 +48,7 @@ interface ActiveTrade {
 const Trading = () => {
     // Data State
     const [refreshing, setRefreshing] = useState(false);
+    const { showAlert } = useAlert();
 
     // UI State
     const [activeTab, setActiveTab] = useState<'Data' | 'Buy' | 'Sell' | 'Leaderboard'>('Buy');
@@ -64,7 +66,7 @@ const Trading = () => {
     const scrollX = useRef(new Animated.Value(0)).current;
 
     // Memoized style objects to avoid inline styles in JSX (reduces eslint warnings)
-    const centeredLoaderStyle = useMemo(() => ({ flex: 1, alignItems: 'center', justifyContent: 'center' }), []);
+    const centeredLoaderStyle = useMemo(() => ({ flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const }), []);
     const flexOneStyle = useMemo(() => ({ flex: 1 }), []);
     const rowCenterStyle = useMemo(() => ({ flexDirection: 'row', alignItems: 'center' }), []);
     // Removed unused memoized styles to reduce lint noise
@@ -446,7 +448,7 @@ const Trading = () => {
                     uploadedThumbnailUrl = s3Result.thumbnailUrl || s3Result.url;
                 } catch (videoError: any) {
                     console.error('Video upload error:', videoError);
-                    Alert.alert('Upload Error', 'Failed to upload video. Please try again.');
+                    showAlert('Upload Error', 'Failed to upload video. Please try again.');
                     setUploading(false);
                     return;
                 }
@@ -462,7 +464,7 @@ const Trading = () => {
                     uploadedImageUrls = await Promise.all(uploadPromises);
                 } catch (imageError: any) {
                     console.error('Image upload error:', imageError);
-                    Alert.alert('Upload Error', 'Failed to upload images. Please try again.');
+                    showAlert('Upload Error', 'Failed to upload images. Please try again.');
                     setUploading(false);
                     return;
                 }
@@ -493,13 +495,16 @@ const Trading = () => {
                     if (response && response.trade) {
                         setActiveTrades(activeTrades.map(t => t._id === editingTradeId ? response.trade : t));
                     }
-                    Alert.alert('Success', 'Trade updated successfully!');
+                    if (response && response.trade) {
+                        setActiveTrades(activeTrades.map(t => t._id === editingTradeId ? response.trade : t));
+                    }
+                    showAlert('Success', 'Trade updated successfully!');
                 } else {
                     const response = await createTrade(tradeData);
                     if (response && response.trade) {
                         setActiveTrades([...activeTrades, response.trade]);
                     }
-                    Alert.alert('Success', 'Trade opened successfully!');
+                    showAlert('Success', 'Trade opened successfully!');
                 }
 
                 // Reset form
@@ -524,13 +529,13 @@ const Trading = () => {
                 setSelectedCompanyAge('');
             } catch (error: any) {
                 console.error('Failed to save trade:', error);
-                Alert.alert('Error', error.message || 'Failed to save trade');
+                showAlert('Error', error.message || 'Failed to save trade');
             } finally {
                 setUploading(false);
             }
         } catch (outerError: any) {
             console.error('Trade submission failed:', outerError);
-            Alert.alert('Error', outerError.message || 'Failed to submit trade');
+            showAlert('Error', outerError.message || 'Failed to submit trade');
             setUploading(false);
         }
     };
@@ -539,10 +544,10 @@ const Trading = () => {
         try {
             await deleteTrade(tradeId);
             setActiveTrades(activeTrades.filter(trade => trade._id !== tradeId));
-            Alert.alert('Success', 'Trade deleted successfully!');
+            showAlert('Success', 'Trade deleted successfully!');
         } catch (error: any) {
             console.error('Failed to delete trade:', error);
-            Alert.alert('Error', error.message || 'Failed to delete trade');
+            showAlert('Error', error.message || 'Failed to delete trade');
         }
     };
 
@@ -610,7 +615,7 @@ const Trading = () => {
             const ownerName = trade.companyName || 'the company';
 
             if (!ownerId) {
-                Alert.alert('Error', 'Contact information not available for this trade.');
+                showAlert('Error', 'Contact information not available for this trade.');
                 return;
             }
 
@@ -631,21 +636,21 @@ const Trading = () => {
                     contentOwner: trade.startupUsername,
                 });
 
-                Alert.alert('Success', 'Interest expressed! A message and trade card have been sent to the owner.');
+                showAlert('Success', 'Interest expressed! A message and trade card have been sent to the owner.');
             } else {
                 console.warn('Chat creation response mismatch:', response);
-                Alert.alert('Error', 'Failed to start chat with the owner.');
+                showAlert('Error', 'Failed to start chat with the owner.');
             }
         } catch (error) {
             console.error('Express interest error:', error);
-            Alert.alert('Error', 'Failed to send interest message.');
+            showAlert('Error', 'Failed to send interest message.');
         }
     };
 
     const renderInvestorPortfolios = () => {
         if (investorsLoading) {
             return (
-                <View style={centeredLoaderStyle}>
+                <View style={centeredLoaderStyle as any}>
                     <ActivityIndicator size="large" color="#1a73e8" />
                 </View>
             );
@@ -688,7 +693,7 @@ const Trading = () => {
 
         return (
             <ScrollView
-                style={flexOneStyle}
+                style={flexOneStyle as any}
                 contentContainerStyle={{ paddingBottom: BOTTOM_NAV_HEIGHT + 24 }}
                 refreshControl={
                     <RefreshControl
@@ -723,8 +728,8 @@ const Trading = () => {
                                     }
                                 }}
                             >
-                                <View style={flexOneStyle}>
-                                    <View style={rowCenterStyle}>
+                                <View style={flexOneStyle as any}>
+                                    <View style={rowCenterStyle as any}>
                                         <Text style={styles.portfolioCompanyName}>
                                             {item.companyName}
                                         </Text>
@@ -777,7 +782,7 @@ const Trading = () => {
 
                 {/* Active Trades Section */}
                 {activeTrades.length > 0 && (
-                    <View style={activeTradesTopStyle}>
+                    <View style={activeTradesTopStyle as any}>
                         <Text style={styles.portfolioHeader}>Active Trades</Text>
                         {activeTrades.map((trade) => {
                             const tradeId = trade._id || trade.id;

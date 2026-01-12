@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import Logo from '../components/Logo';
 import { login } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAlert } from '../components/CustomAlert';
 
 const SignIn = ({ onSignUp, onSignedIn, onForgotPassword }: { onSignUp?: () => void; onSignedIn?: () => void; onForgotPassword?: () => void }) => {
+    const { showAlert } = useAlert();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -21,7 +23,7 @@ const SignIn = ({ onSignUp, onSignedIn, onForgotPassword }: { onSignUp?: () => v
             }
             if (onSignedIn) onSignedIn();
         } catch (err: any) {
-            Alert.alert('Login failed', err.message || 'Unknown error');
+            showAlert('Login failed', err.message || 'Unknown error');
         } finally {
             setLoading(false);
         }

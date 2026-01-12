@@ -20,8 +20,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AccountType, VerifyStatus, UsernameStatus, SignUpProps } from './types';
 import { ACCOUNT_TYPES, getStatusColor } from './utils';
 import { styles } from './styles';
+import { useAlert } from '../../components/CustomAlert';
 
 const SignUp = ({ onSignedUp, onSignIn }: SignUpProps) => {
+    const { showAlert } = useAlert();
     const [email, setEmail] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -38,11 +40,11 @@ const SignUp = ({ onSignedUp, onSignIn }: SignUpProps) => {
 
     const handleCheckUsername = async () => {
         if (!username || username.length < 3) {
-            Alert.alert('Invalid username', 'Username must be at least 3 characters');
+            showAlert('Invalid username', 'Username must be at least 3 characters');
             return;
         }
         if (username.includes(' ')) {
-            Alert.alert('Invalid username', 'Username cannot contain spaces. Use underscores (_) instead.');
+            showAlert('Invalid username', 'Username cannot contain spaces. Use underscores (_) instead.');
             return;
         }
         setUsernameStatus('checking');
@@ -51,13 +53,13 @@ const SignUp = ({ onSignedUp, onSignIn }: SignUpProps) => {
             setUsernameStatus(data.available ? 'available' : 'taken');
         } catch {
             setUsernameStatus('idle');
-            Alert.alert('Error', 'Failed to check username availability');
+            showAlert('Error', 'Failed to check username availability');
         }
     };
 
     const handleSignUp = async () => {
         if (!email || !username || !password) {
-            Alert.alert('Missing fields', 'Please fill all required fields');
+            showAlert('Missing fields', 'Please fill all required fields');
             return;
         }
         setLoading(true);
@@ -69,7 +71,7 @@ const SignUp = ({ onSignedUp, onSignIn }: SignUpProps) => {
                 setShowOtpInput(true);
             }
         } catch (err: any) {
-            Alert.alert('Sign up failed', err.message || 'Unknown error');
+            showAlert('Sign up failed', err.message || 'Unknown error');
         } finally {
             setLoading(false);
         }

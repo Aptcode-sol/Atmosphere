@@ -2,9 +2,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { updateProfile } from '../../lib/api';
+import { useAlert } from '../../components/CustomAlert';
 import StartupVerifyStep from './StartupVerifyStep';
 
 export default function StartupSetup({ onDone }: { onDone: () => void }) {
+    const { showAlert } = useAlert();
     const [companyName, setCompanyName] = useState('');
     const [about, setAbout] = useState('');
     const [location, setLocation] = useState('');
@@ -14,10 +16,10 @@ export default function StartupSetup({ onDone }: { onDone: () => void }) {
     const save = async () => {
         try {
             await updateProfile({ detailsData: { companyName, about, location, companyType } });
-            Alert.alert('Saved', 'Startup details saved');
+            showAlert('Saved', 'Startup details saved');
             onDone();
         } catch {
-            Alert.alert('Error', 'Unable to save startup details');
+            showAlert('Error', 'Unable to save startup details');
         }
     };
 
