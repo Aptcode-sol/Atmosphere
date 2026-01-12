@@ -16,7 +16,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
         }
         res.json({
             settings: {
-                displayName: user.displayName || '',
+                displayName: user.fullName || '',
                 username: user.username || '',
                 email: user.email || '',
                 phone: user.phone || '',
@@ -35,10 +35,10 @@ router.get('/', authMiddleware, async (req, res, next) => {
  */
 router.put('/', authMiddleware, async (req, res, next) => {
     try {
-        const { displayName, username, phone } = req.body;
+        const { fullName, username, phone } = req.body;
         const updates = {};
 
-        if (displayName !== undefined) updates.displayName = displayName;
+        if (fullName !== undefined) updates.fullName = fullName;
         if (phone !== undefined) updates.phone = phone;
 
         // Username change requires checking uniqueness
@@ -59,7 +59,7 @@ router.put('/', authMiddleware, async (req, res, next) => {
         res.json({
             success: true,
             settings: {
-                displayName: user.displayName || '',
+                displayName: user.fullName || '',
                 username: user.username || '',
                 email: user.email || '',
                 phone: user.phone || '',

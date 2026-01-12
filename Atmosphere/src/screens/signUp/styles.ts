@@ -277,4 +277,17 @@ export const styles = StyleSheet.create({
     statusError: {
         borderColor: '#ef4444',
     },
+    passwordContainer: {
+        position: 'relative',
+        marginBottom: 8,
+    },
+    passwordInput: {
+        paddingRight: 44,
+        marginBottom: 0,
+    },
+    eyeButton: {
+        position: 'absolute',
+        right: 12,
+        top: 15,
+    },
 });

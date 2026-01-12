@@ -24,8 +24,9 @@ import CreateMenu from '../components/CreateMenu';
 import VideoCall from './VideoCall';
 import MyTeam from './MyTeam';
 import StartupDetail from './StartupDetail';
+import KycScreen from './KycScreen';
 
-type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'chatDetail' | 'createPost' | 'createReel' | 'saved' | 'videoCall' | 'myTeam' | 'startupDetail' | 'tradeDetail' | 'portfolio';
+type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'verify' | 'chatDetail' | 'createPost' | 'createReel' | 'saved' | 'videoCall' | 'myTeam' | 'startupDetail' | 'tradeDetail' | 'portfolio';
 
 interface LandingPageProps {
     initialDeepLink?: string | null;
@@ -47,6 +48,30 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
 
     // Navigation history stack for back button support
     const [routeHistory, setRouteHistory] = useState<RouteKey[]>([]);
+    // Account type for portfolio routing
+    const [accountType, setAccountType] = useState<'investor' | 'startup' | 'personal' | null>(null);
+
+    // Fetch user profile to get accountType
+    useEffect(() => {
+        (async () => {
+            try {
+                const { getProfile } = await import('../lib/api');
+                const profile = await getProfile();
+                console.log('LandingPage - profile.user.roles:', profile?.user?.roles);
+                // Check roles array for account type (profile returns roles:['investor'] not accountType)
+                const roles = profile?.user?.roles || [];
+                if (roles.includes('investor')) {
+                    setAccountType('investor');
+                } else if (roles.includes('startup')) {
+                    setAccountType('startup');
+                } else if (profile?.user?.accountType) {
+                    setAccountType(profile.user.accountType);
+                }
+            } catch (e) {
+                console.warn('Failed to fetch profile:', e);
+            }
+        })();
+    }, []);
 
     // Handle deep link navigation
     useEffect(() => {
@@ -270,8 +295,14 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
                 />;
             case 'setup':
                 return <SetupProfile onDone={() => setRoute('profile')} onClose={() => setRoute('profile')} />;
+            case 'verify':
+                // Direct navigation to KYC verification
+                return <KycScreen onComplete={() => setRoute('profile')} onBack={() => setRoute('profile')} />;
             case 'portfolio':
-                // Show portfolio step - we'll need to determine account type
+                // Show appropriate portfolio step based on account type
+                if (accountType === 'investor') {
+                    return <InvestorPortfolioStep onDone={() => setRoute('profile')} onBack={() => setRoute('profile')} />;
+                }
                 return <StartupPortfolioStep onDone={() => setRoute('profile')} onBack={() => setRoute('profile')} />;
             case 'topstartups':
                 return <TopStartups />;
@@ -344,6 +375,7 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
             reels: 'Reels',
             profile: 'Profile',
             setup: 'Profile',
+            verify: 'Profile',
             topstartups: 'Launch',
             trade: 'Trade',
             jobs: 'Opportunities',

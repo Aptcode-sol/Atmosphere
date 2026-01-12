@@ -4,11 +4,11 @@ import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions, Modal, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from './Profile.styles';
 import { clearToken } from '../../lib/auth';
-import { getSettings, updateSettings, changePassword, getProfile, updateProfile, saveStartupProfile, getStartupProfile, uploadDocument } from '../../lib/api';
+import { getSettings, updateSettings, changePassword, getProfile, updateProfile, saveStartupProfile, getStartupProfile, uploadDocument, checkUsernameAvailability, resendOtp, verifyEmail } from '../../lib/api';
 import { Picker } from '@react-native-picker/picker';
 import { pick, types } from '@react-native-documents/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ArrowLeft, User, AtSign, Key, Mail, Phone, BarChart2, Bookmark, Settings2, MessageSquare, Users, Shield, Briefcase, Crown, HelpCircle, Info } from 'lucide-react-native';
+import { ArrowLeft, User, AtSign, Key, Mail, Phone, BarChart2, Bookmark, Settings2, MessageSquare, Users, Shield, Briefcase, Crown, HelpCircle, Info, Eye, EyeOff, Check, X } from 'lucide-react-native';
 
 const SETTINGS_CACHE_KEY = 'ATMOSPHERE_SETTINGS_CACHE';
 
@@ -88,6 +88,21 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [saving, setSaving] = useState(false);
+    // Password visibility toggles
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    // Username validation states
+    const [usernameChecking, setUsernameChecking] = useState(false);
+    const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+    const [usernameWarning, setUsernameWarning] = useState('');
+    // Email OTP states
+    const [emailModal, setEmailModal] = useState({ visible: false, value: '' });
+    const [emailOtpSent, setEmailOtpSent] = useState(false);
+    const [emailOtp, setEmailOtp] = useState('');
+    const [emailVerified, setEmailVerified] = useState(false);
+    const [sendingOtp, setSendingOtp] = useState(false);
+
 
     // Collapsible states
     const [openInterests, setOpenInterests] = useState(false);
@@ -260,11 +275,16 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
         setSaving(true);
         try {
             const payload: any = {};
-            if (editModal.field === 'Name') payload.displayName = editModal.value;
+            if (editModal.field === 'Name') payload.fullName = editModal.value;
             if (editModal.field === 'Username') payload.username = editModal.value;
             if (editModal.field === 'Phone') payload.phone = editModal.value;
 
+            console.log('saveField - field:', editModal.field, 'value:', editModal.value);
+            console.log('saveField - payload:', JSON.stringify(payload));
+
             const result = await updateSettings(payload);
+            console.log('saveField - API result:', JSON.stringify(result));
+
             if (result?.settings) {
                 setSettings(prev => ({
                     ...prev,
@@ -275,6 +295,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
             }
             setEditModal({ visible: false, field: '', value: '' });
         } catch (err: any) {
+            console.log('saveField - error:', err?.message || err);
             Alert.alert('Error', err.message || 'Failed to update');
         } finally {
             setSaving(false);
@@ -507,7 +528,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 </View>
                                 <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
+                            <TouchableOpacity style={styles.settingRow} onPress={() => { setEmailModal({ visible: true, value: settings.email || '' }); setEmailOtpSent(false); setEmailOtp(''); setEmailVerified(false); }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                     <Mail size={20} color={theme.placeholder} style={{ marginRight: 12 }} />
                                     <View style={styles.settingLeft}>
@@ -554,7 +575,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 </View>
                                 <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
+                            {/* <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                     <Settings2 size={20} color={theme.placeholder} style={{ marginRight: 12 }} />
                                     <View style={styles.settingLeft}>
@@ -563,11 +584,11 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                     </View>
                                 </View>
                                 <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                         </View>
 
-                        <Text style={[styles.sectionLabel, themePlaceholderStyle]}>PRIVACY</Text>
-                        <View style={[styles.sectionCard, themeBorderStyle]}>
+                        {/* <Text style={[styles.sectionLabel, themePlaceholderStyle]}>PRIVACY</Text> */}
+                        {/* <View style={[styles.sectionCard, themeBorderStyle]}>
                             <TouchableOpacity style={styles.settingRow} onPress={() => { }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                     <MessageSquare size={20} color={theme.placeholder} style={{ marginRight: 12 }} />
@@ -588,7 +609,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 </View>
                                 <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
                             </TouchableOpacity>
-                        </View>
+                        </View> */}
 
                         {/* ACCOUNT section - Get Verified (if not verified) and Portfolio (for investor/startup) */}
                         <Text style={[styles.sectionLabel, themePlaceholderStyle]}>ACCOUNT</Text>
@@ -597,7 +618,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                             {!isVerified && (
                                 <TouchableOpacity style={styles.settingRow} onPress={() => {
                                     handleClose();
-                                    if (onNavigate) onNavigate('setup');
+                                    if (onNavigate) onNavigate('verify');
                                 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                         <Shield size={20} color={theme.placeholder} style={{ marginRight: 12 }} />
@@ -697,11 +718,6 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                 )}
             </ScrollView >
 
-            {/* Multi-select Pickers */}
-            {renderMultiPicker(showFocusPicker, 'Investment Focus', ['AI', 'SaaS', 'Drones', 'FinTech', 'HealthTech', 'EdTech', 'E-commerce', 'Blockchain', 'IoT', 'CleanTech'], selectedFocus, setSelectedFocus, () => setShowFocusPicker(false))}
-            {renderMultiPicker(showRoundPicker, 'Interested Rounds', ['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Series D+'], selectedRounds, setSelectedRounds, () => setShowRoundPicker(false))}
-            {renderMultiPicker(showStagePicker, 'Stage', ['Idea', 'Prototype', 'MVP', 'Beta Users', 'Launched Product', 'Scaling'], selectedStages, setSelectedStages, () => setShowStagePicker(false))}
-
             {/* Edit Field Modal */}
             <Modal visible={editModal.visible} transparent animationType="fade">
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
@@ -709,33 +725,97 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                         <Text style={{ color: theme.text, fontSize: 18, fontWeight: '600', marginBottom: 16 }}>
                             Edit {editModal.field}
                         </Text>
-                        <TextInput
-                            style={{
-                                backgroundColor: theme.background,
-                                color: theme.text,
-                                borderRadius: 8,
-                                padding: 12,
-                                fontSize: 16,
-                                borderWidth: 1,
-                                borderColor: theme.border,
-                            }}
-                            value={editModal.value}
-                            onChangeText={(text) => setEditModal(prev => ({ ...prev, value: text }))}
-                            placeholder={`Enter ${editModal.field.toLowerCase()}`}
-                            placeholderTextColor={theme.placeholder}
-                            autoFocus
-                        />
+                        <View style={{ position: 'relative' }}>
+                            <TextInput
+                                style={{
+                                    backgroundColor: theme.background,
+                                    color: theme.text,
+                                    borderRadius: 8,
+                                    padding: 12,
+                                    paddingRight: editModal.field === 'Username' ? 70 : 12,
+                                    fontSize: 16,
+                                    borderWidth: 1,
+                                    borderColor: theme.border,
+                                }}
+                                value={editModal.value}
+                                onChangeText={(text) => {
+                                    if (editModal.field === 'Username') {
+                                        // Reset validation state
+                                        setUsernameAvailable(null);
+                                        // Replace spaces with underscores
+                                        if (text.includes(' ')) {
+                                            setUsernameWarning('Spaces replaced with underscores');
+                                            text = text.replace(/ /g, '_');
+                                        } else {
+                                            setUsernameWarning('');
+                                        }
+                                        // Check for special characters
+                                        if (/[^a-zA-Z0-9_]/.test(text)) {
+                                            setUsernameWarning('Only letters, numbers, and underscores allowed');
+                                            text = text.replace(/[^a-zA-Z0-9_]/g, '');
+                                        }
+                                    }
+                                    setEditModal(prev => ({ ...prev, value: text }));
+                                }}
+                                placeholder={`Enter ${editModal.field.toLowerCase()}`}
+                                placeholderTextColor={theme.placeholder}
+                                autoFocus
+                            />
+                            {/* Username Check Button */}
+                            {editModal.field === 'Username' && (
+                                <TouchableOpacity
+                                    style={{ position: 'absolute', right: 8, top: 10, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, backgroundColor: usernameAvailable === true ? '#22c55e' : usernameAvailable === false ? '#ef4444' : theme.primary }}
+                                    onPress={async () => {
+                                        if (!editModal.value || editModal.value.length < 3) {
+                                            Alert.alert('Invalid', 'Username must be at least 3 characters');
+                                            return;
+                                        }
+                                        setUsernameChecking(true);
+                                        try {
+                                            const data = await checkUsernameAvailability(editModal.value);
+                                            setUsernameAvailable(data.available);
+                                        } catch {
+                                            Alert.alert('Error', 'Failed to check username');
+                                        } finally {
+                                            setUsernameChecking(false);
+                                        }
+                                    }}
+                                    disabled={usernameChecking}
+                                >
+                                    {usernameChecking ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : usernameAvailable === true ? (
+                                        <Check size={16} color="#fff" />
+                                    ) : usernameAvailable === false ? (
+                                        <X size={16} color="#fff" />
+                                    ) : (
+                                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Check</Text>
+                                    )}
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        {/* Username warning */}
+                        {editModal.field === 'Username' && usernameWarning ? (
+                            <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 4 }}>{usernameWarning}</Text>
+                        ) : null}
+                        {editModal.field === 'Username' && usernameAvailable === false ? (
+                            <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>Username already taken</Text>
+                        ) : null}
                         <View style={{ flexDirection: 'row', marginTop: 20, gap: 12 }}>
                             <TouchableOpacity
                                 style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: theme.border, alignItems: 'center' }}
-                                onPress={() => setEditModal({ visible: false, field: '', value: '' })}
+                                onPress={() => {
+                                    setEditModal({ visible: false, field: '', value: '' });
+                                    setUsernameAvailable(null);
+                                    setUsernameWarning('');
+                                }}
                             >
                                 <Text style={{ color: theme.text }}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: theme.primary || '#1FADFF', alignItems: 'center' }}
+                                style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: (editModal.field === 'Username' && usernameAvailable !== true) ? '#666' : (theme.primary || '#1FADFF'), alignItems: 'center' }}
                                 onPress={saveField}
-                                disabled={saving}
+                                disabled={saving || (editModal.field === 'Username' && usernameAvailable !== true)}
                             >
                                 {saving ? (
                                     <ActivityIndicator size="small" color="#fff" />
@@ -755,56 +835,82 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                         <Text style={{ color: theme.text, fontSize: 18, fontWeight: '600', marginBottom: 16 }}>
                             Change Password
                         </Text>
-                        <TextInput
-                            style={{
-                                backgroundColor: theme.background,
-                                color: theme.text,
-                                borderRadius: 8,
-                                padding: 12,
-                                fontSize: 16,
-                                borderWidth: 1,
-                                borderColor: theme.border,
-                                marginBottom: 12,
-                            }}
-                            value={currentPassword}
-                            onChangeText={setCurrentPassword}
-                            placeholder="Current password"
-                            placeholderTextColor={theme.placeholder}
-                            secureTextEntry
-                        />
-                        <TextInput
-                            style={{
-                                backgroundColor: theme.background,
-                                color: theme.text,
-                                borderRadius: 8,
-                                padding: 12,
-                                fontSize: 16,
-                                borderWidth: 1,
-                                borderColor: theme.border,
-                                marginBottom: 12,
-                            }}
-                            value={newPassword}
-                            onChangeText={setNewPassword}
-                            placeholder="New password"
-                            placeholderTextColor={theme.placeholder}
-                            secureTextEntry
-                        />
-                        <TextInput
-                            style={{
-                                backgroundColor: theme.background,
-                                color: theme.text,
-                                borderRadius: 8,
-                                padding: 12,
-                                fontSize: 16,
-                                borderWidth: 1,
-                                borderColor: theme.border,
-                            }}
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            placeholder="Confirm new password"
-                            placeholderTextColor={theme.placeholder}
-                            secureTextEntry
-                        />
+                        <View style={{ position: 'relative' }}>
+                            <TextInput
+                                style={{
+                                    backgroundColor: theme.background,
+                                    color: theme.text,
+                                    borderRadius: 8,
+                                    padding: 12,
+                                    fontSize: 16,
+                                    borderWidth: 1,
+                                    borderColor: theme.border,
+                                    marginBottom: 12,
+                                }}
+                                value={currentPassword}
+                                onChangeText={setCurrentPassword}
+                                placeholder="Current password"
+                                placeholderTextColor={theme.placeholder}
+                                secureTextEntry={!showCurrentPassword}
+                            />
+                            <TouchableOpacity
+                                style={{ position: 'absolute', right: 12, top: 12 }}
+                                onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                            >
+                                {showCurrentPassword ? <EyeOff size={20} color={theme.placeholder} /> : <Eye size={20} color={theme.placeholder} />}
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ position: 'relative' }}>
+                            <TextInput
+                                style={{
+                                    backgroundColor: theme.background,
+                                    color: theme.text,
+                                    borderRadius: 8,
+                                    padding: 12,
+                                    paddingRight: 44,
+                                    fontSize: 16,
+                                    borderWidth: 1,
+                                    borderColor: theme.border,
+                                    marginBottom: 12,
+                                }}
+                                value={newPassword}
+                                onChangeText={setNewPassword}
+                                placeholder="New password"
+                                placeholderTextColor={theme.placeholder}
+                                secureTextEntry={!showNewPassword}
+                            />
+                            <TouchableOpacity
+                                style={{ position: 'absolute', right: 12, top: 12 }}
+                                onPress={() => setShowNewPassword(!showNewPassword)}
+                            >
+                                {showNewPassword ? <EyeOff size={20} color={theme.placeholder} /> : <Eye size={20} color={theme.placeholder} />}
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ position: 'relative' }}>
+                            <TextInput
+                                style={{
+                                    backgroundColor: theme.background,
+                                    color: theme.text,
+                                    borderRadius: 8,
+                                    padding: 12,
+                                    paddingRight: 44,
+                                    fontSize: 16,
+                                    borderWidth: 1,
+                                    borderColor: theme.border,
+                                }}
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                placeholder="Confirm new password"
+                                placeholderTextColor={theme.placeholder}
+                                secureTextEntry={!showConfirmPassword}
+                            />
+                            <TouchableOpacity
+                                style={{ position: 'absolute', right: 12, top: 12 }}
+                                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                                {showConfirmPassword ? <EyeOff size={20} color={theme.placeholder} /> : <Eye size={20} color={theme.placeholder} />}
+                            </TouchableOpacity>
+                        </View>
                         <View style={{ flexDirection: 'row', marginTop: 20, gap: 12 }}>
                             <TouchableOpacity
                                 style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: theme.border, alignItems: 'center' }}
@@ -826,6 +932,165 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                     <ActivityIndicator size="small" color="#fff" />
                                 ) : (
                                     <Text style={{ color: '#fff', fontWeight: '600' }}>Change</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Email Change Modal with OTP */}
+            <Modal visible={emailModal.visible} transparent animationType="fade">
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+                    <View style={{ backgroundColor: theme.cardBackground || '#222', borderRadius: 12, padding: 20 }}>
+                        <Text style={{ color: theme.text, fontSize: 18, fontWeight: '600', marginBottom: 16 }}>
+                            Change Email
+                        </Text>
+                        {/* Email Input with Send OTP button */}
+                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                            <TextInput
+                                style={{
+                                    flex: 1,
+                                    backgroundColor: theme.background,
+                                    color: theme.text,
+                                    borderRadius: 8,
+                                    padding: 12,
+                                    fontSize: 16,
+                                    borderWidth: 1,
+                                    borderColor: theme.border,
+                                }}
+                                value={emailModal.value}
+                                onChangeText={(text) => {
+                                    setEmailModal(prev => ({ ...prev, value: text }));
+                                    setEmailVerified(false);
+                                    setEmailOtpSent(false);
+                                }}
+                                placeholder="Enter new email"
+                                placeholderTextColor={theme.placeholder}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                editable={!emailOtpSent}
+                            />
+                            <TouchableOpacity
+                                style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: emailOtpSent ? '#22c55e' : (theme.primary || '#1FADFF'), justifyContent: 'center' }}
+                                onPress={async () => {
+                                    if (!emailModal.value || !emailModal.value.includes('@')) {
+                                        Alert.alert('Error', 'Please enter a valid email');
+                                        return;
+                                    }
+                                    setSendingOtp(true);
+                                    try {
+                                        await resendOtp(emailModal.value);
+                                        setEmailOtpSent(true);
+                                        Alert.alert('OTP Sent', 'Check your email for the verification code');
+                                    } catch (err: any) {
+                                        Alert.alert('Error', err.message || 'Failed to send OTP');
+                                    } finally {
+                                        setSendingOtp(false);
+                                    }
+                                }}
+                                disabled={sendingOtp || emailOtpSent}
+                            >
+                                {sendingOtp ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : emailOtpSent ? (
+                                    <Check size={18} color="#fff" />
+                                ) : (
+                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Send OTP</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* OTP Input - shows after OTP sent */}
+                        {emailOtpSent && (
+                            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                                <TextInput
+                                    style={{
+                                        flex: 1,
+                                        backgroundColor: theme.background,
+                                        color: theme.text,
+                                        borderRadius: 8,
+                                        padding: 12,
+                                        fontSize: 16,
+                                        borderWidth: 1,
+                                        borderColor: emailVerified ? '#22c55e' : theme.border,
+                                    }}
+                                    value={emailOtp}
+                                    onChangeText={setEmailOtp}
+                                    placeholder="Enter OTP code"
+                                    placeholderTextColor={theme.placeholder}
+                                    keyboardType="number-pad"
+                                    editable={!emailVerified}
+                                />
+                                <TouchableOpacity
+                                    style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: emailVerified ? '#22c55e' : (theme.primary || '#1FADFF'), justifyContent: 'center' }}
+                                    onPress={async () => {
+                                        if (!emailOtp) {
+                                            Alert.alert('Error', 'Please enter the OTP code');
+                                            return;
+                                        }
+                                        setSaving(true);
+                                        try {
+                                            await verifyEmail(emailOtp, emailModal.value);
+                                            setEmailVerified(true);
+                                            Alert.alert('Success', 'Email verified! Click Save to update.');
+                                        } catch (err: any) {
+                                            Alert.alert('Error', err.message || 'Invalid OTP');
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    }}
+                                    disabled={saving || emailVerified}
+                                >
+                                    {saving ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : emailVerified ? (
+                                        <Check size={18} color="#fff" />
+                                    ) : (
+                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Verify</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        {/* Buttons */}
+                        <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
+                            <TouchableOpacity
+                                style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: theme.border, alignItems: 'center' }}
+                                onPress={() => {
+                                    setEmailModal({ visible: false, value: '' });
+                                    setEmailOtpSent(false);
+                                    setEmailOtp('');
+                                    setEmailVerified(false);
+                                }}
+                            >
+                                <Text style={{ color: theme.text }}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{ flex: 1, padding: 12, borderRadius: 8, backgroundColor: emailVerified ? (theme.primary || '#1FADFF') : '#666', alignItems: 'center' }}
+                                onPress={async () => {
+                                    if (!emailVerified) return;
+                                    setSaving(true);
+                                    try {
+                                        await updateSettings({ email: emailModal.value });
+                                        setSettings(prev => ({ ...prev, email: emailModal.value }));
+                                        setEmailModal({ visible: false, value: '' });
+                                        setEmailOtpSent(false);
+                                        setEmailOtp('');
+                                        setEmailVerified(false);
+                                        Alert.alert('Success', 'Email updated successfully');
+                                    } catch (err: any) {
+                                        Alert.alert('Error', err.message || 'Failed to update email');
+                                    } finally {
+                                        setSaving(false);
+                                    }
+                                }}
+                                disabled={!emailVerified || saving}
+                            >
+                                {saving ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={{ color: '#fff', fontWeight: '600' }}>Save</Text>
                                 )}
                             </TouchableOpacity>
                         </View>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Eye, EyeOff } from 'lucide-react-native';
 import Logo from '../components/Logo';
 import { login } from '../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SignIn = ({ onSignUp, onSignedIn, onForgotPassword }: { onSignUp?: () => void; onSignedIn?: () => void; onForgotPassword?: () => void }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
@@ -52,14 +53,22 @@ const SignIn = ({ onSignUp, onSignedIn, onForgotPassword }: { onSignUp?: () => v
                         keyboardType="email-address"
                     />
 
-                    <TextInput
-                        value={password}
-                        onChangeText={setPassword}
-                        placeholder="Password"
-                        placeholderTextColor="#8e8e8e"
-                        style={styles.input}
-                        secureTextEntry
-                    />
+                    <View style={styles.passwordContainer}>
+                        <TextInput
+                            value={password}
+                            onChangeText={setPassword}
+                            placeholder="Password"
+                            placeholderTextColor="#8e8e8e"
+                            style={[styles.input, styles.passwordInput]}
+                            secureTextEntry={!showPassword}
+                        />
+                        <TouchableOpacity
+                            style={styles.eyeButton}
+                            onPress={() => setShowPassword(!showPassword)}
+                        >
+                            {showPassword ? <EyeOff size={20} color="#8e8e8e" /> : <Eye size={20} color="#8e8e8e" />}
+                        </TouchableOpacity>
+                    </View>
 
                     <TouchableOpacity
                         style={[styles.loginButton, (!email || !password) && styles.loginButtonDisabled]}
@@ -207,6 +216,17 @@ const styles = StyleSheet.create({
     signupLink: {
         color: '#fff',
         fontWeight: '600',
+    },
+    passwordContainer: {
+        position: 'relative',
+    },
+    passwordInput: {
+        paddingRight: 44,
+    },
+    eyeButton: {
+        position: 'absolute',
+        right: 12,
+        top: 15,
     },
 });
 

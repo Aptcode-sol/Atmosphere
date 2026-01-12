@@ -11,6 +11,7 @@ import {
     Modal,
     ScrollView,
 } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Logo from '../../components/Logo';
 import { register, checkUsernameAvailability } from '../../lib/api';
@@ -33,6 +34,7 @@ const SignUp = ({ onSignedUp, onSignIn }: SignUpProps) => {
     const [verifyMessage, setVerifyMessage] = useState('');
     const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
     const [usernameWarning, setUsernameWarning] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleCheckUsername = async () => {
         if (!username || username.length < 3) {
@@ -187,14 +189,19 @@ const SignUp = ({ onSignedUp, onSignIn }: SignUpProps) => {
                         </Text>
                     ) : null}
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Password"
-                        placeholderTextColor="#8e8e8e"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                    />
+                    <View style={styles.passwordContainer}>
+                        <TextInput
+                            style={[styles.input, styles.passwordInput]}
+                            placeholder="Password"
+                            placeholderTextColor="#8e8e8e"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry={!showPassword}
+                        />
+                        <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+                            {showPassword ? <EyeOff size={20} color="#8e8e8e" /> : <Eye size={20} color="#8e8e8e" />}
+                        </TouchableOpacity>
+                    </View>
 
                     <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowDropdown(true)}>
                         <View>

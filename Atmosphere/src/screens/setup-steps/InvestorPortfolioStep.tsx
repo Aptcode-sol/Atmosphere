@@ -47,29 +47,29 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
     const [openInterests, setOpenInterests] = useState(false);
     const [openHoldings, setOpenHoldings] = useState(false);
 
-    const [about, setAbout] = useState('qwd');
-    const [location, setLocation] = useState('ad');
+    const [about, setAbout] = useState('');
+    const [location, setLocation] = useState('');
 
     const [showFocusPicker, setShowFocusPicker] = useState(false);
-    const [selectedFocus, setSelectedFocus] = useState<string[]>(['AI']);
+    const [selectedFocus, setSelectedFocus] = useState<string[]>([]);
     const [showRoundPicker, setShowRoundPicker] = useState(false);
-    const [selectedRounds, setSelectedRounds] = useState<string[]>(['Pre-seed']);
+    const [selectedRounds, setSelectedRounds] = useState<string[]>([]);
     const [showStagePicker, setShowStagePicker] = useState(false);
-    const [selectedStages, setSelectedStages] = useState<string[]>(['Idea']);
-    const [geography, setGeography] = useState('dsa');
-    const [minCheck, setMinCheck] = useState('123');
-    const [maxCheck, setMaxCheck] = useState('12345');
+    const [selectedStages, setSelectedStages] = useState<string[]>([]);
+    const [geography, setGeography] = useState('');
+    const [minCheck, setMinCheck] = useState('');
+    const [maxCheck, setMaxCheck] = useState('');
 
     // Holdings state & add form
     const [holdings, setHoldings] = useState<Array<{ name: string; date: string; amount: number; companyId?: string; docUrl?: string }>>([]);
     const [addingHolding, setAddingHolding] = useState(false);
-    const [companyName, setCompanyName] = useState('ldnlk');
-    const [companyId, setCompanyId] = useState('123123');
+    const [companyName, setCompanyName] = useState('');
+    const [companyId, setCompanyId] = useState('');
     const [date, setDate] = useState('');
     const [dateValue, setDateValue] = useState<Date | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    const [amount, setAmount] = useState('123');
+    const [amount, setAmount] = useState('');
     const [docName, setDocName] = useState('');
     const [docUrl, setDocUrl] = useState('');
     const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -106,10 +106,14 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
         let mounted = true;
         (async () => {
             try {
+                console.log('InvestorPortfolioStep - fetching profile...');
                 const profile = await getProfile();
+                console.log('InvestorPortfolioStep - profile response:', JSON.stringify(profile));
                 const details = profile?.details;
+                console.log('InvestorPortfolioStep - details:', JSON.stringify(details));
                 if (!mounted) return;
                 if (details) {
+                    console.log('InvestorPortfolioStep - setting fields from details');
                     setAbout(details.about || '');
                     setLocation(details.location || '');
                     setSelectedFocus(Array.isArray(details.investmentFocus) ? details.investmentFocus : (details.investmentFocus ? details.investmentFocus.split(',').map((s: string) => s.trim()) : []));
@@ -130,6 +134,8 @@ export default function InvestorPortfolioStep({ onBack, onDone }: { onBack: () =
                         }));
                         setHoldings(mapped);
                     }
+                } else {
+                    console.log('InvestorPortfolioStep - no details found in profile');
                 }
             } catch (err: any) {
                 console.warn('Could not load profile for investor step', err && err.message);
