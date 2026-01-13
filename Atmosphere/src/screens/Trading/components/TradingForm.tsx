@@ -92,7 +92,7 @@ export const TradingForm: React.FC<TradingFormProps> = ({
             }
         ]}>
             {/* Selling Range */}
-            <Text style={styles.formLabel}>{isStartup ? 'Equity Range (%)' : 'Selling Range (%)'}</Text>
+            <Text style={[styles.formLabel, { marginTop: 0 }]}>{isStartup ? 'Equity Range (%)' : 'Selling Range (%)'}</Text>
             <View style={styles.rangeRow}>
                 <TextInput
                     style={styles.rangeInput}

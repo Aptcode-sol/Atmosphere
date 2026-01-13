@@ -263,9 +263,9 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                 <View style={styles.body}>
                     <Text style={styles.whatsLabel}>WHAT'S {companyData.name.toUpperCase()}</Text>
                     <Text style={styles.descriptionFull}>{companyData.description}</Text>
-                    <View style={styles.stageRow}>
+                    {/* <View style={styles.stageRow}>
                         <Text style={styles.stageText}>STAGE : <Text style={styles.stageValue}>{String(companyData.stage || 'MVP LAUNCHED')}</Text></Text>
-                    </View>
+                    </View> */}
                     <View style={styles.pillsRow}>
                         <View style={styles.pill}><Text style={styles.pillText}>Rvnu generating</Text></View>
                         <View style={styles.pill}><Text style={styles.pillText}>Rounds : {companyData.rounds ?? 0}</Text></View>

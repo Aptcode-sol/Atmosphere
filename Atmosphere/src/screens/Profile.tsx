@@ -200,11 +200,30 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     if (!viewingUserId) {
                         const derived = profileData?.user?._id || profileData?.user?.id || null;
                         if (derived) setOwnProfileId(String(derived));
-                        // Extract accountType from user roles
-                        const roles = profileData?.user?.roles || [];
-                        const primaryRole = roles[0] || profileData?.user?.accountType || 'personal';
-                        setAccountType(primaryRole as 'investor' | 'startup' | 'personal');
                     }
+
+                    // Extract accountType from user roles for both own and visited profiles
+                    const roles = profileData?.user?.roles || [];
+                    let type = 'personal';
+                    if (roles.includes('investor')) type = 'investor';
+                    else if (roles.includes('startup')) type = 'startup';
+                    else type = profileData?.user?.accountType || 'personal';
+
+                    // Robust Fallback: Check details structure if type is still personal (or default)
+                    if (type === 'personal' || !type) {
+                        const d = profileData?.details || {};
+                        // Check for startup-specific fields
+                        if (d.companyName || d.fundingRaised !== undefined || d.companyType || d.stage || d.roundType) {
+                            type = 'startup';
+                        }
+                        // Check for investor-specific fields (investmentFocus is array)
+                        else if (d.investmentFocus || d.minCheckSize || (d.financialProfile && d.financialProfile.checkSize)) {
+                            type = 'investor';
+                        }
+                    }
+
+                    console.log('Profile detected accountType:', type, 'for user:', profileData?.user?.username);
+                    setAccountType(type as 'investor' | 'startup' | 'personal');
                 }
             } catch {
                 if (mounted && !data && !cachedData) setData(mockData); // Only fallback if no data

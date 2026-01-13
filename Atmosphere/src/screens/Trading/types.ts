@@ -58,5 +58,6 @@ export interface ActiveTrade {
     isEdited?: boolean;
     isManualEntry?: boolean;
     user?: any;
+    fundingTarget?: number;
 }
 

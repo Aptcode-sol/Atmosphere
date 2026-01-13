@@ -279,7 +279,7 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
             case 'home':
                 return <Home onNavigate={(r) => navigateTo(r)} onChatSelect={handleChatSelect} onOpenProfile={(id: string) => { setSelectedProfileId(id); navigateTo('profile', false); }} />;
             case 'search':
-                return <Search onPostPress={handlePostPress} />;
+                return <Search onPostPress={handlePostPress} onUserPress={(userId: string) => setSelectedProfileId(userId)} />;
             case 'notifications':
                 return <Notifications />;
             case 'chats':

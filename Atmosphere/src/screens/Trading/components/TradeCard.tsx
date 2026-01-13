@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image as RNImage, Animated, LayoutAnimation, UIManager, Platform } from 'react-native';
 import Video from 'react-native-video';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -34,9 +34,17 @@ export const TradeCard: React.FC<TradeCardProps> = ({
     // Animation value for opacity (uses native driver for smoothness)
     const opacityAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
+    // Video play/pause state - default to playing when expanded
+    const [isVideoPaused, setIsVideoPaused] = useState(false);
+
+    // Reset video state when collapsed
+    useEffect(() => {
+        if (!isExpanded) setIsVideoPaused(false);
+    }, [isExpanded]);
+
     // Animate when isExpanded changes
     useEffect(() => {
-        // Configure smooth layout animation
+        // ... (existing animation code)
         LayoutAnimation.configureNext({
             duration: 200,
             update: { type: LayoutAnimation.Types.easeInEaseOut },
@@ -53,6 +61,7 @@ export const TradeCard: React.FC<TradeCardProps> = ({
     }, [isExpanded, opacityAnim]);
 
     // Combine images and video into one media array - video is last
+    // ... (existing media count logic)
     const imageCount = trade.imageUrls?.length || 0;
     const hasVideo = !!trade.videoUrl;
     const totalMediaCount = imageCount + (hasVideo ? 1 : 0);
@@ -60,6 +69,7 @@ export const TradeCard: React.FC<TradeCardProps> = ({
 
     return (
         <View style={styles.professionalTradeCard}>
+            {/* ... (existing collapsed view) */}
             <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={onToggleExpand}
@@ -119,15 +129,27 @@ export const TradeCard: React.FC<TradeCardProps> = ({
                     {totalMediaCount > 0 && (
                         <View style={styles.professionalImageContainer}>
                             {isCurrentItemVideo ? (
-                                // Show Video Player
-                                <Video
-                                    source={{ uri: trade.videoUrl }}
-                                    style={styles.professionalImage}
-                                    controls={true}
-                                    resizeMode="contain"
-                                    repeat={true}
-                                    paused={!isExpanded}
-                                />
+                                // Show Video Player - Tap to toggle play/pause
+                                <TouchableOpacity
+                                    activeOpacity={1}
+                                    onPress={() => setIsVideoPaused(!isVideoPaused)}
+                                    style={{ width: '100%', height: '100%' }}
+                                >
+                                    <Video
+                                        source={{ uri: trade.videoUrl }}
+                                        style={styles.professionalImage}
+                                        controls={false}
+                                        resizeMode="cover"
+                                        repeat={true}
+                                        paused={!isExpanded || isVideoPaused}
+                                    />
+                                    {/* Optional: Add play icon overlay when paused manually */}
+                                    {isVideoPaused && (
+                                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                                            <MaterialCommunityIcons name="play-circle" size={50} color="rgba(255,255,255,0.8)" />
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
                             ) : (
                                 // Show Image
                                 <RNImage
@@ -178,6 +200,16 @@ export const TradeCard: React.FC<TradeCardProps> = ({
 
                     {/* Info Grid */}
                     <View style={styles.professionalInfoGrid}>
+                        {/* Funding Target */}
+                        {trade.fundingTarget ? (
+                            <View style={styles.professionalInfoItem}>
+                                <Text style={styles.professionalInfoLabel}>Funding Target</Text>
+                                <Text style={styles.professionalInfoValue}>
+                                    ${trade.fundingTarget.toLocaleString()}
+                                </Text>
+                            </View>
+                        ) : null}
+
                         <View style={styles.professionalInfoItem}>
                             <Text style={styles.professionalInfoLabel}>Revenue</Text>
                             <Text style={styles.professionalInfoValue}>

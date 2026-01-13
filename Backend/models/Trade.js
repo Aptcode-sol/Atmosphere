@@ -26,6 +26,7 @@ const TradeSchema = new Schema(
                 message: 'Maximum 3 industries allowed'
             }
         },
+        fundingTarget: Number,
         isManualEntry: { type: Boolean, default: false },
         externalLinkHeading: String,
         externalLinkUrl: String,

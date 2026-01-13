@@ -98,14 +98,14 @@ export const styles = StyleSheet.create({
     portfolioExpanded: {
         borderTopWidth: 1,
         borderTopColor: '#222',
-        paddingVertical: 16,
-        paddingHorizontal: 16,
+        paddingVertical: 20,
+        paddingHorizontal: 20,
     },
     formLabel: {
         color: '#999',
         fontSize: 13,
-        marginBottom: 8,
-        marginTop: 12,
+        marginBottom: 6,
+        marginTop: 16,
     },
     rangeRow: {
         flexDirection: 'row',
@@ -161,7 +161,7 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 16,
         color: '#fff',
         fontSize: 14,
-        marginBottom: 8,
+        marginBottom: 12,
     },
     linkRow: {
         flexDirection: 'row',

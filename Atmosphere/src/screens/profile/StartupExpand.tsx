@@ -109,7 +109,7 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
         if (!newMemberName || !newMemberRole) return;
         setSavingMember(true);
         try {
-            const token = await EncryptedStorage.getItem('user_session');
+            const token = await AsyncStorage.getItem('token');
             const startupId = details._id || profileData._id || details.id;
 
             const newMember = {
@@ -144,17 +144,36 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
     const handleRequestPitchDeck = async () => {
         if (pitchRequested) return;
         try {
-            const uid = await EncryptedStorage.getItem('user_id');
+            // Get user from AsyncStorage (standard for this app)
+            let uid = '';
+            try {
+                const stored = await AsyncStorage.getItem('user');
+                if (stored) {
+                    const u = JSON.parse(stored);
+                    uid = u._id || u.id;
+                }
+            } catch { }
+
+            if (!uid) {
+                // Fallback to legacy
+                uid = await EncryptedStorage.getItem('user_id') || '';
+            }
+
             const startupOwnerId = details.userId || profileData?.userId || details.user || profileData?.user;
             if (!startupOwnerId) return;
 
-            // Direct API call since service file is missing on frontend
-            const token = await EncryptedStorage.getItem('user_session');
+            // Get token
+            const token = await AsyncStorage.getItem('token');
+            // Fallback just in case
+            const legacyToken = token ? null : await EncryptedStorage.getItem('user_session');
+
+            const finalToken = token || legacyToken;
+
             await axios.post(`${ENDPOINTS.CREATE_NOTIFICATION || 'http://10.0.2.2:5000/api/notifications'}`, {
                 userId: startupOwnerId,
                 type: 'pitch_deck_request',
                 payload: { requesterId: uid, startupId: details._id || profileData._id }
-            }, { headers: { Authorization: `Bearer ${token}` } });
+            }, { headers: { Authorization: `Bearer ${finalToken}` } });
 
             setPitchRequested(true);
         } catch (error) {
@@ -564,7 +583,7 @@ const cardStyles = {
         color: '#666',
         fontSize: 12,
         fontWeight: '600' as const,
-        marginBottom: 8,
+        marginBottom: 6,
     },
     aboutText: {
         color: '#e5e5e5',
@@ -576,20 +595,20 @@ const cardStyles = {
         fontSize: 12,
         fontWeight: '600' as const,
         marginBottom: 12,
-        marginTop: 12,
+        marginTop: 8, // Reduced from 12
     },
     row: {
         flexDirection: 'row' as const,
         alignItems: 'flex-start' as const,
         gap: 8,
-        marginBottom: 8,
+        marginBottom: 4, // Reduced from 8
     },
     firstRow: {
         flexDirection: 'row' as const,
         alignItems: 'center' as const,
         gap: 8,
         marginTop: 0,
-        marginBottom: 8,
+        marginBottom: 4,
     },
     rowTitle: {
         color: '#e5e5e5',
@@ -600,7 +619,8 @@ const cardStyles = {
         color: '#999',
         fontSize: 13,
         marginLeft: 24,
-        marginTop: 2,
+        marginTop: 0,
+        marginBottom: 16, // Added spacing between items
     },
     chipRow: {
         flexDirection: 'row' as const,
@@ -608,12 +628,13 @@ const cardStyles = {
         gap: 6,
         marginTop: 8,
         marginLeft: 24,
+        marginBottom: 20, // Added spacing after chips
     },
     chip: {
         backgroundColor: '#1a1a1a',
         borderWidth: 0,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
         borderRadius: 6,
     },
     chipText: {

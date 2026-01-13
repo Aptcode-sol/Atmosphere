@@ -138,7 +138,7 @@ const cardStyles = {
         color: '#666',
         fontSize: 12,
         fontWeight: '600' as const,
-        marginBottom: 8,
+        marginBottom: 6,
     },
     aboutText: {
         color: '#e5e5e5',
@@ -150,20 +150,20 @@ const cardStyles = {
         fontSize: 12,
         fontWeight: '600' as const,
         marginBottom: 12,
-        marginTop: 12,
+        marginTop: 8, // Reduced from 12
     },
     row: {
         flexDirection: 'row' as const,
         alignItems: 'flex-start' as const,
         gap: 8,
-        marginBottom: 8,
+        marginBottom: 4, // Reduced from 8 to keep label and value closer
     },
     firstRow: {
         flexDirection: 'row' as const,
         alignItems: 'center' as const,
         gap: 8,
         marginTop: 0,
-        marginBottom: 8,
+        marginBottom: 4,
     },
     rowTitle: {
         color: '#e5e5e5',
@@ -174,7 +174,8 @@ const cardStyles = {
         color: '#999',
         fontSize: 13,
         marginLeft: 24,
-        marginTop: 2,
+        marginTop: 0,
+        marginBottom: 16, // Added spacing between items
     },
     chipRow: {
         flexDirection: 'row' as const,
@@ -182,12 +183,13 @@ const cardStyles = {
         gap: 6,
         marginTop: 8,
         marginLeft: 24,
+        marginBottom: 20, // Added spacing after chips
     },
     chip: {
         backgroundColor: '#1a1a1a',
         borderWidth: 0,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
         borderRadius: 6,
     },
     chipText: {

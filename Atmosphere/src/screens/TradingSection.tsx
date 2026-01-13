@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ActivityIndicator, Dimensions, Animated, ScrollView, Image as RNImage, FlatList, RefreshControl, LayoutAnimation, UIManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades, createOrFindChat, sendMessage, shareContent, saveStartupProfile } from '../lib/api';
+import { createTrade, getMyTrades, getAllTrades, updateTrade, deleteTrade, uploadImage, uploadVideo, getProfile, toggleTradeSave, getSavedTrades, createOrFindChat, sendMessage, shareContent, saveStartupProfile, searchUsers, getStartupProfile } from '../lib/api';
 import { BOTTOM_NAV_HEIGHT } from '../lib/layout';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -43,6 +43,7 @@ interface ActiveTrade {
     selectedIndustries: string[];
     externalLinkHeading?: string;
     externalLinkUrl?: string;
+    fundingTarget?: number;
 }
 
 interface TradingProps {
@@ -518,6 +519,62 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
         setImageS3Urls(prev => prev.filter((_, i) => i !== index));
     };
 
+    // Investor Autofill: Fetch startup details when username is entered
+    useEffect(() => {
+        const fetchStartupDetails = async () => {
+            if (accountType === 'investor' && !isManualEntry && startupUsername && startupUsername.length > 2) {
+                try {
+                    // Search for user (strip @ if present)
+                    const cleanUsername = startupUsername.replace(/^@/, '');
+                    console.log('[Autofill] Searching for:', cleanUsername);
+                    const users = await searchUsers(cleanUsername, undefined, 1);
+                    if (users && users.length > 0) {
+                        const targetUser = users[0];
+                        // Fetch details
+                        const profileData = await getStartupProfile(targetUser._id);
+                        if (profileData && profileData.details) {
+                            const details = profileData.details;
+
+                            // Autofill fields if they are empty (or always overwrite? user said "autofill should work")
+                            // We'll overwrite to ensure it matches the user
+                            if (details.companyName || targetUser.displayName) {
+                                setSelectedCompanyName(details.companyName || targetUser.displayName || '');
+                            }
+                            if (details.oneLiner) setDescription(details.oneLiner);
+                            if (details.videoUrl) setVideoUri(details.videoUrl);
+
+                            // Images - use logo if available and no images selected
+                            if (details.logoUrl && imageUris.length === 0) {
+                                setImageUris([details.logoUrl]);
+                            }
+
+                            if (details.stage) setSelectedRound(details.stage);
+
+                            if (details.foundedDate) {
+                                const calcAge = (dateStr: string) => {
+                                    const d = new Date(dateStr);
+                                    const years = (new Date().getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+                                    return `${years.toFixed(1)} years`;
+                                };
+                                setCompanyAge(calcAge(details.foundedDate));
+                            }
+
+                            if (details.industry && selectedIndustries.length === 0) {
+                                // Match industry if possible, or just add if it matches types
+                                setSelectedIndustries([details.industry]);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.log('Autofill error:', err);
+                }
+            }
+        };
+
+        const timer = setTimeout(fetchStartupDetails, 800); // 800ms debounce
+        return () => clearTimeout(timer);
+    }, [startupUsername, accountType, isManualEntry, imageUris.length, selectedIndustries.length]);
+
     const handleOpenTrade = async () => {
         if (!expandedCompany) return;
 
@@ -580,6 +637,7 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
                 videoUrl: uploadedVideoUrl || undefined,
                 videoThumbnailUrl: uploadedThumbnailUrl || undefined,
                 imageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
+                fundingTarget: Number(fundingTarget) || 0,
             };
 
             try {
@@ -691,6 +749,7 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
             setSelectedIndustries(trade.selectedIndustries);
             setExternalLinkHeading(trade.externalLinkHeading || '');
             setExternalLinkUrl(trade.externalLinkUrl || '');
+            setFundingTarget(trade.fundingTarget ? String(trade.fundingTarget) : '');
         }
     };
 
