@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, Alert, Animated, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Alert, Animated, ScrollView, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { useAlert } from '../../components/CustomAlert';
 import { Picker } from '@react-native-picker/picker';
-import { saveStartupProfile, getProfile, getStartupProfile, uploadDocument, searchUsers } from '../../lib/api';
+import { saveStartupProfile, getProfile, getStartupProfile, uploadDocument, uploadVideoFile, searchUsers } from '../../lib/api';
+
+// ... other imports
 import { pick, types } from '@react-native-documents/picker';
 import CustomCalendar from '../../components/CustomCalendar';
 import { X, Plus } from 'lucide-react-native';
@@ -69,6 +71,8 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
     const [teamName, setTeamName] = useState('');
     const [teamRole, setTeamRole] = useState('');
     const [revenueType, setRevenueType] = useState('Pre-revenue');
+    const [showRevenueDropdown, setShowRevenueDropdown] = useState(false);
+    const [showRoundDropdown, setShowRoundDropdown] = useState(false);
     const [fundingMethod, setFundingMethod] = useState('');
     const [consent, setConsent] = useState(false);
     const [uploadName, setUploadName] = useState('');
@@ -96,6 +100,12 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
     const [searchingUser, setSearchingUser] = useState<number | null>(null);
     const [userSearchResults, setUserSearchResults] = useState<any[]>([]);
 
+    const [website, setWebsite] = useState('');
+    const [videoUrl, setVideoUrl] = useState('');
+    const [uploadingVideo, setUploadingVideo] = useState(false);
+    const [pendingVideo, setPendingVideo] = useState<{ uri: string; name?: string; type?: string } | null>(null);
+    const [videoName, setVideoName] = useState('');
+
     useEffect(() => {
         (async () => {
             try {
@@ -118,11 +128,20 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                         setAbout(data.about || '');
                         setLocation(data.location || '');
                         setCompanyType(data.companyType || '');
+                        setWebsite(data.website || '');
+                        setVideoUrl(data.video || '');
                         setEstablishedOn(data.establishedOn ? String(data.establishedOn).slice(0, 10) : '');
+
+                        // Correctly load array of team members
                         if (Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
-                            setTeamName(data.teamMembers[0].name || '');
-                            setTeamRole(data.teamMembers[0].role || '');
+                            setTeamMembers(data.teamMembers.map((m: any, i: number) => ({
+                                id: i + 1,
+                                username: m.name || m.username || '', // Backend might send 'name' or 'username'
+                                role: m.role || '',
+                                userId: m.userId || ''
+                            })));
                         }
+
                         if (data.financialProfile) {
                             setRevenueType(data.financialProfile.revenueType || 'Pre-revenue');
                             setFundingMethod(data.financialProfile.fundingMethod || '');
@@ -138,9 +157,8 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                         setRoundType(data.roundType || data.stage || '');
                         // Load required capital (backend stores as 'fundingNeeded', frontend uses 'requiredCapital')
                         setRequiredCapital(data.requiredCapital || data.fundingNeeded ? String(data.requiredCapital || data.fundingNeeded) : '');
-                        // Populate documents URL (but DON'T set uploadName - only show name when user picks new file)
+                        // Populate documents URL
                         if (data.documents) {
-                            // setUploadName is intentionally NOT set here - document name only shows for newly picked files
                             setUploadUrl(data.documents);
                         }
                     } else {
@@ -178,6 +196,26 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             // User cancelled or error
             if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
                 showAlert('Error', err.message || 'Failed to pick document');
+            }
+        }
+    };
+
+    const pickVideo = async () => {
+        try {
+            const result = await pick({
+                type: [types.video],
+            });
+
+            if (!result || result.length === 0) return;
+
+            const vid = result[0];
+            if (vid && vid.uri) {
+                setPendingVideo({ uri: vid.uri, name: vid.name ? vid.name : undefined, type: vid.type ? vid.type : undefined });
+                setVideoName(vid.name || 'video');
+            }
+        } catch (err: any) {
+            if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
+                showAlert('Error', err.message || 'Failed to pick video');
             }
         }
     };
@@ -291,6 +329,7 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
 
         setUploadingDoc(true);
         setUploadingInvestorDoc(true);
+        setUploadingVideo(true);
         try {
             // Upload staged documents if any
             let finalUploadUrl = uploadUrl;
@@ -319,13 +358,33 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                 }
             }
 
+            let finalVideoUrl = videoUrl;
+            if (pendingVideo) {
+                try {
+                    const url = await uploadVideoFile(pendingVideo.uri, pendingVideo.name || 'video.mp4', pendingVideo.type || 'video/mp4');
+                    finalVideoUrl = url;
+                    setVideoUrl(url);
+                    setPendingVideo(null);
+                } catch (e: any) {
+                    showAlert('Upload Failed', e?.message || 'Could not upload video');
+                    return;
+                }
+            }
+
             const payload = {
                 companyName: companyProfile,
                 about,
                 location,
                 companyType,
+                website,
+                video: finalVideoUrl,
                 establishedOn,
-                teamMembers: teamName && teamRole ? [{ name: teamName, role: teamRole }] : [],
+                teamMembers: teamMembers.map(m => ({
+                    name: m.username, // mapping username to 'name' as per schema logic
+                    username: m.username,
+                    role: m.role,
+                    userId: m.userId
+                })),
                 financialProfile: {
                     revenueType,
                     fundingMethod,
@@ -345,6 +404,7 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
         } finally {
             setUploadingDoc(false);
             setUploadingInvestorDoc(false);
+            setUploadingVideo(false);
         }
     };
 
@@ -375,8 +435,11 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                         <TextInput placeholder="Search location" placeholderTextColor="#999" value={location} onChangeText={setLocation} style={styles.input} />
                     </View>
                     <View style={styles.formField}>
-                        <Text style={styles.label}>Company Type</Text>
                         <TextInput placeholder="Select company type" placeholderTextColor="#999" value={companyType} onChangeText={setCompanyType} style={styles.input} />
+                    </View>
+                    <View style={styles.formField}>
+                        <Text style={styles.label}>Website</Text>
+                        <TextInput placeholder="https://..." placeholderTextColor="#999" value={website} onChangeText={setWebsite} style={styles.input} autoCapitalize="none" keyboardType="url" />
                     </View>
                     <View style={styles.formField}>
                         <Text style={styles.label}>Company Established On</Text>
@@ -447,21 +510,22 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             </CollapsibleSection>
 
 
+
+
+
             <CollapsibleSection title="Financial profile" open={activeSection === 'financial'} onPress={() => setActiveSection(activeSection === 'financial' ? '' : 'financial')}>
                 <View>
                     <View style={styles.formField}>
                         <Text style={styles.label}>Revenue type</Text>
-                        <View style={[styles.input, styles.inputDark, styles.pickerWrap]}>
-                            <Picker
-                                selectedValue={revenueType}
-                                onValueChange={setRevenueType}
-                                dropdownIconColor="#fff"
-                                style={styles.picker}
-                            >
-                                <Picker.Item label="Pre-revenue" value="Pre-revenue" />
-                                <Picker.Item label="Revenue generating" value="Revenue generating" />
-                            </Picker>
-                        </View>
+                        <TouchableOpacity
+                            style={styles.dropdownButton}
+                            onPress={() => setShowRevenueDropdown(true)}
+                        >
+                            <View>
+                                <Text style={styles.dropdownValue}>{revenueType || 'Select revenue type'}</Text>
+                            </View>
+                            <Text style={styles.dropdownArrow}>▼</Text>
+                        </TouchableOpacity>
                     </View>
                     <View style={styles.btnRow}>
                         <TouchableOpacity
@@ -536,23 +600,15 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                 <View>
                     <View style={styles.formField}>
                         <Text style={styles.label}>Round</Text>
-                        <View style={[styles.input, styles.inputDark, styles.pickerWrap]}>
-                            <Picker
-                                selectedValue={roundType}
-                                onValueChange={setRoundType}
-                                dropdownIconColor="#fff"
-                                style={styles.picker}
-                            >
-                                <Picker.Item label="Select round" value="" color="#999" />
-                                <Picker.Item label="Pre-seed" value="Pre-seed" />
-                                <Picker.Item label="Seed" value="Seed" />
-                                <Picker.Item label="Series A" value="Series A" />
-                                <Picker.Item label="Series B" value="Series B" />
-                                <Picker.Item label="Series C" value="Series C" />
-                                <Picker.Item label="Series D" value="Series D" />
-                                <Picker.Item label="Series D and beyond" value="Series D and beyond" />
-                            </Picker>
-                        </View>
+                        <TouchableOpacity
+                            style={styles.dropdownButton}
+                            onPress={() => setShowRoundDropdown(true)}
+                        >
+                            <View>
+                                <Text style={styles.dropdownValue}>{roundType || 'Select round'}</Text>
+                            </View>
+                            <Text style={styles.dropdownArrow}>▼</Text>
+                        </TouchableOpacity>
                     </View>
                     <View style={styles.formField}>
                         <Text style={styles.label}>Required capital</Text>
@@ -577,6 +633,15 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
                     )}
                 </TouchableOpacity>
             </View>
+            <View style={styles.uploadWrap}>
+                <TouchableOpacity onPress={pickVideo} style={styles.uploadBtn} disabled={uploadingVideo}>
+                    {uploadingVideo ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                        <Text style={styles.uploadText}>{videoName || (videoUrl ? 'Video Uploaded - Tap to Change' : 'Upload company video / demo')}</Text>
+                    )}
+                </TouchableOpacity>
+            </View>
             <View style={styles.consentRow}>
                 <TouchableOpacity onPress={() => setConsent(!consent)} style={styles.consentBtn}>
                     <View style={[styles.consentBox, consent ? styles.consentBoxChecked : styles.consentBoxUnchecked]}>
@@ -591,21 +656,67 @@ export default function StartupPortfolioStep({ onBack, onDone }: { onBack: () =>
             </TouchableOpacity>
             <Text style={styles.infoText}>All submitted documents will be reviewed and updated automatically.</Text>
 
+            {/* Revenue Dropdown Modal */}
+            <Modal visible={showRevenueDropdown} transparent animationType="fade" onRequestClose={() => setShowRevenueDropdown(false)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowRevenueDropdown(false)}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Select Revenue Type</Text>
+                        {['Pre-revenue', 'Revenue generating'].map((type) => (
+                            <TouchableOpacity
+                                key={type}
+                                style={[styles.modalOption, revenueType === type && styles.modalOptionActive]}
+                                onPress={() => { setRevenueType(type); setShowRevenueDropdown(false); }}
+                            >
+                                <Text style={[styles.modalOptionLabel, revenueType === type && styles.modalOptionLabelActive]}>{type}</Text>
+                                {revenueType === type && <Text style={styles.checkmark}>✓</Text>}
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity style={styles.modalCancel} onPress={() => setShowRevenueDropdown(false)}>
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Round Dropdown Modal */}
+            <Modal visible={showRoundDropdown} transparent animationType="fade" onRequestClose={() => setShowRoundDropdown(false)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowRoundDropdown(false)}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Select Round</Text>
+                        {['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Series D', 'Series D and beyond'].map((type) => (
+                            <TouchableOpacity
+                                key={type}
+                                style={[styles.modalOption, roundType === type && styles.modalOptionActive]}
+                                onPress={() => { setRoundType(type); setShowRoundDropdown(false); }}
+                            >
+                                <Text style={[styles.modalOptionLabel, roundType === type && styles.modalOptionLabelActive]}>{type}</Text>
+                                {roundType === type && <Text style={styles.checkmark}>✓</Text>}
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity style={styles.modalCancel} onPress={() => setShowRoundDropdown(false)}>
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
             {/* Date picker modal */}
-            {showDatePicker && (
-                <CustomCalendar
-                    visible={showDatePicker}
-                    value={dateValue ?? new Date()}
-                    onChange={(selected: Date) => {
-                        setDateValue(selected);
-                        const d = selected;
-                        const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                        setEstablishedOn(formatted);
-                    }}
-                    onClose={() => setShowDatePicker(false)}
-                />
-            )}
-        </ScrollView>
+            {
+                showDatePicker && (
+                    <CustomCalendar
+                        visible={showDatePicker}
+                        value={dateValue ?? new Date()}
+                        onChange={(selected: Date) => {
+                            setDateValue(selected);
+                            const d = selected;
+                            const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            setEstablishedOn(formatted);
+                        }}
+                        onClose={() => setShowDatePicker(false)}
+                    />
+                )
+            }
+        </ScrollView >
     );
 }
 
@@ -654,4 +765,84 @@ const styles = StyleSheet.create({
     formField: { marginBottom: 16 },
     pickerWrap: { padding: 0 },
     picker: { color: '#fff', width: '100%' },
+    dropdownButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#111',
+        borderWidth: 1,
+        borderColor: '#333',
+        borderRadius: 8,
+        padding: 16,
+    },
+    dropdownLabel: {
+        fontSize: 12,
+        color: '#8e8e8e',
+        marginBottom: 4,
+    },
+    dropdownValue: {
+        fontSize: 16,
+        color: '#fff',
+        fontWeight: '500',
+    },
+    dropdownArrow: {
+        fontSize: 12,
+        color: '#8e8e8e',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#1a1a1a',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 24,
+        paddingBottom: 40,
+        maxHeight: '80%',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#fff',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    modalOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#2a2a2a',
+    },
+    modalOptionActive: {
+        backgroundColor: '#262626',
+        marginHorizontal: -24,
+        paddingHorizontal: 24,
+    },
+    modalOptionLabel: {
+        fontSize: 16,
+        color: '#ccc',
+    },
+    modalOptionLabelActive: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    checkmark: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    modalCancel: {
+        marginTop: 20,
+        padding: 16,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        color: '#ef4444',
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });

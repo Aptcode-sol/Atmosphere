@@ -390,18 +390,18 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                                                             return;
                                                         }
 
-                                                        // Read file as base64 - required for Android FileProvider restrictions
+                                                        // Read file as base64 for Android compatibility
                                                         const base64Content = await RNFS.readFile(exportedFilePath, 'base64');
 
-                                                        // Use saveToFiles to trigger Android's file save/open dialog
+                                                        // Share with app chooser
                                                         await RNShare.open({
-                                                            title: 'Open Applicants CSV',
                                                             url: `data:text/csv;base64,${base64Content}`,
                                                             type: 'text/csv',
                                                             filename: 'applicants.csv',
-                                                            saveToFiles: true, // This triggers save dialog on Android
                                                         });
                                                     } catch (err: any) {
+                                                        // User cancelled is not an error
+                                                        if (err?.message?.includes('cancel')) return;
                                                         console.log('Open file error:', err);
                                                         showAlert('Error', 'Could not open file: ' + (err?.message || 'Unknown error'));
                                                     }

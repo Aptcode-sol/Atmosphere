@@ -168,6 +168,17 @@ export async function uploadDocument(fileUri: string, fileName: string, mimeType
     return uploadData.url;
 }
 
+export async function uploadVideoFile(videoUri: string, fileName?: string, mimeType?: string): Promise<string> {
+    const baseUrl = await getBaseUrl();
+    const token = await AsyncStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('video', { uri: videoUri, name: fileName || 'video.mp4', type: mimeType || 'video/mp4' } as any);
+    const uploadRes = await fetch(`${baseUrl}/api/upload/video`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+    if (!uploadRes.ok) { const err = await uploadRes.json().catch(() => ({})); throw new Error(err.error || 'Failed to upload video'); }
+    const uploadData = await uploadRes.json();
+    return uploadData.url;
+}
+
 // Unified Share
 export async function shareContent(payload: { userIds: string[]; contentId: string; contentType: 'post' | 'reel' | 'startup' | 'trade'; contentTitle?: string; contentImage?: string; contentOwner?: string }) {
     return request('/api/shares/send', payload, { method: 'POST' });

@@ -71,6 +71,6 @@ export {
     fetchGrants, fetchEvents,
     searchEntities,
     fetchMyTeam, addToMyTeam, removeFromMyTeam,
-    uploadImage, uploadDocument,
+    uploadImage, uploadDocument, uploadVideoFile,
     shareContent
 } from './misc';

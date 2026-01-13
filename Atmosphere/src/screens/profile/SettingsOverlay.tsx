@@ -691,26 +691,12 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                                 await clearToken();
                                 // Clear settings cache on logout
                                 await AsyncStorage.removeItem(SETTINGS_CACHE_KEY);
-                                // Clear user data
+                                // Clear user data - this will trigger App.tsx interval to redirect to signin
                                 await AsyncStorage.removeItem('user');
                                 await AsyncStorage.removeItem('token');
                                 await AsyncStorage.removeItem('role');
                                 onClose();
-
-                                // Navigate to landing page (works in both dev and release)
-                                if (onNavigate) {
-                                    onNavigate('landing');
-                                }
-
-                                // Try DevSettings reload for dev mode as fallback
-                                try {
-                                    const { DevSettings } = require('react-native');
-                                    if (__DEV__ && DevSettings && typeof DevSettings.reload === 'function') {
-                                        DevSettings.reload();
-                                    }
-                                } catch {
-                                    // ignore - release mode doesn't have DevSettings
-                                }
+                                // App.tsx has an interval that checks for token and will redirect to signin
                             }}
                         >
                             <Text style={styles.logoutText}>Log Out</Text>
