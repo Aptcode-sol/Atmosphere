@@ -191,30 +191,61 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
     }, [onRefresh, navbarTranslateY]);
 
     const normalizeData = (data: any[]) => {
-        return (data || []).map((p: any) => ({
-            id: String(p.id || p._id || Math.random()) + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5), // Ensure unique key for looping
-            originalId: String(p.id || p._id),
-            userId: String(
-                p.userId ||
-                (p.user && (typeof p.user === 'string' ? p.user : (p.user._id || p.user.id))) ||
-                ''
-            ),
-            startupDetailsId: String(p._id || p.startupDetailsId || ''),
-            name: String(p.name || p.companyName || 'Unknown'),
-            displayName: String(p.displayName || ''),
-            verified: Boolean(p.verified || false),
-            profileImage: p.profileImage || 'https://via.placeholder.com/400x240.png?text=Startup',
-            description: String(p.description || p.about || ''),
-            stage: String(p.stage || 'unknown'),
-            rounds: Number(p.rounds || 0),
-            age: Number(p.age || 0),
-            fundingRaised: Number(p.fundingRaised || 0),
-            fundingNeeded: Number(p.fundingNeeded || 0),
-            stats: p.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 },
-            likedByCurrentUser: Boolean(p.likedByCurrentUser),
-            crownedByCurrentUser: Boolean(p.crownedByCurrentUser),
-            isFollowing: Boolean(p.isFollowing),
-        }));
+        return (data || []).map((p: any) => {
+            // Get funding rounds (investments) from the startup data
+            const fundingRounds = p.fundingRounds || [];
+            const currentRound = p.stage || p.roundType || 'Seed';
+
+            // Calculate rounds count from unique round values
+            const uniqueRounds = Array.isArray(fundingRounds)
+                ? [...new Set(fundingRounds.map((inv: any) => inv.round).filter(Boolean))]
+                : [];
+            const calculatedRounds = uniqueRounds.length || Number(p.rounds || 0);
+
+            // Calculate total raised across ALL investments
+            const totalRaisedAll = Array.isArray(fundingRounds)
+                ? fundingRounds.reduce((sum: number, inv: any) => sum + (Number(inv.amount) || 0), 0)
+                : Number(p.fundingRaised || 0);
+
+            // Calculate funding raised from investments matching current round
+            const matchingInvestments = Array.isArray(fundingRounds)
+                ? fundingRounds.filter((inv: any) => inv.round === currentRound)
+                : [];
+            const fundingRaisedFromRound = matchingInvestments.reduce((sum: number, inv: any) => {
+                return sum + (Number(inv.amount) || 0);
+            }, 0);
+
+            // Use calculated value or fallback to stored values
+            const finalFundingRaised = fundingRaisedFromRound > 0
+                ? fundingRaisedFromRound
+                : Number(p.fundingRaised || 0);
+
+            return {
+                id: String(p.id || p._id || Math.random()) + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5), // Ensure unique key for looping
+                originalId: String(p.id || p._id),
+                userId: String(
+                    p.userId ||
+                    (p.user && (typeof p.user === 'string' ? p.user : (p.user._id || p.user.id))) ||
+                    ''
+                ),
+                startupDetailsId: String(p._id || p.startupDetailsId || ''),
+                name: String(p.name || p.companyName || 'Unknown'),
+                displayName: String(p.displayName || ''),
+                verified: Boolean(p.verified || false),
+                profileImage: p.profileImage || 'https://via.placeholder.com/400x240.png?text=Startup',
+                description: String(p.description || p.about || ''),
+                stage: String(p.stage || 'unknown'),
+                rounds: calculatedRounds,
+                age: Number(p.age || 0),
+                fundingRaised: finalFundingRaised,
+                fundingNeeded: Number(p.fundingNeeded || 0),
+                totalRaisedAll: totalRaisedAll,  // Total across all rounds
+                stats: p.stats || { likes: 0, comments: 0, crowns: 0, shares: 0 },
+                likedByCurrentUser: Boolean(p.likedByCurrentUser),
+                crownedByCurrentUser: Boolean(p.crownedByCurrentUser),
+                isFollowing: Boolean(p.isFollowing),
+            };
+        });
     };
 
     const CACHE_KEY = 'ATMOSPHERE_HOME_FEED_CACHE';

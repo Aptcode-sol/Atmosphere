@@ -10,11 +10,12 @@ import { pick, types } from '@react-native-documents/picker';
 import CustomCalendar from '../../components/CustomCalendar';
 import { X, Plus } from 'lucide-react-native';
 
-// Types for multi-round funding
+// Types for investments (formerly funding rounds)
 interface FundingRound {
     id: number;
     amount: string;
     investor: string;
+    round: string; // Pre-seed, Seed, Series A, etc.
     docUrl?: string;
     pendingDoc?: { uri: string; name?: string; type?: string } | null;
 }
@@ -77,6 +78,8 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
     const [revenueType, setRevenueType] = useState('Pre-revenue');
     const [showRevenueDropdown, setShowRevenueDropdown] = useState(false);
     const [showRoundDropdown, setShowRoundDropdown] = useState(false);
+    // Investment round picker state (separate from activeSection to avoid closing form)
+    const [openRoundPickerId, setOpenRoundPickerId] = useState<number | null>(null);
     const [fundingMethod, setFundingMethod] = useState('');
     const [consent, setConsent] = useState(false);
     const [uploadName, setUploadName] = useState('');
@@ -96,8 +99,8 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [dateValue, setDateValue] = useState<Date | null>(null);
 
-    // Multi-round funding state
-    const [fundingRounds, setFundingRounds] = useState<FundingRound[]>([{ id: 1, amount: '', investor: '', docUrl: '', pendingDoc: null }]);
+    // Investment tracking state (formerly funding rounds)
+    const [fundingRounds, setFundingRounds] = useState<FundingRound[]>([{ id: 1, amount: '', investor: '', round: '', docUrl: '', pendingDoc: null }]);
 
     // Team members array state
     const [teamMembers, setTeamMembers] = useState<TeamMember[]>([{ id: 1, username: '', role: '', userId: '' }]);
@@ -165,12 +168,13 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
                             }
                         }
 
-                        // Load fundingRounds from backend
+                        // Load fundingRounds (investments) from backend
                         if (Array.isArray(data.fundingRounds) && data.fundingRounds.length > 0) {
                             setFundingRounds(data.fundingRounds.map((r: any, i: number) => ({
                                 id: i + 1,
                                 amount: r.amount ? String(r.amount) : '',
                                 investor: r.investorName || '',
+                                round: r.round || '',  // Load the round field
                                 docUrl: r.doc || '',
                                 pendingDoc: null
                             })));
@@ -272,10 +276,10 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
         }
     };
 
-    // Funding round helpers
+    // Investment helpers
     const addFundingRound = () => {
         const newId = fundingRounds.length > 0 ? Math.max(...fundingRounds.map(r => r.id)) + 1 : 1;
-        setFundingRounds([...fundingRounds, { id: newId, amount: '', investor: '', docUrl: '', pendingDoc: null }]);
+        setFundingRounds([...fundingRounds, { id: newId, amount: '', investor: '', round: '', docUrl: '', pendingDoc: null }]);
     };
 
     const removeFundingRound = (id: number) => {
@@ -284,7 +288,7 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
         }
     };
 
-    const updateFundingRound = (id: number, field: 'amount' | 'investor', value: string) => {
+    const updateFundingRound = (id: number, field: 'amount' | 'investor' | 'round', value: string) => {
         setFundingRounds(fundingRounds.map(r => r.id === id ? { ...r, [field]: value } : r));
     };
 
@@ -416,7 +420,7 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
                     userId: m.userId
                 })),
                 fundingRounds: fundingMethod === 'Capital Raised' ? fundingRounds.map(r => ({
-                    round: `Round ${fundingRounds.indexOf(r) + 1}`,
+                    round: r.round || 'Seed',  // Use actual selected round
                     amount: Number(r.amount) || 0,
                     investorName: r.investor,
                     doc: r.docUrl || ''
@@ -585,12 +589,18 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
 
                     {fundingMethod === 'Capital Raised' && (
                         <View style={{ marginTop: 16 }}>
-                            {fundingRounds.map((round, index) => (
-                                <View key={round.id} style={{ marginBottom: 20, padding: 12, backgroundColor: '#151515', borderRadius: 8, borderWidth: 1, borderColor: '#222' }}>
+                            {/* Add Investment button at top */}
+                            <TouchableOpacity onPress={addFundingRound} style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#333', borderRadius: 24, paddingVertical: 14, marginBottom: 16 }}>
+                                <Text style={{ color: '#fff', fontSize: 15 }}>+   Add Investment</Text>
+                            </TouchableOpacity>
+
+                            {/* Display investments in reverse order (oldest first, newest at bottom) */}
+                            {[...fundingRounds].reverse().map((investment, index) => (
+                                <View key={investment.id} style={{ marginBottom: 20, padding: 12, backgroundColor: '#151515', borderRadius: 8, borderWidth: 1, borderColor: '#222' }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                        <Text style={{ color: '#fff', fontWeight: '600' }}>Round {index + 1}</Text>
+                                        <Text style={{ color: '#fff', fontWeight: '600' }}>Investment {fundingRounds.length - index}</Text>
                                         {fundingRounds.length > 1 && (
-                                            <TouchableOpacity onPress={() => removeFundingRound(round.id)}>
+                                            <TouchableOpacity onPress={() => removeFundingRound(investment.id)}>
                                                 <X size={18} color="#888" />
                                             </TouchableOpacity>
                                         )}
@@ -603,8 +613,8 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
                                             <TextInput
                                                 placeholder="200000"
                                                 placeholderTextColor="#666"
-                                                value={round.amount}
-                                                onChangeText={(v) => updateFundingRound(round.id, 'amount', v)}
+                                                value={investment.amount}
+                                                onChangeText={(v) => updateFundingRound(investment.id, 'amount', v)}
                                                 style={[styles.input, { flex: 1, borderWidth: 0 }]}
                                                 keyboardType="numeric"
                                             />
@@ -617,21 +627,50 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
                                         <TextInput
                                             placeholder="Enter investor name"
                                             placeholderTextColor="#666"
-                                            value={round.investor}
-                                            onChangeText={(v) => updateFundingRound(round.id, 'investor', v)}
+                                            value={investment.investor}
+                                            onChangeText={(v) => updateFundingRound(investment.id, 'investor', v)}
                                             style={styles.input}
                                         />
                                     </View>
 
-                                    <TouchableOpacity onPress={() => pickRoundDoc(round.id)} style={styles.uploadBtn}>
-                                        <Text style={styles.uploadText}>{round.docUrl || 'Upload investor proof'}</Text>
+                                    {/* Round Selection Dropdown */}
+                                    <View style={[styles.formField, { marginBottom: 12 }]}>
+                                        <Text style={styles.label}>Funding Round</Text>
+                                        <TouchableOpacity
+                                            style={styles.dropdownButton}
+                                            onPress={() => {
+                                                // Toggle round picker for this investment (separate from activeSection)
+                                                setOpenRoundPickerId(openRoundPickerId === investment.id ? null : investment.id);
+                                            }}
+                                        >
+                                            <Text style={[styles.dropdownValue, { color: investment.round ? '#fff' : '#666' }]}>
+                                                {investment.round || 'Select round'}
+                                            </Text>
+                                            <Text style={styles.dropdownArrow}>▼</Text>
+                                        </TouchableOpacity>
+                                        {openRoundPickerId === investment.id && (
+                                            <View style={{ backgroundColor: '#1a1a1a', borderRadius: 8, marginTop: 8, padding: 8, borderWidth: 1, borderColor: '#333' }}>
+                                                {['Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Series D+'].map((roundOption) => (
+                                                    <TouchableOpacity
+                                                        key={roundOption}
+                                                        style={{ padding: 12, borderRadius: 6, backgroundColor: investment.round === roundOption ? '#333' : 'transparent' }}
+                                                        onPress={() => {
+                                                            updateFundingRound(investment.id, 'round', roundOption);
+                                                            setOpenRoundPickerId(null);
+                                                        }}
+                                                    >
+                                                        <Text style={{ color: investment.round === roundOption ? '#fff' : '#aaa' }}>{roundOption}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </View>
+
+                                    <TouchableOpacity onPress={() => pickRoundDoc(investment.id)} style={styles.uploadBtn}>
+                                        <Text style={styles.uploadText}>{investment.docUrl || 'Upload investor proof'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ))}
-
-                            <TouchableOpacity onPress={addFundingRound} style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#333', borderRadius: 24, paddingVertical: 14, marginTop: 12 }}>
-                                <Text style={{ color: '#fff', fontSize: 15 }}>+   Add Round</Text>
-                            </TouchableOpacity>
                         </View>
                     )}
                 </View>

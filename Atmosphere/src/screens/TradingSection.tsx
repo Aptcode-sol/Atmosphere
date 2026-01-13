@@ -601,7 +601,10 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
                     // For startups: Update startup profile with fundingNeeded and roundType
                     if (accountType === 'startup' && (fundingTarget || selectedRound)) {
                         try {
-                            const profileUpdate: any = {};
+                            const profileUpdate: any = {
+                                // Reset fundingRaised to 0 when starting a new round
+                                fundingRaised: 0
+                            };
                             if (fundingTarget) {
                                 // Parse funding target (remove currency symbols and commas)
                                 const numericTarget = parseFloat(fundingTarget.replace(/[^0-9.]/g, '')) || 0;

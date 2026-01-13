@@ -177,7 +177,23 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
     }
     if (!Array.isArray(teamMembers)) teamMembers = [];
 
-    const fundingRaised = details.fundingRaised || details.financialProfile?.fundingAmount || profileData?.stats?.fundingRaised || 0;
+    // Get funding rounds (investments) and current round
+    const rounds = details.fundingRounds || details.rounds || details.financialProfile?.rounds || [];
+    const currentRound = details.roundType || details.stage || details.currentRound || (rounds.length > 0 ? rounds[rounds.length - 1].round : 'Seed');
+
+    // Calculate fundingRaised from investments matching current round only
+    const matchingInvestments = Array.isArray(rounds)
+        ? rounds.filter((inv: any) => inv.round === currentRound)
+        : [];
+    const fundingRaisedFromInvestments = matchingInvestments.reduce((sum: number, inv: any) => {
+        const amount = Number(inv.amount) || 0;
+        return sum + amount;
+    }, 0);
+
+    // Use calculated value or fallback to stored values
+    const fundingRaised = fundingRaisedFromInvestments > 0
+        ? fundingRaisedFromInvestments
+        : (details.fundingRaised || details.financialProfile?.fundingAmount || profileData?.stats?.fundingRaised || 0);
     const fundingNeeded = details.fundingNeeded || details.financialProfile?.fundingNeeded || profileData?.stats?.fundingNeeded || 0;
 
     // Calculate progress percentage for financial bar
@@ -191,11 +207,16 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
 
     const revenueType = details.financialProfile?.revenueType || details.revenueType || 'Pre-revenue';
 
-    // Fix Financials: derive from fundingRounds if available
-    const rounds = details.fundingRounds || details.rounds || details.financialProfile?.rounds || [];
-    const roundsCount = rounds.length || details.roundsRaised || 0;
+    // Calculate unique rounds count (distinct round values from investments)
+    const uniqueRounds = Array.isArray(rounds)
+        ? [...new Set(rounds.map((inv: any) => inv.round).filter(Boolean))]
+        : [];
+    const roundsCount = uniqueRounds.length || details.roundsRaised || 0;
 
-    const currentRound = details.roundType || details.currentRound || (rounds.length > 0 ? rounds[rounds.length - 1].round : 'Series A');
+    // Calculate TOTAL raised across ALL investments (all rounds)
+    const totalRaisedAllRounds = Array.isArray(rounds)
+        ? rounds.reduce((sum: number, inv: any) => sum + (Number(inv.amount) || 0), 0)
+        : (details.fundingRaised || details.financialProfile?.fundingAmount || 0);
 
     // Fix Investors: comma separated
     let investors: string[] = [];
@@ -382,7 +403,7 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Text style={{ color: '#888', fontSize: 13 }}>Total Raised</Text>
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>{formatCurrency(fundingRaised)}</Text>
+                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>{formatCurrency(totalRaisedAllRounds)}</Text>
                         </View>
                         {investorsList ? (
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

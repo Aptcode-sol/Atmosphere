@@ -271,7 +271,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                         <View style={styles.pill}><Text style={styles.pillText}>Rounds : {companyData.rounds ?? 0}</Text></View>
                         <View style={styles.pill}><Text style={styles.pillText}>Age : {companyData.age ?? 0} yr</Text></View>
                     </View>
-                    <Text style={styles.currentRound}>Current round : <Text style={styles.currentRoundValue}>Series A</Text></Text>
+                    <Text style={styles.currentRound}>Current round : <Text style={styles.currentRoundValue}>{String(companyData.stage || 'Seed')}</Text></Text>
                     <View style={styles.fundingBarWrap}>
                         <View style={styles.fundingBarTrack}>
                             <View style={[styles.fundingFilled, { width: `${fundingPercent}%` }]} />

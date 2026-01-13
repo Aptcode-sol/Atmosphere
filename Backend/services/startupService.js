@@ -92,6 +92,7 @@ exports.listStartupCards = async (req, res, next) => {
             age: startup.age,
             fundingRaised: startup.fundingRaised,
             fundingNeeded: startup.fundingNeeded,
+            fundingRounds: startup.fundingRounds || [],
             stats: {
                 likes: Number((startup.meta && typeof startup.meta.likes === 'number') ? startup.meta.likes : (startup.likesCount || 0)),
                 comments: Number((startup.meta && startup.meta.commentsCount) || 0),
