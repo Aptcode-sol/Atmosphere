@@ -1,7 +1,7 @@
 // Opportunities page constants
 
-// Tab order matches web: Grants, Events, Team
-export const TABS = ['Grants', 'Events', 'Team'];
+// Tab order matches web: Grants, Events, Jobs
+export const TABS = ['Grants', 'Events', 'Jobs'];
 
 // Filter options matching web
 export const sectors = ['All Sectors', 'Verified Startup'];

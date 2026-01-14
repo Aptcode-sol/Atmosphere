@@ -69,7 +69,33 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
     const [investorsLoading, setInvestorsLoading] = useState<boolean>(true);
     const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
     const pagerRef = useRef<any>(null);
-    const scrollX = useRef(new Animated.Value(0)).current;
+    const scrollX = useRef(new Animated.Value(initialTab === 'Sell' ? screenW : 0)).current;
+
+    // Persist active tab
+    useEffect(() => {
+        const loadLastTab = async () => {
+            if (!initialTab) {
+                try {
+                    const lastTab = await AsyncStorage.getItem('lastTradingTab');
+                    if (lastTab === 'Sell') {
+                        setActiveTab('Sell');
+                        scrollX.setValue(screenW);
+                        // Need short timeout for ref to be ready
+                        setTimeout(() => pagerRef.current?.scrollTo({ x: screenW, animated: false }), 50);
+                    }
+                } catch (e) {
+                    console.log('Error loading last tab', e);
+                }
+            }
+        };
+        loadLastTab();
+    }, [initialTab]);
+
+    useEffect(() => {
+        if (activeTab === 'Buy' || activeTab === 'Sell') {
+            AsyncStorage.setItem('lastTradingTab', activeTab).catch(e => console.log(e));
+        }
+    }, [activeTab]);
 
     // Memoized style objects to avoid inline styles in JSX (reduces eslint warnings)
     const centeredLoaderStyle = useMemo(() => ({ flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const }), []);
@@ -83,20 +109,22 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
     const headerPadding = 16; // Matches headerContainer paddingHorizontal
     const tabsRowWidth = screenW - (headerPadding * 2); // Actual width of tabsRow
     const tabWidth = tabsRowWidth / 2; // Each tab takes half the tabsRow
-    const indicatorWidth = 80; // Indicator width (matches styles.ts)
-    const indicatorCenterInTab = (tabWidth - indicatorWidth) / 2; // Center indicator within each tab
+    const indicatorWidth = tabWidth; // Indicator width (full tab width)
+    const indicatorCenterInTab = 0; // Start at 0
     const animatedIndicatorStyle = useMemo(() => ([
         styles.tabIndicator,
         {
-            left: indicatorCenterInTab, // Start centered in first tab
+            width: indicatorWidth,
+            left: 0,
+            backgroundColor: '#fff',
             transform: [{
                 translateX: scrollX.interpolate({
                     inputRange: [0, screenW],
-                    outputRange: [0, tabWidth] // Move by one tab width when scrolling
+                    outputRange: [0, tabWidth]
                 })
             }]
         }
-    ]), [scrollX, indicatorCenterInTab, tabWidth]);
+    ]), [scrollX, tabWidth, indicatorWidth]);
 
     // SELL tab - Portfolio form state
     const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
@@ -1433,18 +1461,15 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={(e) => {
                     const idx = Math.round(e.nativeEvent.contentOffset.x / screenW);
-                    setActiveTab(idx === 0 ? 'Buy' : 'Sell');
-                }}
-                onScroll={(e) => {
-                    const x = e.nativeEvent.contentOffset.x;
-                    // Update tab state during scrolling for smoother transitions
-                    const newTab = x > screenW / 2 ? 'Sell' : 'Buy';
+                    const newTab = idx === 0 ? 'Buy' : 'Sell';
                     if (newTab !== activeTab) {
                         setActiveTab(newTab);
                     }
-                    // Update animated value
-                    scrollX.setValue(x);
                 }}
+                onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                    { useNativeDriver: false }
+                )}
                 scrollEventThrottle={16}
                 style={flexOneStyle}
             >

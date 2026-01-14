@@ -50,6 +50,7 @@ const styles = StyleSheet.create({
     },
     resultCount: {
         fontSize: 14,
+        paddingTop: 6,
         color: '#888',
     },
     filterIcon: {
