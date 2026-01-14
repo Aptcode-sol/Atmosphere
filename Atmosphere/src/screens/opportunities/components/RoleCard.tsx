@@ -244,11 +244,11 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                             <Text style={[styles.companyName, { color: accentColor }]} numberOfLines={1}>
                                 {getPosterDisplayName()}
                             </Text>
-                            {isMyAd && (
+                            {/* {isMyAd && (
                                 <View style={styles.myAdBadge}>
                                     <Text style={styles.myAdText}>My Ad</Text>
                                 </View>
-                            )}
+                            )} */}
                         </View>
                         <Text style={[styles.companyType, { color: subTextColor }]}>
                             {getPosterType()}
@@ -384,31 +384,45 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                                             <TouchableOpacity
                                                 onPress={async () => {
                                                     try {
+                                                        console.log('Opening file:', exportedFilePath);
+
+                                                        if (!exportedFilePath) {
+                                                            showAlert('Error', 'No file path available');
+                                                            return;
+                                                        }
+
                                                         const exists = await RNFS.exists(exportedFilePath);
                                                         if (!exists) {
                                                             showAlert('Error', 'File no longer exists');
                                                             return;
                                                         }
 
-                                                        // Read file as base64 for Android compatibility
-                                                        const base64Content = await RNFS.readFile(exportedFilePath, 'base64');
+                                                        // Copy to cache directory for proper sharing
+                                                        const fileName = exportedFilePath.split('/').pop() || 'applicants.csv';
+                                                        const cachePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+                                                        await RNFS.copyFile(exportedFilePath, cachePath);
 
-                                                        // Share with app chooser
+                                                        console.log('File copied to cache:', cachePath);
+
+                                                        // Share using file path from cache
                                                         await RNShare.open({
-                                                            url: `data:text/csv;base64,${base64Content}`,
+                                                            url: `file://${cachePath}`,
                                                             type: 'text/csv',
-                                                            filename: 'applicants.csv',
                                                         });
+                                                        setShowSuccessModal(false);
                                                     } catch (err: any) {
-                                                        // User cancelled is not an error
-                                                        if (err?.message?.includes('cancel')) return;
+                                                        // User cancelled or dismissed is not an error
+                                                        if (err?.message?.includes('cancel') || err?.message?.includes('dismiss') || err?.message?.includes('User did not share')) {
+                                                            setShowSuccessModal(false);
+                                                            return;
+                                                        }
                                                         console.log('Open file error:', err);
                                                         showAlert('Error', 'Could not open file: ' + (err?.message || 'Unknown error'));
                                                     }
                                                 }}
                                                 style={{ flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: '#fff', alignItems: 'center' }}
                                             >
-                                                <Text style={{ color: '#000', fontWeight: '600' }}>Open</Text>
+                                                <Text style={{ color: '#000', fontWeight: '600' }}>Share</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>

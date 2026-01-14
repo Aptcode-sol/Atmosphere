@@ -469,7 +469,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                                 <View>
                                     <RoleCard
                                         item={item}
-                                        isMyAd={false}
+                                        isMyAd={isMyJob && userRole !== 'personal'}
                                         expanded={expandedId === (item._id || item.id)}
                                         onExpand={() => setExpandedId(
                                             expandedId === (item._id || item.id) ? null : (item._id || item.id)
