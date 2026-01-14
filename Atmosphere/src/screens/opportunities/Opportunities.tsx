@@ -68,6 +68,8 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
     const [jobsSubTab, setJobsSubTab] = useState<'all' | 'my'>('all');
     const [myJobsLoading, setMyJobsLoading] = useState(false);
     const [editingJobId, setEditingJobId] = useState<string | null>(null);
+    const [appliedJobs, setAppliedJobs] = useState<any[]>([]);
+    const [appliedJobsLoading, setAppliedJobsLoading] = useState(false);
 
     // Filter states
     const [filters, setFilters] = useState({
@@ -95,7 +97,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
         Animated.timing(tabAnim, {
             toValue: jobsSubTab === 'all' ? 0 : 1,
             duration: 300,
-            useNativeDriver: false, // width interpolation doesn't support native driver
+            useNativeDriver: true,
         }).start();
     }, [jobsSubTab]);
 
@@ -341,6 +343,19 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
         }
     }, []);
 
+    // Load applied jobs for personal users
+    const loadAppliedJobs = useCallback(async () => {
+        setAppliedJobsLoading(true);
+        try {
+            const data = await api.getMyAppliedJobs();
+            setAppliedJobs(data || []);
+        } catch (e) {
+            console.warn('Failed to load applied jobs', e);
+        } finally {
+            setAppliedJobsLoading(false);
+        }
+    }, []);
+
     // Close/Delete a job post
     const handleCloseJobPost = async (jobId: string) => {
         Alert.alert(
@@ -420,10 +435,17 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
         } else if (tabName === 'Jobs') {
             // Show all jobs or my jobs based on sub-tab
             if (jobsSubTab === 'my') {
-                data = myJobPosts;
-                loading = myJobsLoading && myJobPosts.length === 0;
-                loadMore = () => { }; // My jobs don't paginate
-                onRefresh = async () => { setRefreshing(true); await loadMyJobPosts(); setRefreshing(false); };
+                if (userRole === 'personal') {
+                    data = appliedJobs;
+                    loading = appliedJobsLoading && appliedJobs.length === 0;
+                    loadMore = () => { }; // applied jobs don't paginate yet
+                    onRefresh = async () => { setRefreshing(true); await loadAppliedJobs(); setRefreshing(false); };
+                } else {
+                    data = myJobPosts;
+                    loading = myJobsLoading && myJobPosts.length === 0;
+                    loadMore = () => { }; // My jobs don't paginate
+                    onRefresh = async () => { setRefreshing(true); await loadMyJobPosts(); setRefreshing(false); };
+                }
             } else {
                 data = filteredTeam;
                 loading = teamLoading && team.length === 0;
@@ -432,13 +454,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
             }
         }
 
-        if (loading) {
-            return (
-                <View style={[styles.loaderContainer, { width }]}>
-                    <ActivityIndicator size="large" color={theme.primary} />
-                </View>
-            );
-        }
+
 
         return (
             <View style={{ width }}>
@@ -511,10 +527,16 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                                             style={{ flex: 1, paddingVertical: 12, alignItems: 'center' }}
                                             onPress={() => {
                                                 setJobsSubTab('my');
-                                                if (myJobPosts.length === 0) loadMyJobPosts();
+                                                if (userRole === 'personal') {
+                                                    if (appliedJobs.length === 0) loadAppliedJobs();
+                                                } else {
+                                                    if (myJobPosts.length === 0) loadMyJobPosts();
+                                                }
                                             }}
                                         >
-                                            <Text style={{ color: jobsSubTab === 'my' ? '#fff' : '#888', fontWeight: '500', fontSize: 14 }}>My Jobs</Text>
+                                            <Text style={{ color: jobsSubTab === 'my' ? '#fff' : '#888', fontWeight: '500', fontSize: 14 }}>
+                                                {userRole === 'personal' ? 'Applied Jobs' : 'My Jobs'}
+                                            </Text>
                                         </TouchableOpacity>
 
                                         {/* Animated Indicator */}
@@ -529,7 +551,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                                                 transform: [{
                                                     translateX: tabAnim.interpolate({
                                                         inputRange: [0, 1],
-                                                        outputRange: [0, width / 2] // Assuming full width is screen width, half is width/2. Actually container has padding? No, seems full width.
+                                                        outputRange: [0, (width - 32) / 2] // Account for 32px horizontal padding
                                                     })
                                                 }]
                                             }}
@@ -562,7 +584,13 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                         return null;
                     }}
                     ListEmptyComponent={() => (
-                        <Text style={styles.emptyText}>No {tabName.toLowerCase()} found.</Text>
+                        <View style={{ paddingTop: 40, alignItems: 'center' }}>
+                            {loading ? (
+                                <ActivityIndicator size="large" color={theme.primary} />
+                            ) : (
+                                <Text style={styles.emptyText}>No {tabName.toLowerCase()} found.</Text>
+                            )}
+                        </View>
                     )}
                 />
             </View>
@@ -613,7 +641,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                showsHorizontalScrollIndicator={false}
+
                 onMomentumScrollEnd={(e) => {
                     const idx = Math.round(e.nativeEvent.contentOffset.x / width);
                     if (idx >= 0 && idx < TABS.length) {
@@ -627,13 +655,14 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                     { useNativeDriver: false }
                 )}
+                scrollEventThrottle={16}
                 renderItem={renderTabContent}
                 initialScrollIndex={TABS.indexOf(activeTab)}
                 getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
             />
 
-            {/* FAB for Create Job - only on Jobs tab and for investors/startups */}
-            {activeTab === 'Jobs' && (userRole === 'investor' || userRole === 'startup') && (
+            {/* Create Job FAB */}
+            {activeTab === 'Jobs' && (userRole === 'investor' || userRole === 'startup') && !modalVisible && (
                 <TouchableOpacity
                     style={{
                         position: 'absolute',
@@ -651,7 +680,11 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                         shadowOpacity: 0.3,
                         shadowRadius: 4,
                     }}
-                    onPress={() => setModalVisible(true)}
+                    onPress={() => {
+                        setEditingJobId(null);
+                        setForm(prev => ({ ...prev, roleTitle: '', startupName: '', sector: '', locationType: '', employmentType: 'Full-time', compensation: '', requirements: '', isRemote: false, applicationUrl: '', customQuestions: ['', '', ''] }));
+                        setModalVisible(true);
+                    }}
                 >
                     <MaterialIcons name="add" size={28} color="#fff" />
                 </TouchableOpacity>
