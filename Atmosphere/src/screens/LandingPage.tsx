@@ -244,6 +244,19 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
                 onNavigate={(r: RouteKey) => setRoute(r)}
                 userId={selectedProfileId}
                 onClose={() => setSelectedProfileId(null)}
+                onChatWithUser={async (userId: string) => {
+                    try {
+                        const { createOrFindChat } = await import('../lib/api');
+                        const result = await createOrFindChat(userId);
+                        const chatId = result?.chat?._id || result?._id;
+                        if (chatId) {
+                            setSelectedProfileId(null);
+                            handleChatSelect(chatId);
+                        }
+                    } catch (err) {
+                        console.warn('Failed to create/find chat:', err);
+                    }
+                }}
             />;
         }
         if (selectedPostId) {

@@ -140,25 +140,58 @@ export default function ProfilePager({
         }
     };
 
-    // Render Trade Card
+    // Render Trade Card (Reference Design: Dark card, avatar, name, shares, For Sale badge, price/value, View Details)
     const renderTradeCard = ({ item }: { item: any }) => {
-        const tradeType = item.type || 'Buy';
-        const assetName = item.assetName || item.title || 'Unknown Asset';
-        const price = item.price || item.amount || 0;
-        const status = item.status || 'Active';
+        const companyName = item.companyName || item.assetName || item.title || 'Unknown';
+        const shares = item.shares || item.quantity || 0;
+        const pricePerShare = item.pricePerShare || item.price || 0;
+        const totalValue = shares * pricePerShare;
+        const logo = item.companyLogo || item.logo || item.profileImage || null;
 
         return (
-            <View style={[tradeStyles.cardWrap, { width: cardContainerWidth }]}>
-                <View style={tradeStyles.card}>
-                    <View style={tradeStyles.cardHeader}>
-                        <View style={[tradeStyles.typeBadge, { backgroundColor: tradeType === 'Buy' ? '#0a5' : '#d33' }]}>
-                            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>{tradeType}</Text>
+            <View style={{
+                backgroundColor: '#0d0d0d',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: '#2a2a2a',
+                padding: 14,
+                marginBottom: 10,
+                marginTop: 12,
+            }}>
+                {/* Header Row: Avatar, Name, Shares, Badge */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                    {logo ? (
+                        <Image source={{ uri: logo }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#333' }} />
+                    ) : (
+                        <View style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: '#888', fontSize: 18, fontWeight: '600' }}>{companyName.charAt(0).toUpperCase()}</Text>
                         </View>
-                        <Text style={[tradeStyles.status, { color: status === 'Active' ? '#0a5' : '#666' }]}>{status}</Text>
+                    )}
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>{companyName}</Text>
+                        <Text style={{ color: '#888', fontSize: 13 }}>{Number(shares).toLocaleString()} shares</Text>
                     </View>
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 8 }}>{assetName}</Text>
-                    <Text style={{ color: '#888', fontSize: 14, marginTop: 4 }}>${Number(price).toLocaleString()}</Text>
+                    <View style={{ backgroundColor: '#2a2a2a', borderWidth: 1, borderColor: '#3a3a3a', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6 }}>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500' }}>For Sale</Text>
+                    </View>
                 </View>
+
+                {/* Price Row */}
+                <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#888', fontSize: 12 }}>Price per Share</Text>
+                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>${Number(pricePerShare).toLocaleString()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#888', fontSize: 12 }}>Total Value</Text>
+                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>${Number(totalValue).toLocaleString()}</Text>
+                    </View>
+                </View>
+
+                {/* View Details Button */}
+                <TouchableOpacity style={{ backgroundColor: '#3a3a3a', borderRadius: 8, paddingVertical: 12, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '500' }}>View Details</Text>
+                </TouchableOpacity>
             </View>
         );
     };
@@ -176,25 +209,23 @@ export default function ProfilePager({
 
         if (trades.length === 0) {
             return (
-                <View style={[styles.pagerEmpty, { alignItems: 'center', justifyContent: 'center' }]}>
+                <View style={[styles.pagerEmpty, { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }]}>
                     <Text style={[styles.emptyTitle, { color: theme.text, textAlign: 'center' }]}>No active trades</Text>
                     <Text style={[styles.emptyText, { color: theme.placeholder, textAlign: 'center' }]}>
-                        {accountType === 'personal' ? "You haven't made any trades yet." : "No trades to display."}
+                        This user has no active trades.
                     </Text>
                 </View>
             );
         }
 
         return (
-            <FlatList
-                data={trades}
-                keyExtractor={(item) => String(item._id || item.id || Math.random())}
-                renderItem={renderTradeCard}
-                scrollEnabled={false}
-                contentContainerStyle={{ padding: 16, paddingBottom: 100, alignItems: 'center' }}
-                showsVerticalScrollIndicator={false}
-                ListFooterComponent={<View style={{ height: 12 }} />}
-            />
+            <View style={{ paddingHorizontal: 8, paddingTop: 12, paddingBottom: 150 }}>
+                {trades.map((item, index) => (
+                    <View key={String(item._id || item.id || index)}>
+                        {renderTradeCard({ item })}
+                    </View>
+                ))}
+            </View>
         );
     };
 
@@ -285,7 +316,7 @@ export default function ProfilePager({
                     </View>
 
                     {/* Trades Tab */}
-                    <View style={[styles.pagerPage, { width: screenW }]}>
+                    <View style={[styles.pagerPage, { width: screenW, alignItems: 'flex-start', justifyContent: 'flex-start' }]}>
                         <View onLayout={(e) => handleLayout('trades', e)} style={{ width: '100%' }}>
                             {renderTradesSection()}
                         </View>

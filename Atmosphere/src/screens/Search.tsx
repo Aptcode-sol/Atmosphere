@@ -267,6 +267,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress })
         // Accounts (User List)
         const displayName = item.displayName || item.fullName || item.username || 'User';
         const avatarUrl = item.avatarUrl || item.avatar || item.profileImage;
+        console.log('Search avatar debug:', { username: item.username, avatarUrl, rawItem: JSON.stringify(item).slice(0, 200) });
         const typeLabel = getUserTypeLabel(item);
         const verified = isUserVerified(item);
 

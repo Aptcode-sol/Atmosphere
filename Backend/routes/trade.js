@@ -12,6 +12,7 @@ router.post('/order', authMiddleware, tradeService.placeOrder);
 // New trade routes
 router.post('/trades', authMiddleware, tradeService.createTrade);
 router.get('/trades/my', authMiddleware, tradeService.getMyTrades);
+router.get('/trades/user/:userId', optionalAuth, tradeService.getTradesByUserId);
 router.get('/trades', optionalAuth, tradeService.getAllTrades);
 router.get('/trades/:id', optionalAuth, tradeService.getTradeById);
 router.put('/trades/:id', authMiddleware, tradeService.updateTrade);

@@ -53,7 +53,7 @@ export {
 // Trades
 export {
     fetchMarkets, fetchMyPortfolio, placeOrder,
-    createTrade, getMyTrades, getAllTrades, getTrade, updateTrade, deleteTrade,
+    createTrade, getMyTrades, getTradesByUserId, getAllTrades, getTrade, updateTrade, deleteTrade,
     incrementTradeViews, toggleTradeSave, getSavedTrades,
     fetchInvestors, getInvestorDetails
 } from './trades';

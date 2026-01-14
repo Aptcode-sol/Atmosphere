@@ -26,6 +26,11 @@ export async function getMyTrades() {
     return data.trades || [];
 }
 
+export async function getTradesByUserId(userId: string) {
+    const data = await request(`/api/trade/trades/user/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+    return data.trades || [];
+}
+
 export async function getAllTrades(limit = 20, skip = 0, filters = {}) {
     const data = await request('/api/trade/trades', { limit, skip, ...filters }, { method: 'GET' });
     return data.trades || [];

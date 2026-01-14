@@ -112,7 +112,7 @@ const normalizeProfile = (profileData: any) => {
 
 type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'portfolio';
 
-const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPostPress, onReelSelect }: { onNavigate?: (route: RouteKey) => void; userId?: string | null; onClose?: () => void; onCreatePost?: () => void; onPostPress?: (postId: string) => void; onReelSelect?: (reelId: string, userId: string) => void }) => {
+const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPostPress, onReelSelect, onChatWithUser }: { onNavigate?: (route: RouteKey) => void; userId?: string | null; onClose?: () => void; onCreatePost?: () => void; onPostPress?: (postId: string) => void; onReelSelect?: (reelId: string, userId: string) => void; onChatWithUser?: (userId: string) => void }) => {
     const { theme } = useContext(ThemeContext);
     const [data, setData] = useState<any | null>(null);
     const [rawProfileData, setRawProfileData] = useState<any | null>(null); // Store raw API response for expanded view
@@ -350,6 +350,42 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
         })();
         return () => { mounted = false; };
     }, [viewingUserId, ownProfileId, forceUpdate]);
+
+    // 4. Trades Effect
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            setTradesLoading(true);
+            try {
+                const api = await import('../lib/api');
+                // Get userId - try all sources including fresh fetch from storage
+                let targetUserId = viewingUserId || ownProfileId || currentUserId;
+                if (!targetUserId) {
+                    const stored = await AsyncStorage.getItem('user');
+                    if (stored) {
+                        const u = JSON.parse(stored);
+                        targetUserId = u?._id || u?.id || null;
+                    }
+                }
+
+                let userTrades: any[] = [];
+                if (targetUserId) {
+                    userTrades = await api.getTradesByUserId(String(targetUserId));
+                } else {
+                    userTrades = await api.getMyTrades();
+                }
+                if (mounted) {
+                    setTrades(userTrades || []);
+                }
+            } catch (err) {
+                console.warn('Failed to fetch trades:', err);
+                if (mounted) setTrades([]);
+            } finally {
+                if (mounted) setTradesLoading(false);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [viewingUserId, ownProfileId, currentUserId, forceUpdate]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -600,21 +636,9 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                                 <TouchableOpacity
                                     style={{ flex: 1, backgroundColor: '#2e2e2e', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
                                     onPress={() => {
-                                        // Navigate to Chat
-                                        // Use onNavigate prop if available (custom routing)
-                                        if (onNavigate) {
-                                            // Handle internal nav
-                                            // We need to pass params to 'chats' or 'chatDetail'
-                                            // Since onNavigate might only take a string, we might need a workaround or check if LandingPage handles it.
-                                            // LandingPage passes `onNavigate={(r: RouteKey) => navigateTo(r)}`.
-                                            // But it doesn't seem to pass params via onNavigate(r).
-
-                                            // Ideally we should use onChatSelect if available, but it's not passed to Profile.
-                                            // We can check if 'chats' route in LandingPage handles selection?
-                                            // LandingPage: case 'chats': return <Chats onChatSelect={handleChatSelect} />;
-
-                                            // Workaround: We can't easily open a SPECIFIC chat without context.
-                                            // But we can navigate to 'chats'.
+                                        if (onChatWithUser && viewingUserId) {
+                                            onChatWithUser(String(viewingUserId));
+                                        } else if (onNavigate) {
                                             onNavigate('chats');
                                         }
                                     }}

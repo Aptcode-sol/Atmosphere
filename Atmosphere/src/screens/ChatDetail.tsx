@@ -107,7 +107,8 @@ const ChatDetail = ({ chatId, onBackPress, onProfileOpen, onContentPress }: Chat
                 });
                 const data = await response.json();
                 const messages = data.messages || [];
-                setChatMessages(messages);
+                // Reverse so oldest messages are at index 0 (appear at top with inverted list)
+                setChatMessages(messages.reverse());
                 setSkip(messages.length);
                 setHasMoreMessages(messages.length >= PAGE_SIZE);
             } catch (err) {
@@ -150,7 +151,8 @@ const ChatDetail = ({ chatId, onBackPress, onProfileOpen, onContentPress }: Chat
             const olderMessages = data.messages || [];
 
             if (olderMessages.length > 0) {
-                setChatMessages(prev => [...prev, ...olderMessages]);
+                // Older messages go to the END of array (appear at top with inverted list)
+                setChatMessages(prev => [...prev, ...olderMessages.reverse()]);
                 setSkip(prev => prev + olderMessages.length);
             }
             setHasMoreMessages(olderMessages.length >= PAGE_SIZE);
@@ -182,7 +184,7 @@ const ChatDetail = ({ chatId, onBackPress, onProfileOpen, onContentPress }: Chat
                     if (prev.some(m => m._id === data.message._id)) {
                         return prev;
                     }
-                    return [...prev, data.message];
+                    return [data.message, ...prev];
                 });
 
                 // Mark as read if message is from someone else
@@ -299,7 +301,7 @@ const ChatDetail = ({ chatId, onBackPress, onProfileOpen, onContentPress }: Chat
             });
             const data = await response.json();
             if (data.message) {
-                setChatMessages((prev) => [...prev, data.message as Message]);
+                setChatMessages((prev) => [data.message as Message, ...prev]);
             }
             setMessageText('');
             setReplyingTo(null);
@@ -497,7 +499,7 @@ const styles = StyleSheet.create({
     statusText: { fontSize: 12 },
 
     centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    messageList: { padding: 12, flexGrow: 1, justifyContent: 'flex-end' },
+    messageList: { padding: 12, flexGrow: 1 },
 
     replyBar: {
         flexDirection: 'row',

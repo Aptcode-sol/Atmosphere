@@ -162,6 +162,24 @@ exports.getMyTrades = async (req, res, next) => {
     }
 };
 
+// Get all trades for a specific user (by userId param)
+exports.getTradesByUserId = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        if (!userId) return res.status(400).json({ error: 'User ID is required' });
+
+        const trades = await Trade.find({ user: userId, status: 'active' })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        await Promise.all(trades.map(t => refreshTradeMedia(t)));
+
+        res.json({ trades });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // Get all active trades (for BUY tab)
 exports.getAllTrades = async (req, res, next) => {
     try {
