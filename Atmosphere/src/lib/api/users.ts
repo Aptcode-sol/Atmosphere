@@ -28,6 +28,9 @@ export async function getUserByIdentifier(identifier: string) {
 }
 
 export async function getAnyUserProfile(userId: string) {
+    // Record profile visit (fire and forget)
+    recordProfileVisit(userId).catch(() => { });
+
     try {
         const startupProfile = await getStartupProfile(userId);
         if (startupProfile) return startupProfile;
@@ -35,6 +38,18 @@ export async function getAnyUserProfile(userId: string) {
     const user = await getUserByIdentifier(userId);
     if (user) return { user, details: null };
     throw new Error('User not found');
+}
+
+/**
+ * Record a profile visit for analytics
+ * This calls the /api/profile/:userId endpoint which records the visit on the backend
+ */
+export async function recordProfileVisit(userId: string) {
+    try {
+        await request(`/api/profile/${encodeURIComponent(userId)}`, {}, { method: 'GET' });
+    } catch {
+        // Ignore errors - visit recording is not critical
+    }
 }
 
 export async function getStartupProfile(userId: string) {

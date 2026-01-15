@@ -1,5 +1,6 @@
 const { StartupDetails, User } = require('../models');
 const { refreshSignedUrl } = require('./s3Service');
+const { recordStartupView } = require('./analyticsService');
 
 // Helper to refresh URLs
 const refreshStartupData = async (startup) => {
@@ -115,6 +116,16 @@ exports.getStartupByUser = async (req, res, next) => {
             refreshedDetails.isFollowing = !!following;
             refreshedDetails.isSaved = !!saved;
             refreshedDetails.savedId = saved ? String(saved._id) : null;
+        }
+
+        // Record startup view for analytics (only if viewer is different from owner)
+        const ownerId = startupDetails.user?._id?.toString() || startupDetails.user?.toString();
+        const viewerId = req.user?._id?.toString();
+        if (viewerId && viewerId !== ownerId) {
+            recordStartupView(startupDetails._id, req.user._id).catch(() => { });
+        } else if (!viewerId) {
+            // Anonymous view
+            recordStartupView(startupDetails._id, null).catch(() => { });
         }
 
         return res.json({ startupDetails: refreshedDetails, user: startupDetails.user, details: refreshedDetails });

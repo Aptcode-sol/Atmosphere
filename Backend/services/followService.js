@@ -1,4 +1,5 @@
 const { Follow, User, Notification } = require('../models');
+const Unfollow = require('../models/Unfollow');
 
 exports.followUser = async (req, res, next) => {
     try {
@@ -38,8 +39,20 @@ exports.unfollowUser = async (req, res, next) => {
     try {
         const targetId = req.params.targetId || req.params.userId;
         if (!targetId) return res.status(400).json({ error: 'Missing target user id' });
+
         const follow = await Follow.findOneAndDelete({ follower: req.user._id, following: targetId });
         if (!follow) return res.status(404).json({ error: 'Not following this user' });
+
+        // Record unfollow for analytics tracking
+        try {
+            await Unfollow.create({
+                unfollower: req.user._id,
+                unfollowed: targetId
+            });
+        } catch (unfollowErr) {
+            console.warn('Failed to record unfollow:', unfollowErr.message);
+        }
+
         // return updated followers count for the target user
         const followersCount = await Follow.countDocuments({ following: targetId });
         res.json({ message: 'Successfully unfollowed user', followersCount });

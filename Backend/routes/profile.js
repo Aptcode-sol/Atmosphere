@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { getProfile, updateProfile } = require('../services/profileService');
 const authMiddleware = require('../middleware/authMiddleware');
+const optionalAuth = require('../middleware/optionalAuth');
+const { recordProfileVisit } = require('../services/analyticsService');
 
 /**
  * GET /api/profile - Get current user's profile
@@ -12,6 +14,29 @@ router.get('/', authMiddleware, async (req, res, next) => {
         const userId = req.user._id;
         const profile = await getProfile(userId);
         // Prevent intermediaries or clients from returning cached 304 responses
+        res.set('Cache-Control', 'no-store');
+        res.json(profile);
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * GET /api/profile/:userId - Get another user's public profile
+ * Records a profile visit for analytics
+ */
+router.get('/:userId', optionalAuth, async (req, res, next) => {
+    try {
+        const targetUserId = req.params.userId;
+        const profile = await getProfile(targetUserId);
+
+        // Record profile visit for analytics (only if viewer is different from profile owner)
+        if (req.user && req.user._id.toString() !== targetUserId) {
+            recordProfileVisit(targetUserId, req.user._id).catch(() => { });
+        } else if (!req.user) {
+            recordProfileVisit(targetUserId, null).catch(() => { });
+        }
+
         res.set('Cache-Control', 'no-store');
         res.json(profile);
     } catch (err) {

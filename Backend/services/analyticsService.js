@@ -1,5 +1,7 @@
 const ProfileVisit = require('../models/ProfileVisit');
 const Follow = require('../models/Follow');
+const Unfollow = require('../models/Unfollow');
+const StartupView = require('../models/StartupView');
 
 /**
  * Get analytics insights for a user
@@ -14,8 +16,21 @@ async function getInsights(userId, days = 30) {
         createdAt: { $gte: startDate }
     });
 
-    // For views, we'll use profile visits for now (can be extended later)
-    const views = profileVisits;
+    // Count startup views (when someone views your startup detail page)
+    // Find startup by user first, then count views
+    const StartupDetails = require('../models/StartupDetails');
+    let views = 0;
+    try {
+        const startup = await StartupDetails.findOne({ user: userId }).select('_id').lean();
+        if (startup) {
+            views = await StartupView.countDocuments({
+                startup: startup._id,
+                createdAt: { $gte: startDate }
+            });
+        }
+    } catch (err) {
+        console.warn('Error counting startup views:', err.message);
+    }
 
     return {
         views,
@@ -48,9 +63,11 @@ async function getFollowerGrowth(userId, days = 30) {
     // Total current followers
     const totalFollowers = await Follow.countDocuments({ following: userId });
 
-    // Estimate unfollows (we don't track deletions, so use follows - net change)
-    // For now, simulate unfollows as a portion of activity
-    const unfollows = Math.floor(currentFollows * 0.3); // Rough estimate
+    // Real unfollows from Unfollow model (people who unfollowed this user in the period)
+    const unfollows = await Unfollow.countDocuments({
+        unfollowed: userId,
+        createdAt: { $gte: startDate }
+    });
 
     // Overall net change
     const overall = currentFollows - unfollows;
@@ -87,8 +104,23 @@ async function recordProfileVisit(profileId, visitorId = null) {
     }
 }
 
+/**
+ * Record a startup view (when someone opens startup detail page)
+ */
+async function recordStartupView(startupId, viewerId = null) {
+    try {
+        await StartupView.create({
+            startup: startupId,
+            viewer: viewerId
+        });
+    } catch (err) {
+        console.warn('Failed to record startup view:', err.message);
+    }
+}
+
 module.exports = {
     getInsights,
     getFollowerGrowth,
-    recordProfileVisit
+    recordProfileVisit,
+    recordStartupView
 };
