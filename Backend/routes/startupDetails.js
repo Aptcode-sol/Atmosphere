@@ -8,8 +8,8 @@ const optionalAuth = require('../middleware/optionalAuth');
 router.post('/', authMiddleware, startupService.createStartup);
 router.get('/', optionalAuth, startupService.listStartupCards);
 router.get('/hottest', optionalAuth, startupService.hottestStartups);
-router.get('/:userId', startupService.getStartupByUser);
-router.get('/by-id/:startupId', startupService.getStartupById);
+router.get('/:userId', optionalAuth, startupService.getStartupByUser);
+router.get('/by-id/:startupId', optionalAuth, startupService.getStartupById);
 router.put('/:id', authMiddleware, startupService.updateStartup);
 
 module.exports = router;

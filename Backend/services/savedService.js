@@ -77,26 +77,77 @@ async function getSavedPostsByUser(userId) {
         .lean();
 
       if (postData) {
-        // Refresh profileImage URL
-        const profileImageUrl = postData.profileImage ? await refreshSignedUrl(postData.profileImage) : null;
+        // Normalize using shared refreshStartupData helper to ensure consistent fields and signed URLs
+        try {
+          const { refreshStartupData } = require('./startupService');
+          postData = await refreshStartupData(postData);
+        } catch (e) {
+          // fallback: refresh profileImage only
+          postData.profileImage = postData.profileImage ? await refreshSignedUrl(postData.profileImage) : null;
+        }
 
-        // Return full startup card data for StartupPost component
+        // Ensure funding values are numbers
+        const fundingRaised = Number(postData.fundingRaised || 0);
+        const fundingNeeded = Number(postData.fundingNeeded || 0);
+
+        // Fetch user-specific flags (liked, crowned, following)
+        const StartupLike = require('../models/StartupLike');
+        const StartupCrown = require('../models/StartupCrown');
+        const Follow = require('../models/Follow');
+
+        const [liked, crowned, following] = await Promise.all([
+          StartupLike.exists({ startup: postData._id, user: userId }),
+          StartupCrown.exists({ startup: postData._id, user: userId }),
+          Follow.exists({ follower: userId, following: postData.user?._id }),
+        ]);
+
+        // Return full startup card data matching listStartupCards structure exactly
+        // Calculate funding metrics same way as home page
+        const fundingRounds = postData.fundingRounds || [];
+        const currentRound = postData.stage || postData.roundType || 'Seed';
+
+        // Calculate rounds count from unique round values
+        const uniqueRounds = Array.isArray(fundingRounds)
+          ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]
+          : [];
+        const calculatedRounds = uniqueRounds.length || Number(postData.rounds || 0);
+
+        // Calculate total raised across ALL investments
+        const totalRaisedAll = Array.isArray(fundingRounds)
+          ? fundingRounds.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+          : fundingRaised;
+
+        // Calculate funding raised from investments matching current round
+        const matchingInvestments = Array.isArray(fundingRounds)
+          ? fundingRounds.filter((inv) => inv.round === currentRound)
+          : [];
+        const fundingRaisedFromRound = matchingInvestments.reduce((sum, inv) => {
+          return sum + (Number(inv.amount) || 0);
+        }, 0);
+
+        // Use calculated value or fallback to stored values
+        const finalFundingRaised = fundingRaisedFromRound > 0
+          ? fundingRaisedFromRound
+          : fundingRaised;
+
         return {
           _id: s._id,
           contentType: 'StartupDetails',
-          // Full startup card data structure
+          id: String(postData._id),
+          originalId: String(postData._id),
           startupDetailsId: String(postData._id),
           name: postData.companyName || 'Unknown',
           displayName: postData.user?.displayName || '',
           verified: postData.verified || postData.user?.verified || false,
-          profileImage: profileImageUrl || 'https://via.placeholder.com/400x240.png?text=Startup',
+          profileImage: postData.profileImage || 'https://via.placeholder.com/400x240.png?text=Startup',
           description: postData.about || '',
           stage: postData.stage || 'unknown',
-          rounds: postData.rounds || 0,
+          rounds: calculatedRounds,
           age: postData.age || 0,
-          fundingRaised: postData.fundingRaised || 0,
-          fundingNeeded: postData.fundingNeeded || 0,
-          fundingRounds: postData.fundingRounds || [],
+          fundingRaised: finalFundingRaised,
+          fundingNeeded: fundingNeeded,
+          fundingRounds: fundingRounds,
+          totalRaisedAll: totalRaisedAll,
           userId: postData.user?._id || null,
           stats: {
             likes: Number(postData.meta?.likes || postData.likesCount || 0),
@@ -104,13 +155,15 @@ async function getSavedPostsByUser(userId) {
             crowns: Number(postData.meta?.crowns || 0),
             shares: Number(postData.sharesCount || 0),
           },
+          likedByCurrentUser: !!liked,
+          crownedByCurrentUser: !!crowned,
+          isFollowing: !!following,
           isSaved: true,
           savedId: String(s._id),
-          // Legacy postId structure for backward compatibility
           postId: {
             _id: postData._id,
             content: postData.about || postData.companyName,
-            media: profileImageUrl ? [{ url: profileImageUrl, type: 'image' }] : [],
+            media: postData.profileImage ? [{ url: postData.profileImage, type: 'image' }] : [],
             author: postData.user || { username: postData.companyName }
           },
           createdAt: s.createdAt

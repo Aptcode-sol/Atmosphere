@@ -5,6 +5,15 @@ const { refreshSignedUrl } = require('./s3Service');
 const refreshStartupData = async (startup) => {
     const s = startup.toObject ? startup.toObject() : startup;
 
+    // Ensure funding data is properly extracted from financialProfile if not set at root level
+    if ((!s.fundingRaised || s.fundingRaised === 0) && s.financialProfile && s.financialProfile.fundingAmount) {
+        s.fundingRaised = Number(s.financialProfile.fundingAmount) || 0;
+    }
+    // Ensure fundingNeeded exists
+    if (!s.fundingNeeded || s.fundingNeeded === 0) {
+        s.fundingNeeded = s.fundingNeeded || 0; // Keep as 0 if not set
+    }
+
     // Refresh main fields
     if (s.profileImage) s.profileImage = await refreshSignedUrl(s.profileImage);
     if (s.video) s.video = await refreshSignedUrl(s.video);
@@ -65,6 +74,28 @@ exports.getStartupByUser = async (req, res, next) => {
         try { await startupDetails.populate('user', 'username displayName avatarUrl'); } catch (e) { /* ignore */ }
         // Return both shapes for backward compatibility
         const refreshedDetails = await refreshStartupData(startupDetails);
+
+        // Add user-specific flags if authenticated
+        if (req.user) {
+            const StartupLike = require('../models/StartupLike');
+            const StartupCrown = require('../models/StartupCrown');
+            const Follow = require('../models/Follow');
+            const Saved = require('../models/Saved');
+
+            const [liked, crowned, following, saved] = await Promise.all([
+                StartupLike.exists({ startup: startupDetails._id, user: req.user._id }),
+                StartupCrown.exists({ startup: startupDetails._id, user: req.user._id }),
+                Follow.exists({ follower: req.user._id, following: startupDetails.user?._id }),
+                Saved.findOne({ user: req.user._id, $or: [{ contentId: startupDetails._id }, { post: startupDetails._id }] }),
+            ]);
+
+            refreshedDetails.likedByCurrentUser = !!liked;
+            refreshedDetails.crownedByCurrentUser = !!crowned;
+            refreshedDetails.isFollowing = !!following;
+            refreshedDetails.isSaved = !!saved;
+            refreshedDetails.savedId = saved ? String(saved._id) : null;
+        }
+
         return res.json({ startupDetails: refreshedDetails, user: startupDetails.user, details: refreshedDetails });
     } catch (err) {
         console.log('Error in getStartupByUser:', err);
@@ -78,6 +109,28 @@ exports.getStartupById = async (req, res, next) => {
         const startupDetails = await StartupDetails.findById(startupId).populate('user', 'username displayName avatarUrl');
         if (!startupDetails) return res.status(404).json({ error: 'Startup details not found' });
         const refreshedDetails = await refreshStartupData(startupDetails);
+
+        // Add user-specific flags if authenticated
+        if (req.user) {
+            const StartupLike = require('../models/StartupLike');
+            const StartupCrown = require('../models/StartupCrown');
+            const Follow = require('../models/Follow');
+            const Saved = require('../models/Saved');
+
+            const [liked, crowned, following, saved] = await Promise.all([
+                StartupLike.exists({ startup: startupDetails._id, user: req.user._id }),
+                StartupCrown.exists({ startup: startupDetails._id, user: req.user._id }),
+                Follow.exists({ follower: req.user._id, following: startupDetails.user?._id }),
+                Saved.findOne({ user: req.user._id, $or: [{ contentId: startupDetails._id }, { post: startupDetails._id }] }),
+            ]);
+
+            refreshedDetails.likedByCurrentUser = !!liked;
+            refreshedDetails.crownedByCurrentUser = !!crowned;
+            refreshedDetails.isFollowing = !!following;
+            refreshedDetails.isSaved = !!saved;
+            refreshedDetails.savedId = saved ? String(saved._id) : null;
+        }
+
         return res.json({ startupDetails: refreshedDetails, user: startupDetails.user, details: refreshedDetails });
     } catch (err) {
         console.log('Error in getStartupById:', err);
@@ -117,43 +170,89 @@ exports.listStartupCards = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip(parseInt(skip));
-        // Prepare base card objects
-        const startupCardsBase = startups.map(startup => ({
-            id: startup._id,
-            userId: startup.user ? startup.user._id : null,
-            name: startup.companyName,
-            displayName: startup.user ? startup.user.displayName : '',
-            verified: startup.verified,
-            profileImage: startup.profileImage,
-            description: startup.about,
-            stage: startup.stage,
-            rounds: startup.rounds,
-            age: startup.age,
-            fundingRaised: startup.fundingRaised,
-            fundingNeeded: startup.fundingNeeded,
-            fundingRounds: startup.fundingRounds || [],
-            stats: {
-                likes: Number((startup.meta && typeof startup.meta.likes === 'number') ? startup.meta.likes : (startup.likesCount || 0)),
-                comments: Number((startup.meta && startup.meta.commentsCount) || 0),
-                crowns: Number((startup.meta && startup.meta.crowns) || 0),
-                shares: Number(startup.sharesCount || 0),
-            },
-            // defaults for user-specific flags
-            likedByCurrentUser: false,
-            crownedByCurrentUser: false,
-            isFollowing: false,
-        }));
+
+        // Apply refreshStartupData to ensure consistent data structure (funding extraction, URL refresh, etc.)
+        const refreshedStartups = await Promise.all(startups.map(s => refreshStartupData(s)));
+
+        // Prepare base card objects with calculated funding metrics
+        const startupCardsBase = refreshedStartups.map(startup => {
+            // Calculate funding metrics same way as frontend normalizeData
+            const fundingRounds = startup.fundingRounds || [];
+            const currentRound = startup.stage || startup.roundType || 'Seed';
+
+            // Calculate rounds count from unique round values
+            const uniqueRounds = Array.isArray(fundingRounds)
+                ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]
+                : [];
+            const calculatedRounds = uniqueRounds.length || Number(startup.rounds || 0);
+
+            // Calculate total raised across ALL investments
+            const totalRaisedAll = Array.isArray(fundingRounds)
+                ? fundingRounds.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+                : Number(startup.fundingRaised || 0);
+
+            // Calculate funding raised from investments matching current round
+            const matchingInvestments = Array.isArray(fundingRounds)
+                ? fundingRounds.filter((inv) => inv.round === currentRound)
+                : [];
+            const fundingRaisedFromRound = matchingInvestments.reduce((sum, inv) => {
+                return sum + (Number(inv.amount) || 0);
+            }, 0);
+
+            // Use calculated value or fallback to stored values
+            const finalFundingRaised = fundingRaisedFromRound > 0
+                ? fundingRaisedFromRound
+                : Number(startup.fundingRaised || 0);
+
+            console.log('[listStartupCards]', startup.companyName, {
+                fundingRounds: fundingRounds.length,
+                currentRound,
+                uniqueRounds: uniqueRounds.length,
+                calculatedRounds,
+                fundingRaisedFromRound,
+                finalFundingRaised,
+                storedRounds: startup.rounds,
+                storedFundingRaised: startup.fundingRaised
+            });
+
+            return {
+                id: startup._id,
+                userId: startup.user ? startup.user._id : null,
+                name: startup.companyName,
+                displayName: startup.user ? startup.user.displayName : '',
+                verified: startup.verified || (startup.user && startup.user.verified) || false,
+                profileImage: startup.profileImage,
+                description: startup.about,
+                stage: startup.stage,
+                rounds: calculatedRounds,
+                age: startup.age,
+                fundingRaised: finalFundingRaised,
+                fundingNeeded: Number(startup.fundingNeeded || 0),
+                fundingRounds: fundingRounds,
+                totalRaisedAll: totalRaisedAll,
+                stats: {
+                    likes: Number((startup.meta && typeof startup.meta.likes === 'number') ? startup.meta.likes : (startup.likesCount || 0)),
+                    comments: Number((startup.meta && startup.meta.commentsCount) || 0),
+                    crowns: Number((startup.meta && startup.meta.crowns) || 0),
+                    shares: Number(startup.sharesCount || 0),
+                },
+                // defaults for user-specific flags
+                likedByCurrentUser: false,
+                crownedByCurrentUser: false,
+                isFollowing: false,
+            };
+        });
 
         // If there's an authenticated user, fetch batch flags in one go
         if (req.user) {
             const userId = req.user._id;
-            const startupIds = startups.map(s => s._id);
+            const startupIds = refreshedStartups.map(s => s._id);
             const StartupLike = require('../models/StartupLike');
             const StartupCrown = require('../models/StartupCrown');
             const Follow = require('../models/Follow');
 
             // Build list of userIds for the startups (the 'following' targets)
-            const userIds = startups.map(s => (s.user ? s.user._id : null)).filter(Boolean);
+            const userIds = refreshedStartups.map(s => (s.user ? s.user._id : null)).filter(Boolean);
             const Saved = require('../models/Saved');
             const [likes, crowns, follows, savedDocs] = await Promise.all([
                 StartupLike.find({ startup: { $in: startupIds }, user: userId }).select('startup').lean(),
@@ -179,20 +278,14 @@ exports.listStartupCards = async (req, res, next) => {
                 savedId: savedMap[String(card.id)] || null,
             }));
 
-            // Refresh images for ALL cards
-            const refreshedEnriched = await Promise.all(enriched.map(async card => {
-                if (card.profileImage) card.profileImage = await refreshSignedUrl(card.profileImage);
-                return card;
-            }));
+            // No need to refresh images again - already done in refreshStartupData above
+            const refreshedEnriched = enriched;
 
             return res.json({ startups: refreshedEnriched, count: refreshedEnriched.length });
         }
 
-        // Refresh images for base cards
-        const refreshedBase = await Promise.all(startupCardsBase.map(async card => {
-            if (card.profileImage) card.profileImage = await refreshSignedUrl(card.profileImage);
-            return card;
-        }));
+        // No need to refresh images for non-authenticated users - already done in refreshStartupData above
+        const refreshedBase = startupCardsBase;
 
         res.json({ startups: refreshedBase, count: refreshedBase.length });
     } catch (err) {
@@ -306,11 +399,81 @@ exports.hottestStartups = async (req, res, next) => {
             }));
 
             const refreshedEnriched = await Promise.all(enriched.map(async s => refreshStartupData(s)));
-            return res.json({ startups: refreshedEnriched, count: refreshedEnriched.length });
+
+            // Apply funding calculation same way as listStartupCards
+            const calculatedEnriched = refreshedEnriched.map(startup => {
+                const fundingRounds = startup.fundingRounds || [];
+                const currentRound = startup.stage || startup.roundType || 'Seed';
+
+                const uniqueRounds = Array.isArray(fundingRounds)
+                    ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]
+                    : [];
+                const calculatedRounds = uniqueRounds.length || Number(startup.rounds || 0);
+
+                const totalRaisedAll = Array.isArray(fundingRounds)
+                    ? fundingRounds.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+                    : Number(startup.fundingRaised || 0);
+
+                const matchingInvestments = Array.isArray(fundingRounds)
+                    ? fundingRounds.filter((inv) => inv.round === currentRound)
+                    : [];
+                const fundingRaisedFromRound = matchingInvestments.reduce((sum, inv) => {
+                    return sum + (Number(inv.amount) || 0);
+                }, 0);
+
+                const finalFundingRaised = fundingRaisedFromRound > 0
+                    ? fundingRaisedFromRound
+                    : Number(startup.fundingRaised || 0);
+
+                return {
+                    ...startup,
+                    rounds: calculatedRounds,
+                    fundingRaised: finalFundingRaised,
+                    fundingNeeded: Number(startup.fundingNeeded || 0),
+                    totalRaisedAll: totalRaisedAll,
+                };
+            });
+
+            return res.json({ startups: calculatedEnriched, count: calculatedEnriched.length });
         }
 
         const refreshedTop = await Promise.all(top.map(async s => refreshStartupData(s)));
-        return res.json({ startups: refreshedTop, count: refreshedTop.length });
+
+        // Apply funding calculation for non-authenticated users too
+        const calculatedTop = refreshedTop.map(startup => {
+            const fundingRounds = startup.fundingRounds || [];
+            const currentRound = startup.stage || startup.roundType || 'Seed';
+
+            const uniqueRounds = Array.isArray(fundingRounds)
+                ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]
+                : [];
+            const calculatedRounds = uniqueRounds.length || Number(startup.rounds || 0);
+
+            const totalRaisedAll = Array.isArray(fundingRounds)
+                ? fundingRounds.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+                : Number(startup.fundingRaised || 0);
+
+            const matchingInvestments = Array.isArray(fundingRounds)
+                ? fundingRounds.filter((inv) => inv.round === currentRound)
+                : [];
+            const fundingRaisedFromRound = matchingInvestments.reduce((sum, inv) => {
+                return sum + (Number(inv.amount) || 0);
+            }, 0);
+
+            const finalFundingRaised = fundingRaisedFromRound > 0
+                ? fundingRaisedFromRound
+                : Number(startup.fundingRaised || 0);
+
+            return {
+                ...startup,
+                rounds: calculatedRounds,
+                fundingRaised: finalFundingRaised,
+                fundingNeeded: Number(startup.fundingNeeded || 0),
+                totalRaisedAll: totalRaisedAll,
+            };
+        });
+
+        return res.json({ startups: calculatedTop, count: calculatedTop.length });
     } catch (err) {
         console.log('Error in hottestStartups:', err);
         next(err);
@@ -341,3 +504,6 @@ exports.createOrUpdateStartup = async (req, res, next) => {
         next(err);
     }
 };
+
+// Export refresh helper for other services to reuse
+exports.refreshStartupData = refreshStartupData;

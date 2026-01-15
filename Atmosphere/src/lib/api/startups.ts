@@ -2,6 +2,7 @@
  * Startups API functions
  */
 import { request } from './core';
+import { clearStartupCaches } from '../cache';
 
 export async function fetchStartupPosts(limit = 20, skip = 0) {
     const data = await request('/api/startup-details', { limit, skip }, { method: 'GET' });
@@ -14,7 +15,10 @@ export async function fetchHottestStartups(limit = 10) {
 }
 
 export async function saveStartupProfile(payload: any) {
-    return request('/api/startup/profile', payload, { method: 'POST' });
+    const result = await request('/api/startup/profile', payload, { method: 'POST' });
+    // Clear feed and saved posts caches so next load fetches fresh data
+    clearStartupCaches().catch(e => console.error('[API] Failed to clear caches:', e));
+    return result;
 }
 
 // Startup likes

@@ -111,6 +111,11 @@ const SavedPosts = ({ onClose, onPostPress, onStartupPress, onReelPress }: Saved
 
     const renderItem = ({ item }: { item: SavedItem }) => {
         const imageUrl = getPostImageUrl(item);
+        // Debug: log saved item (especially StartupDetails) to compare with feed
+        if (console && console.log) {
+            console.log('SavedPosts item:', item);
+            if (item.contentType === 'StartupDetails') console.log('Saved startup postId:', item.postId);
+        }
 
         return (
             <TouchableOpacity

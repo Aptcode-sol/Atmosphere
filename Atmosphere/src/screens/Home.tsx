@@ -7,6 +7,7 @@ import StartupPost from '../components/StartupPost';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
 import { fetchStartupPosts } from '../lib/api';
 import { getBaseUrl } from '../lib/config';
+import { CACHE_KEYS } from '../lib/cache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Post {
@@ -220,6 +221,16 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 ? fundingRaisedFromRound
                 : Number(p.fundingRaised || 0);
 
+            console.log('[Home.normalizeData]', p.companyName || p.name, {
+                fundingRounds: fundingRounds.length,
+                currentRound,
+                calculatedRounds,
+                fundingRaisedFromRound,
+                finalFundingRaised,
+                storedRounds: p.rounds,
+                storedFundingRaised: p.fundingRaised
+            });
+
             return {
                 id: String(p.id || p._id || Math.random()) + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5), // Ensure unique key for looping
                 originalId: String(p.id || p._id),
@@ -250,7 +261,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
         });
     };
 
-    const CACHE_KEY = 'ATMOSPHERE_HOME_FEED_CACHE';
+    const CACHE_KEY = CACHE_KEYS.HOME_FEED;
 
     // Load cache on mount
     useEffect(() => {
@@ -369,6 +380,8 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 contentContainerStyle={[styles.listContent]}
                 renderItem={({ item, index }) => (
                     <View>
+                        {/* Debug: log the startup card object coming from feed */}
+                        {console.log && console.log('Home feed StartupPost item:', item)}
                         <StartupPost post={item} currentUserId={currentUserId} onOpenProfile={onOpenProfile} />
                         {/* Separator line between cards */}
                         {index < posts.length - 1 && <View style={styles.separator} />}

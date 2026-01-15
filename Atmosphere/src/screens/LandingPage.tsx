@@ -26,8 +26,9 @@ import MyTeam from './MyTeam';
 import StartupDetail from './StartupDetail';
 import KycScreen from './KycScreen';
 import StartupVerifyStep from './setup-steps/StartupVerifyStep';
+import ProfessionalDashboard from './profile/ProfessionalDashboard';
 
-type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'verify' | 'chatDetail' | 'createPost' | 'createReel' | 'saved' | 'videoCall' | 'myTeam' | 'startupDetail' | 'tradeDetail' | 'portfolio';
+type RouteKey = 'home' | 'search' | 'notifications' | 'chats' | 'reels' | 'profile' | 'topstartups' | 'trade' | 'jobs' | 'meetings' | 'setup' | 'verify' | 'chatDetail' | 'createPost' | 'createReel' | 'saved' | 'videoCall' | 'myTeam' | 'startupDetail' | 'tradeDetail' | 'portfolio' | 'dashboard';
 
 interface LandingPageProps {
     initialDeepLink?: string | null;
@@ -372,6 +373,8 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
                         setRoute('reels');
                     }}
                 />;
+            case 'dashboard':
+                return <ProfessionalDashboard onBack={() => setRoute('profile')} />;
             default:
                 return null;
         }
@@ -416,6 +419,7 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
             startupDetail: 'Launch',
             tradeDetail: 'Trade',
             portfolio: 'Profile',
+            dashboard: 'Profile',
         };
         return rev[r] || 'Home';
     };

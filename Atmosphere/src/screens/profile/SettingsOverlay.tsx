@@ -616,6 +616,22 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
                         {/* ACCOUNT section - Get Verified (if not verified) and Portfolio (for investor/startup) */}
                         <Text style={[styles.sectionLabel, themePlaceholderStyle]}>ACCOUNT</Text>
                         <View style={[styles.sectionCard, themeBorderStyle]}>
+                            {/* Professional Dashboard - for startup/investor accounts */}
+                            {(accountType === 'investor' || accountType === 'startup') && (
+                                <TouchableOpacity style={styles.settingRow} onPress={() => {
+                                    handleClose();
+                                    if (onNavigate) onNavigate('dashboard');
+                                }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                        <BarChart2 size={20} color={theme.placeholder} style={{ marginRight: 12 }} />
+                                        <View style={styles.settingLeft}>
+                                            <Text style={[styles.settingTitle, themeTextStyle]}>Professional dashboard</Text>
+                                            <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>View insights and analytics</Text>
+                                        </View>
+                                    </View>
+                                    <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
+                                </TouchableOpacity>
+                            )}
                             {/* Get Verified - only show if not verified */}
                             {!isVerified && (
                                 <TouchableOpacity style={styles.settingRow} onPress={() => {

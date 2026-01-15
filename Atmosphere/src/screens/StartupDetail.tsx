@@ -56,30 +56,50 @@ const StartupDetail = ({ route, navigation }: any) => {
 
     const { user, details } = data;
 
+    console.log('StartupDetail details:', {
+        _id: details?._id,
+        companyName: details?.companyName,
+        meta: details?.meta,
+        likesCount: details?.likesCount,
+        fundingRaised: details?.fundingRaised,
+        fundingNeeded: details?.fundingNeeded,
+        financialProfile: details?.financialProfile,
+        likedByCurrentUser: details?.likedByCurrentUser,
+        crownedByCurrentUser: details?.crownedByCurrentUser,
+        isFollowing: details?.isFollowing,
+        isSaved: details?.isSaved
+    });
+
+    // Extract funding data with fallbacks
+    const fundingRaised = details?.fundingRaised ||
+        (details?.financialProfile && details?.financialProfile?.fundingAmount) || 0;
+    const fundingNeeded = details?.fundingNeeded || details?.requiredCapital || 0;
+
     // Map API response to StartupCard format expected by StartupPost
     const startupCardData = {
         id: details?._id || user?._id || '',
         userId: user?._id || '',
         name: details?.companyName || user?.displayName || user?.username || 'Startup',
         displayName: user?.displayName || '',
-        verified: user?.verified || false,
-        profileImage: details?.logo || user?.avatarUrl || details?.profileImage, // Try details logo first
+        verified: details?.verified || user?.verified || false,
+        profileImage: details?.profileImage || details?.logo || user?.avatarUrl, // Use profileImage first for consistency
         description: details?.description || details?.about || user?.bio || '',
         stage: details?.stage || '',
         rounds: details?.rounds || 0,
         age: details?.age || 0,
-        fundingRaised: details?.fundingRaised || 0,
-        fundingNeeded: details?.fundingNeeded || 0,
+        fundingRaised: Number(fundingRaised),
+        fundingNeeded: Number(fundingNeeded),
         stats: {
-            likes: details?.likes || 0,
-            comments: details?.comments || 0,
-            crowns: details?.crowns || 0,
-            shares: details?.shares || 0
+            likes: Number(details?.meta?.likes || details?.likesCount || details?.likes || 0),
+            comments: Number(details?.meta?.commentsCount || details?.commentsCount || details?.comments || 0),
+            crowns: Number(details?.meta?.crowns || details?.crownsCount || details?.crowns || 0),
+            shares: Number(details?.sharesCount || details?.shares || 0)
         },
-        likedByCurrentUser: details?.likedByCurrentUser,
-        crownedByCurrentUser: details?.crownedByCurrentUser,
-        isFollowing: details?.isFollowing,
-        isSaved: details?.isSaved
+        likedByCurrentUser: details?.likedByCurrentUser || false,
+        crownedByCurrentUser: details?.crownedByCurrentUser || false,
+        isFollowing: details?.isFollowing || false,
+        isSaved: details?.isSaved || false,
+        savedId: details?.savedId || null
     };
 
     return (

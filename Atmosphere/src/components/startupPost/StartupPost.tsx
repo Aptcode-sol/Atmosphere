@@ -62,6 +62,13 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
     const contentId = getContentId(companyData);
     const fundingPercent = getFundingPercent(companyData.fundingRaised || 0, companyData.fundingNeeded || 0);
 
+    console.log('StartupPost funding data:', {
+        name: companyData.name,
+        fundingRaised: companyData.fundingRaised,
+        fundingNeeded: companyData.fundingNeeded,
+        fundingPercent: fundingPercent
+    });
+
     // Double-tap to like
     const lastTap = useRef<number>(0);
     const heartScale = useRef(new Animated.Value(0)).current;

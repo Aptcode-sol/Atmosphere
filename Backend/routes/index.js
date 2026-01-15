@@ -38,5 +38,6 @@ router.use('/reels', require('./reels'));
 router.use('/upload', require('./upload'));
 router.use('/settings', require('./settings'));
 router.use('/my-team', require('./myTeam'));
+router.use('/analytics', require('./analytics'));
 
 module.exports = router;
