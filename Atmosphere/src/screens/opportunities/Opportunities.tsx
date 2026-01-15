@@ -470,6 +470,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                                     <RoleCard
                                         item={item}
                                         isMyAd={isMyJob && userRole !== 'personal'}
+                                        userRole={userRole}
                                         expanded={expandedId === (item._id || item.id)}
                                         onExpand={() => setExpandedId(
                                             expandedId === (item._id || item.id) ? null : (item._id || item.id)

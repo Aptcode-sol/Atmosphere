@@ -28,9 +28,10 @@ interface RoleCardProps {
     expanded?: boolean;
     onExpand: () => void;
     onApplySuccess?: () => void;
+    userRole?: string;
 }
 
-function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuccess }: RoleCardProps) {
+function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuccess, userRole = '' }: RoleCardProps) {
     const { theme } = useContext(ThemeContext) as any;
     const { showAlert } = useAlert();
     const [showFullDesc, setShowFullDesc] = useState(false);
@@ -431,100 +432,115 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                         </View>
                     ) : !applied ? (
                         <>
-                            {/* Custom Questions */}
-                            {customQuestions.length > 0 && (
-                                <View style={{ marginBottom: 16 }}>
-                                    {customQuestions.map((question: string, index: number) => (
-                                        <View key={index} style={{ marginBottom: 12 }}>
-                                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500', marginBottom: 6 }}>
-                                                {question}
-                                            </Text>
-                                            <TextInput
-                                                style={{
-                                                    backgroundColor: '#1a1a1a',
-                                                    borderRadius: 8,
-                                                    padding: 12,
-                                                    color: '#fff',
-                                                    minHeight: 60,
-                                                    textAlignVertical: 'top',
-                                                    borderWidth: 1,
-                                                    borderColor: '#333',
-                                                }}
-                                                placeholder="Your answer..."
-                                                placeholderTextColor="#666"
-                                                value={questionAnswers[index]}
-                                                onChangeText={(text) => {
-                                                    const newAnswers = [...questionAnswers];
-                                                    newAnswers[index] = text;
-                                                    setQuestionAnswers(newAnswers);
-                                                }}
-                                                multiline
-                                            />
-                                        </View>
-                                    ))}
+                            {/* Check if user allowed to apply */}
+                            {userRole !== 'personal' ? (
+                                <View style={{ alignItems: 'center', paddingVertical: 20, backgroundColor: '#1a1a1a', borderRadius: 8, marginTop: 8 }}>
+                                    <MaterialIcons name="lock-outline" size={32} color="#888" />
+                                    <Text style={{ color: '#aaa', fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 20 }}>
+                                        Job applications are only available for personal accounts.
+                                    </Text>
+                                    <Text style={{ color: '#666', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                                        Switch to a personal account to apply.
+                                    </Text>
                                 </View>
-                            )}
-
-                            {/* Resume Upload */}
-                            <View style={{ marginBottom: 16 }}>
-                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500', marginBottom: 6 }}>
-                                    Resume (PDF)
-                                </Text>
-                                <TouchableOpacity
-                                    onPress={pickResume}
-                                    style={{
-                                        backgroundColor: '#1a1a1a',
-                                        borderRadius: 8,
-                                        padding: 14,
-                                        borderWidth: 1,
-                                        borderColor: resumeFile ? '#22c55e' : '#333',
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                    }}
-                                >
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                        <MaterialIcons
-                                            name={resumeFile ? 'check-circle' : 'attach-file'}
-                                            size={20}
-                                            color={resumeFile ? '#22c55e' : '#666'}
-                                            style={{ marginRight: 10 }}
-                                        />
-                                        <Text
-                                            style={{ color: resumeFile ? '#fff' : '#666', flex: 1 }}
-                                            numberOfLines={1}
-                                        >
-                                            {resumeFile ? resumeFile.name : 'Tap to upload resume (PDF)'}
-                                        </Text>
-                                    </View>
-                                    {resumeFile && (
-                                        <TouchableOpacity
-                                            onPress={() => setResumeFile(null)}
-                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                        >
-                                            <MaterialIcons name="close" size={18} color="#888" />
-                                        </TouchableOpacity>
+                            ) : (
+                                <>
+                                    {/* Custom Questions */}
+                                    {customQuestions.length > 0 && (
+                                        <View style={{ marginBottom: 16 }}>
+                                            {customQuestions.map((question: string, index: number) => (
+                                                <View key={index} style={{ marginBottom: 12 }}>
+                                                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500', marginBottom: 6 }}>
+                                                        {question}
+                                                    </Text>
+                                                    <TextInput
+                                                        style={{
+                                                            backgroundColor: '#1a1a1a',
+                                                            borderRadius: 8,
+                                                            padding: 12,
+                                                            color: '#fff',
+                                                            minHeight: 60,
+                                                            textAlignVertical: 'top',
+                                                            borderWidth: 1,
+                                                            borderColor: '#333',
+                                                        }}
+                                                        placeholder="Your answer..."
+                                                        placeholderTextColor="#666"
+                                                        value={questionAnswers[index]}
+                                                        onChangeText={(text) => {
+                                                            const newAnswers = [...questionAnswers];
+                                                            newAnswers[index] = text;
+                                                            setQuestionAnswers(newAnswers);
+                                                        }}
+                                                        multiline
+                                                    />
+                                                </View>
+                                            ))}
+                                        </View>
                                     )}
-                                </TouchableOpacity>
-                            </View>
 
-                            {/* Apply Button */}
-                            <TouchableOpacity
-                                style={[styles.sendBtnDark, { backgroundColor: '#fff', opacity: applying ? 0.7 : 1 }]}
-                                onPress={handleApply}
-                                disabled={applying}
-                            >
-                                {applying ? (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <ActivityIndicator color="#000" size="small" />
-                                        <Text style={{ color: '#000', marginLeft: 8 }}>
-                                            {uploadingResume ? 'Uploading Resume...' : 'Submitting...'}
+                                    {/* Resume Upload */}
+                                    <View style={{ marginBottom: 16 }}>
+                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500', marginBottom: 6 }}>
+                                            Resume (PDF)
                                         </Text>
+                                        <TouchableOpacity
+                                            onPress={pickResume}
+                                            style={{
+                                                backgroundColor: '#1a1a1a',
+                                                borderRadius: 8,
+                                                padding: 14,
+                                                borderWidth: 1,
+                                                borderColor: resumeFile ? '#22c55e' : '#333',
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                            }}
+                                        >
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                                <MaterialIcons
+                                                    name={resumeFile ? 'check-circle' : 'attach-file'}
+                                                    size={20}
+                                                    color={resumeFile ? '#22c55e' : '#666'}
+                                                    style={{ marginRight: 10 }}
+                                                />
+                                                <Text
+                                                    style={{ color: resumeFile ? '#fff' : '#666', flex: 1 }}
+                                                    numberOfLines={1}
+                                                >
+                                                    {resumeFile ? resumeFile.name : 'Tap to upload resume (PDF)'}
+                                                </Text>
+                                            </View>
+                                            {resumeFile && (
+                                                <TouchableOpacity
+                                                    onPress={() => setResumeFile(null)}
+                                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                >
+                                                    <MaterialIcons name="close" size={18} color="#888" />
+                                                </TouchableOpacity>
+                                            )}
+                                        </TouchableOpacity>
                                     </View>
-                                ) : (
-                                    <Text style={[styles.sendBtnText, { color: '#000' }]}>Send Application</Text>
-                                )}
-                            </TouchableOpacity>
+
+                                    {/* Apply Button */}
+                                    <TouchableOpacity
+                                        style={[styles.sendBtnDark, { backgroundColor: '#fff', opacity: applying ? 0.7 : 1 }]}
+                                        onPress={handleApply}
+                                        disabled={applying}
+                                    >
+                                        {applying ? (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <ActivityIndicator color="#000" size="small" />
+                                                <Text style={{ color: '#000', marginLeft: 8 }}>
+                                                    {uploadingResume ? 'Uploading Resume...' : 'Submitting...'}
+                                                </Text>
+                                            </View>
+                                        ) : (
+                                            <Text style={[styles.sendBtnText, { color: '#000' }]}>Send Application</Text>
+                                        )}
+                                    </TouchableOpacity>
+                                </>
+                            )}
                         </>
                     ) : (
                         <View style={{ alignItems: 'center', paddingVertical: 16 }}>
