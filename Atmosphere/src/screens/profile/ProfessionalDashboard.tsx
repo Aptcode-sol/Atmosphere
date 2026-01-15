@@ -7,10 +7,12 @@ import {
     ScrollView,
     ActivityIndicator,
     Modal,
+    TouchableWithoutFeedback,
 } from 'react-native';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { ChevronLeft, ChevronRight, Eye, Users, ChevronDown } from 'lucide-react-native';
 import { request } from '../../lib/api/core';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface InsightsData {
     views: number;
@@ -40,6 +42,7 @@ const TIME_PERIODS = [
 
 const ProfessionalDashboard: React.FC<ProfessionalDashboardProps> = ({ onBack }) => {
     const { theme } = useContext(ThemeContext) as any;
+    const insets = useSafeAreaInsets();
     const [loading, setLoading] = useState(true);
     const [selectedPeriod, setSelectedPeriod] = useState(TIME_PERIODS[1]);
     const [showPeriodPicker, setShowPeriodPicker] = useState(false);
@@ -75,7 +78,7 @@ const ProfessionalDashboard: React.FC<ProfessionalDashboardProps> = ({ onBack })
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
                 <TouchableOpacity onPress={onBack} style={styles.backBtn}>
                     <ChevronLeft size={24} color="#fff" />
                 </TouchableOpacity>
@@ -160,42 +163,37 @@ const ProfessionalDashboard: React.FC<ProfessionalDashboardProps> = ({ onBack })
                 )}
             </ScrollView>
 
-            {/* Period Picker Modal */}
-            <Modal
-                visible={showPeriodPicker}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowPeriodPicker(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowPeriodPicker(false)}
-                >
-                    <View style={styles.pickerContainer}>
-                        {TIME_PERIODS.map((period) => (
-                            <TouchableOpacity
-                                key={period.value}
-                                style={[
-                                    styles.pickerOption,
-                                    selectedPeriod.value === period.value && styles.pickerOptionSelected
-                                ]}
-                                onPress={() => {
-                                    setSelectedPeriod(period);
-                                    setShowPeriodPicker(false);
-                                }}
-                            >
-                                <Text style={[
-                                    styles.pickerOptionText,
-                                    selectedPeriod.value === period.value && styles.pickerOptionTextSelected
-                                ]}>
-                                    {period.label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
+            {/* Period Picker Overlay - Replaced Modal with Absolute View for better reliability */}
+            {showPeriodPicker && (
+                <TouchableWithoutFeedback onPress={() => setShowPeriodPicker(false)}>
+                    <View style={styles.absoluteOverlay}>
+                        <TouchableWithoutFeedback onPress={() => { }}>
+                            <View style={styles.pickerContainer}>
+                                {TIME_PERIODS.map((period) => (
+                                    <TouchableOpacity
+                                        key={period.value}
+                                        style={[
+                                            styles.pickerOption,
+                                            selectedPeriod.value === period.value && styles.pickerOptionSelected
+                                        ]}
+                                        onPress={() => {
+                                            setSelectedPeriod(period);
+                                            setShowPeriodPicker(false);
+                                        }}
+                                    >
+                                        <Text style={[
+                                            styles.pickerOptionText,
+                                            selectedPeriod.value === period.value && styles.pickerOptionTextSelected
+                                        ]}>
+                                            {period.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </TouchableWithoutFeedback>
                     </View>
-                </TouchableOpacity>
-            </Modal>
+                </TouchableWithoutFeedback>
+            )}
         </View>
     );
 };
@@ -209,7 +207,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: 16,
-        paddingTop: 50,
+        paddingBottom: 16, // removed internal paddingTop, set inline with insets
     },
     backBtn: {
         padding: 4,
@@ -320,11 +318,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
-    modalOverlay: {
-        flex: 1,
+    absoluteOverlay: {
+        ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(0,0,0,0.6)',
         justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 1000,
     },
     pickerContainer: {
         backgroundColor: '#1a1a1a',

@@ -9,7 +9,7 @@ const { width } = Dimensions.get('window');
 
 import StartupPost from '../components/StartupPost';
 
-import AsyncStorage from '@react-native-async-storage/async-storage;
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 const StartupDetail = ({ route, navigation }: any) => {
