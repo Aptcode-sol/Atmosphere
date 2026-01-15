@@ -73,17 +73,44 @@ async function getSavedPostsByUser(userId) {
     // Handle StartupDetails
     if (s.contentType === 'StartupDetails' || (!s.contentType && !postData)) {
       postData = await StartupDetails.findById(id)
-        .populate('user', 'username displayName avatarUrl')
+        .populate('user', 'username displayName avatarUrl verified')
         .lean();
 
       if (postData) {
+        // Refresh profileImage URL
+        const profileImageUrl = postData.profileImage ? await refreshSignedUrl(postData.profileImage) : null;
+
+        // Return full startup card data for StartupPost component
         return {
           _id: s._id,
           contentType: 'StartupDetails',
+          // Full startup card data structure
+          startupDetailsId: String(postData._id),
+          name: postData.companyName || 'Unknown',
+          displayName: postData.user?.displayName || '',
+          verified: postData.verified || postData.user?.verified || false,
+          profileImage: profileImageUrl || 'https://via.placeholder.com/400x240.png?text=Startup',
+          description: postData.about || '',
+          stage: postData.stage || 'unknown',
+          rounds: postData.rounds || 0,
+          age: postData.age || 0,
+          fundingRaised: postData.fundingRaised || 0,
+          fundingNeeded: postData.fundingNeeded || 0,
+          fundingRounds: postData.fundingRounds || [],
+          userId: postData.user?._id || null,
+          stats: {
+            likes: Number(postData.meta?.likes || postData.likesCount || 0),
+            comments: Number(postData.meta?.commentsCount || 0),
+            crowns: Number(postData.meta?.crowns || 0),
+            shares: Number(postData.sharesCount || 0),
+          },
+          isSaved: true,
+          savedId: String(s._id),
+          // Legacy postId structure for backward compatibility
           postId: {
             _id: postData._id,
             content: postData.about || postData.companyName,
-            media: postData.profileImage ? [{ url: postData.profileImage, type: 'image' }] : [],
+            media: profileImageUrl ? [{ url: profileImageUrl, type: 'image' }] : [],
             author: postData.user || { username: postData.companyName }
           },
           createdAt: s.createdAt
