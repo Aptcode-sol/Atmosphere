@@ -264,8 +264,8 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
               </Text>
             )}
           </View>
-          <TouchableOpacity style={[styles.followBtn, { borderColor: theme.primary }]}>
-            <Text style={[styles.followBtnText, { color: theme.primary }]}>Follow</Text>
+          <TouchableOpacity style={styles.followBtnGray}>
+            <Text style={styles.followBtnGrayText}>Follow</Text>
           </TouchableOpacity>
         </View>
 
@@ -331,9 +331,12 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.sharesCount || 0}</Text>
           </TouchableOpacity>
 
-          {/* Save */}
+          {/* Spacer to push save to right */}
+          <View style={{ flex: 1 }} />
+
+          {/* Save - Right corner */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleSave} disabled={saveLoading}>
-            <Bookmark size={26} color={saved ? theme.primary : '#fff'} fill={saved ? theme.primary : 'none'} />
+            <Bookmark size={26} color="#fff" fill={saved ? '#fff' : 'none'} />
           </TouchableOpacity>
         </View>
 
@@ -454,6 +457,17 @@ const styles = StyleSheet.create({
   },
   followBtnText: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  followBtnGray: {
+    backgroundColor: '#2e2e2e',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  followBtnGrayText: {
+    color: '#fff',
+    fontSize: 13,
     fontWeight: '600',
   },
   imageContainer: {

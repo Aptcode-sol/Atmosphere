@@ -125,6 +125,8 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
                 isLiked: reel.isLiked || false,
                 isShared: false,
                 isFollowing: reel.author?.isFollowing || reel.isFollowing || false,
+                isSaved: reel.isSaved || false,
+                savedId: reel.savedId || null,
             }));
             setReels(reelsWithDefaults);
         } catch (err) {

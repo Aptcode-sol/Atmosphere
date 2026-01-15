@@ -71,7 +71,7 @@ export async function checkReelShared(reelId: string) {
 
 // Reel saving
 export async function saveReel(reelId: string) {
-    return request('/api/saved', { reelId }, { method: 'POST' });
+    return request('/api/saved', { postId: reelId }, { method: 'POST' });
 }
 
 export async function unsaveReel(savedId: string) {

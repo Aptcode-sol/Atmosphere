@@ -61,8 +61,8 @@ const ReelActions: React.FC<ReelActionsProps> = ({
             >
                 <Bookmark
                     size={26}
-                    color={reel.isSaved ? COLORS.success : "#fff"}
-                    fill={reel.isSaved ? COLORS.success : "transparent"}
+                    color={"#fff"}
+                    fill={reel.isSaved ? "#fff" : "transparent"}
                 />
             </TouchableOpacity>
         </View>

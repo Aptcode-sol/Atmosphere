@@ -154,22 +154,29 @@ exports.listStartupCards = async (req, res, next) => {
 
             // Build list of userIds for the startups (the 'following' targets)
             const userIds = startups.map(s => (s.user ? s.user._id : null)).filter(Boolean);
-            const [likes, crowns, follows] = await Promise.all([
+            const Saved = require('../models/Saved');
+            const [likes, crowns, follows, savedDocs] = await Promise.all([
                 StartupLike.find({ startup: { $in: startupIds }, user: userId }).select('startup').lean(),
                 StartupCrown.find({ startup: { $in: startupIds }, user: userId }).select('startup').lean(),
                 // Follow documents have shape { follower, following }
                 Follow.find({ follower: userId, following: { $in: userIds } }).select('following').lean(),
+                // Check saved content (use $or for both new contentId and legacy post fields)
+                Saved.find({ user: userId, $or: [{ contentId: { $in: startupIds } }, { post: { $in: startupIds } }] }).lean(),
             ]);
 
             const likedSet = new Set(likes.map(l => String(l.startup)));
             const crownSet = new Set(crowns.map(c => String(c.startup)));
             const followSet = new Set(follows.map(f => String(f.following)));
+            const savedMap = {};
+            savedDocs.forEach(s => { savedMap[String(s.contentId || s.post)] = String(s._id); });
 
             const enriched = startupCardsBase.map(card => ({
                 ...card,
                 likedByCurrentUser: likedSet.has(String(card.id)),
                 crownedByCurrentUser: crownSet.has(String(card.id)),
                 isFollowing: followSet.has(String(card.userId)),
+                isSaved: !!savedMap[String(card.id)],
+                savedId: savedMap[String(card.id)] || null,
             }));
 
             // Refresh images for ALL cards

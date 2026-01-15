@@ -34,4 +34,26 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Check if a specific post is saved by the current user
+router.get('/check/post/:postId', authMiddleware, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+    const Saved = require('../models/Saved');
+
+    // Check both contentId and legacy post field
+    const saved = await Saved.findOne({
+      user: userId,
+      $or: [{ contentId: postId }, { post: postId }]
+    });
+
+    res.status(200).json({
+      saved: !!saved,
+      savedId: saved ? saved._id : null
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

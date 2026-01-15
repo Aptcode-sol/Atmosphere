@@ -832,6 +832,7 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
             setExternalLinkHeading(trade.externalLinkHeading || '');
             setExternalLinkUrl(trade.externalLinkUrl || '');
             setFundingTarget(trade.fundingTarget ? String(trade.fundingTarget) : '');
+            setSelectedRound(trade.selectedRound || '');
         }
     };
 

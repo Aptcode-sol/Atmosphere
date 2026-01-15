@@ -339,16 +339,38 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                     </View>
                 </View>
 
-                {/* 3. Company Details */}
+                {/* 3. What's [company] - Description Card */}
+                {about ? (
+                    <View style={cardStyles.card}>
+                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 8 }}>What's {companyName || 'this startup'}</Text>
+                        <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 19 }}>{about}</Text>
+                    </View>
+                ) : null}
+
+                {/* 4. Request Pitch Deck Button - Standalone */}
+                {!isOwner && (
+                    <TouchableOpacity
+                        onPress={handleRequestPitchDeck}
+                        disabled={pitchRequested}
+                        style={{
+                            backgroundColor: pitchRequested ? '#222' : '#0d0d0d',
+                            borderRadius: 12,
+                            paddingVertical: 14,
+                            alignItems: 'center',
+                            borderWidth: 1,
+                            borderColor: '#1a1a1a',
+                            marginBottom: 16,
+                        }}
+                    >
+                        <Text style={{ color: pitchRequested ? '#888' : '#fff', fontWeight: '600', fontSize: 14 }}>
+                            {pitchRequested ? 'Requested' : 'Request Pitch Deck'}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+
+                {/* 5. Company Details Card */}
                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12 }}>Company Details</Text>
                 <View style={cardStyles.card}>
-                    {about ? (
-                        <View style={{ marginBottom: 16 }}>
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', marginBottom: 4 }}>What's {companyName || 'startups'}</Text>
-                            <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 19 }}>{about}</Text>
-                        </View>
-                    ) : null}
-
                     <View style={{ gap: 12 }}>
                         {industry ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -371,27 +393,6 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                             </View>
                         ) : null}
                     </View>
-
-                    {/* Request Pitch Deck Button - Hidden for Owner */}
-                    {!isOwner && (
-                        <TouchableOpacity
-                            onPress={handleRequestPitchDeck}
-                            disabled={pitchRequested}
-                            style={{
-                                marginTop: 16,
-                                backgroundColor: pitchRequested ? '#222' : '#000',
-                                borderRadius: 8,
-                                paddingVertical: 12,
-                                alignItems: 'center',
-                                borderWidth: 1,
-                                borderColor: '#333'
-                            }}
-                        >
-                            <Text style={{ color: pitchRequested ? '#888' : '#fff', fontWeight: '600', fontSize: 13 }}>
-                                {pitchRequested ? 'Requested' : 'Request Pitch Deck'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
                 </View>
 
                 {/* 4. Team Section */}

@@ -62,14 +62,25 @@ exports.getReelsFeed = async (req, res) => {
         // Add user interaction status if authenticated
         if (req.user) {
             const reelIds = reels.map(r => r._id);
-            const likes = await ReelLike.find({
-                reel: { $in: reelIds },
-                user: req.user.id
-            }).lean();
+            const Saved = require('../models/Saved');
+            const [likes, savedDocs] = await Promise.all([
+                ReelLike.find({
+                    reel: { $in: reelIds },
+                    user: req.user.id
+                }).lean(),
+                Saved.find({
+                    user: req.user.id,
+                    $or: [{ contentId: { $in: reelIds } }, { post: { $in: reelIds } }]
+                }).lean()
+            ]);
             const likedMap = new Set(likes.map(l => l.reel.toString()));
+            const savedMap = {};
+            savedDocs.forEach(s => { savedMap[String(s.contentId || s.post)] = String(s._id); });
 
             reels.forEach(reel => {
                 reel.isLiked = likedMap.has(reel._id.toString());
+                reel.isSaved = !!savedMap[reel._id.toString()];
+                reel.savedId = savedMap[reel._id.toString()] || null;
             });
         }
 

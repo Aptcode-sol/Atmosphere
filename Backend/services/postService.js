@@ -56,7 +56,21 @@ exports.listPosts = async (req, res, next) => {
 
         const refreshedPosts = await Promise.all(posts.map(post => refreshPostUrls(post)));
 
-        res.json({ posts: refreshedPosts, count: refreshedPosts.length });
+        // Enrich with save status for current user
+        let enrichedPosts = refreshedPosts;
+        if (req.user) {
+            const Saved = require('../models/Saved');
+            const savedDocs = await Saved.find({ user: req.user._id, post: { $in: posts.map(p => p._id) } }).lean();
+            const savedMap = {};
+            savedDocs.forEach(s => { savedMap[s.post.toString()] = s._id.toString(); });
+            enrichedPosts = refreshedPosts.map(p => ({
+                ...p,
+                isSaved: !!savedMap[p._id.toString()],
+                savedId: savedMap[p._id.toString()] || null
+            }));
+        }
+
+        res.json({ posts: enrichedPosts, count: enrichedPosts.length });
     } catch (err) { next(err); }
 };
 

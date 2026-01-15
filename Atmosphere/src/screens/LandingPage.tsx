@@ -360,7 +360,18 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
             case 'createReel':
                 return <CreateReel onClose={() => setRoute('profile')} onSuccess={() => setRoute('reels')} />;
             case 'saved':
-                return <SavedPosts onClose={() => setRoute('profile')} onPostPress={handlePostPress} />;
+                return <SavedPosts
+                    onClose={() => setRoute('profile')}
+                    onPostPress={handlePostPress}
+                    onStartupPress={(startupId) => {
+                        setSelectedStartupId(startupId);
+                        setRoute('startupDetail');
+                    }}
+                    onReelPress={(reelId) => {
+                        setSelectedReelId(reelId);
+                        setRoute('reels');
+                    }}
+                />;
             default:
                 return null;
         }

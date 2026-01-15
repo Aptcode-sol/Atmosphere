@@ -10,6 +10,8 @@ import { useNavigation } from '@react-navigation/native';
 import InvestorExpand from './InvestorExpand';
 import StartupExpand from './StartupExpand';
 import PersonalExpand from './PersonalExpand';
+import { TradeCard } from '../Trading/components';
+import { styles as tradingStyles } from '../Trading/styles';
 
 type Props = {
     posts?: any[];
@@ -140,63 +142,12 @@ export default function ProfilePager({
         }
     };
 
-    // Render Trade Card (Reference Design: Dark card, avatar, name, shares, For Sale badge, price/value, View Details)
-    const renderTradeCard = ({ item }: { item: any }) => {
-        const companyName = item.companyName || item.assetName || item.title || 'Unknown';
-        const shares = item.shares || item.quantity || 0;
-        const pricePerShare = item.pricePerShare || item.price || 0;
-        const totalValue = shares * pricePerShare;
-        const logo = item.companyLogo || item.logo || item.profileImage || null;
+    // Trade Card State for TradeCard component
+    const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
+    const [savedTradeIds, setSavedTradeIds] = useState<string[]>([]);
+    const [tradePhotoIndices, setTradePhotoIndices] = useState<{ [key: string]: number }>({});
 
-        return (
-            <View style={{
-                backgroundColor: '#0d0d0d',
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: '#2a2a2a',
-                padding: 14,
-                marginBottom: 10,
-                marginTop: 12,
-            }}>
-                {/* Header Row: Avatar, Name, Shares, Badge */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-                    {logo ? (
-                        <Image source={{ uri: logo }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#333' }} />
-                    ) : (
-                        <View style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ color: '#888', fontSize: 18, fontWeight: '600' }}>{companyName.charAt(0).toUpperCase()}</Text>
-                        </View>
-                    )}
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>{companyName}</Text>
-                        <Text style={{ color: '#888', fontSize: 13 }}>{Number(shares).toLocaleString()} shares</Text>
-                    </View>
-                    <View style={{ backgroundColor: '#2a2a2a', borderWidth: 1, borderColor: '#3a3a3a', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6 }}>
-                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500' }}>For Sale</Text>
-                    </View>
-                </View>
-
-                {/* Price Row */}
-                <View style={{ flexDirection: 'row', marginBottom: 14 }}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ color: '#888', fontSize: 12 }}>Price per Share</Text>
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>${Number(pricePerShare).toLocaleString()}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ color: '#888', fontSize: 12 }}>Total Value</Text>
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>${Number(totalValue).toLocaleString()}</Text>
-                    </View>
-                </View>
-
-                {/* View Details Button */}
-                <TouchableOpacity style={{ backgroundColor: '#3a3a3a', borderRadius: 8, paddingVertical: 12, alignItems: 'center' }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '500' }}>View Details</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    };
-
-    // Render Trades Section
+    // Render Trades Section using TradeCard component
     const renderTradesSection = () => {
         if (tradesLoading) {
             return (
@@ -220,11 +171,33 @@ export default function ProfilePager({
 
         return (
             <View style={{ paddingHorizontal: 8, paddingTop: 12, paddingBottom: 150 }}>
-                {trades.map((item, index) => (
-                    <View key={String(item._id || item.id || index)}>
-                        {renderTradeCard({ item })}
-                    </View>
-                ))}
+                {trades.map((item, index) => {
+                    const tradeId = item._id || item.id || String(index);
+                    return (
+                        <TradeCard
+                            key={tradeId}
+                            trade={item}
+                            isExpanded={expandedTradeId === tradeId}
+                            isSaved={savedTradeIds.includes(tradeId)}
+                            currentPhotoIndex={tradePhotoIndices[tradeId] || 0}
+                            onToggleExpand={() => setExpandedTradeId(prev => prev === tradeId ? null : tradeId)}
+                            onToggleSave={() => {
+                                setSavedTradeIds(prev =>
+                                    prev.includes(tradeId)
+                                        ? prev.filter(id => id !== tradeId)
+                                        : [...prev, tradeId]
+                                );
+                            }}
+                            onPhotoIndexChange={(index) => {
+                                setTradePhotoIndices(prev => ({ ...prev, [tradeId]: index }));
+                            }}
+                            onExpressInterest={() => {
+                                // TODO: Implement express interest navigation
+                                console.log('Express interest for trade:', tradeId);
+                            }}
+                        />
+                    );
+                })}
             </View>
         );
     };

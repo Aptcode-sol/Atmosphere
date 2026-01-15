@@ -19,6 +19,7 @@ const GRID_SIZE = (width - 4) / 3; // 3 columns with 2px gaps
 
 interface SavedItem {
     _id: string;
+    contentType?: 'Post' | 'StartupDetails' | 'Reel'; // Track content type
     postId: string | {
         _id: string;
         content?: string;
@@ -35,13 +36,16 @@ interface SavedItem {
 interface SavedPostsProps {
     onClose?: () => void;
     onPostPress?: (postId: string) => void;
+    onStartupPress?: (startupId: string) => void;
+    onReelPress?: (reelId: string) => void;
 }
 
-const SavedPosts = ({ onClose, onPostPress }: SavedPostsProps) => {
+const SavedPosts = ({ onClose, onPostPress, onStartupPress, onReelPress }: SavedPostsProps) => {
     const { theme } = useContext(ThemeContext) as any;
     const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
 
     const loadSavedPosts = useCallback(async (isRefreshing = false) => {
         if (!isRefreshing) setLoading(true);
@@ -77,10 +81,20 @@ const SavedPosts = ({ onClose, onPostPress }: SavedPostsProps) => {
     const handlePostPress = (item: SavedItem) => {
         if (!item || !item.postId) return;
         const postId = typeof item.postId === 'string' ? item.postId : item.postId?._id;
-        if (postId) onPostPress?.(postId);
+        if (!postId) return;
+
+        // Check content type for navigation
+        if (item.contentType === 'Reel' && onReelPress) {
+            onReelPress(postId);
+        } else if (item.contentType === 'StartupDetails' && onStartupPress) {
+            onStartupPress(postId);
+        } else if (onPostPress) {
+            onPostPress(postId);
+        }
     };
 
     const getPostImageUrl = (item: SavedItem): string | null => {
+        if (!item.postId) return null;
         if (typeof item.postId === 'object' && item.postId.media && item.postId.media.length > 0) {
             return item.postId.media[0].url;
         }
@@ -88,6 +102,7 @@ const SavedPosts = ({ onClose, onPostPress }: SavedPostsProps) => {
     };
 
     const getPostContent = (item: SavedItem): string => {
+        if (!item.postId) return 'Saved post';
         if (typeof item.postId === 'object' && item.postId.content) {
             return item.postId.content;
         }
@@ -113,12 +128,6 @@ const SavedPosts = ({ onClose, onPostPress }: SavedPostsProps) => {
                         </Text>
                     </View>
                 )}
-                <TouchableOpacity
-                    style={styles.unsaveBtn}
-                    onPress={() => handleUnsave(item._id)}
-                >
-                    <Icon name="bookmark" size={16} color="#fff" />
-                </TouchableOpacity>
             </TouchableOpacity>
         );
     };

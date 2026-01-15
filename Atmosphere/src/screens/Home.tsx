@@ -244,6 +244,8 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 likedByCurrentUser: Boolean(p.likedByCurrentUser),
                 crownedByCurrentUser: Boolean(p.crownedByCurrentUser),
                 isFollowing: Boolean(p.isFollowing),
+                isSaved: Boolean(p.isSaved),
+                savedId: p.savedId || null,
             };
         });
     };
