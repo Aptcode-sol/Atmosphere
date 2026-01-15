@@ -116,6 +116,17 @@ async function updateProfile(userId, data) {
             }
         });
         await user.save();
+
+        // If startup account and avatarUrl was updated, also update StartupDetails.profileImage
+        const roles = Array.isArray(user.roles) ? user.roles : ['personal'];
+        if (roles.includes('startup') && userData.avatarUrl) {
+            await StartupDetails.findOneAndUpdate(
+                { user: userId },
+                { $set: { profileImage: userData.avatarUrl } },
+                { new: true }
+            );
+            console.log('profileService: synced avatarUrl to StartupDetails.profileImage for startup user', userId);
+        }
     }
 
     let roleDetails = null;
