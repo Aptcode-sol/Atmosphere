@@ -4,7 +4,8 @@ import { View, Text, TouchableOpacity, Dimensions, Animated, FlatList, ActivityI
 import { PLACEHOLDER } from '../../lib/localImages';
 import { getImageSource } from '../../lib/image';
 import styles from './Profile.styles';
-import { Play, Video, Copy } from 'lucide-react-native';
+import { Video, Copy, Grid3x3, Layers, TrendingUp } from 'lucide-react-native';
+import ReelsIcon from '../../components/icons/ReelsIcon';
 import { ENDPOINTS } from '../../lib/api/endpoints';
 import { useNavigation } from '@react-navigation/native';
 import InvestorExpand from './InvestorExpand';
@@ -83,6 +84,7 @@ export default function ProfilePager({
     const renderGridItem = ({ item }: { item: any }) => {
         const isReel = item._type === 'reel';
         const itemWidth = (screenW - 6) / 3;
+        const itemHeight = itemWidth * 4 / 3;
         const itemId = item._id || item.id;
 
         let imageUrl: string | null = null;
@@ -105,15 +107,15 @@ export default function ProfilePager({
                     }
                 }}
             >
-                <View style={{ width: itemWidth, height: itemWidth, backgroundColor: '#222' }}>
+                <View style={{ width: itemWidth, height: itemHeight, backgroundColor: '#222', borderRadius: 2, overflow: 'hidden', marginHorizontal: 1, marginBottom: 1 }}>
                     <Image
                         source={source}
                         style={{ width: '100%', height: '100%' }}
                         onError={(e) => { console.warn('Profile grid image error', e.nativeEvent, imageUrl); }}
                     />
                     {isReel && (
-                        <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4, padding: 2 }}>
-                            <Play size={16} color="#fff" />
+                        <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 4, padding: 4, alignItems: 'center', justifyContent: 'center' }}>
+                            <ReelsIcon color="#fff" size={16} />
                         </View>
                     )}
                     {!isReel && Array.isArray(item.media) && item.media.length > 0 && item.media[0]?.type === 'video' && (
@@ -208,21 +210,21 @@ export default function ProfilePager({
         <>
             <View style={styles.tabsRow}>
                 <TouchableOpacity style={styles.tabItem} onPress={() => { setActiveTab('posts'); pagerRef.current?.scrollTo({ x: 0, animated: true }); }}>
-                    <Text style={[activeTab === 'posts' ? styles.tabTextActive : styles.tabText, { color: activeTab === 'posts' ? theme.text : theme.placeholder }]}>Posts</Text>
+                    <Grid3x3 size={20} color={activeTab === 'posts' ? theme.text : theme.placeholder} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.tabItem} onPress={() => { setActiveTab('expand'); pagerRef.current?.scrollTo({ x: screenW, animated: true }); }}>
-                    <Text style={[activeTab === 'expand' ? styles.tabTextActive : styles.tabText, { color: activeTab === 'expand' ? theme.text : theme.placeholder }]}>Expand</Text>
+                    <Layers size={20} color={activeTab === 'expand' ? theme.text : theme.placeholder} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.tabItem} onPress={() => { setActiveTab('trades'); pagerRef.current?.scrollTo({ x: screenW * 2, animated: true }); }}>
-                    <Text style={[activeTab === 'trades' ? styles.tabTextActive : styles.tabText, { color: activeTab === 'trades' ? theme.text : theme.placeholder }]}>Trades</Text>
+                    <TrendingUp size={20} color={activeTab === 'trades' ? theme.text : theme.placeholder} />
                 </TouchableOpacity>
 
                 <Animated.View
                     style={[
                         styles.tabIndicator,
                         {
-                            width: screenW / 3,
-                            transform: [{ translateX: scrollX.interpolate({ inputRange: [0, screenW, screenW * 2], outputRange: [0, screenW / 3, (screenW / 3) * 2] }) }]
+                            width: screenW / 6,
+                            transform: [{ translateX: scrollX.interpolate({ inputRange: [0, screenW, screenW * 2], outputRange: [screenW / 12, screenW / 3 + screenW / 12, (screenW / 3) * 2 + screenW / 12] }) }]
                         }
                     ]}
                 />

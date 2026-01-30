@@ -13,10 +13,10 @@ import { ThemeContext } from '../contexts/ThemeContext';
 import { fetchSavedPosts, unsavePost } from '../lib/api';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
-import { Play } from 'lucide-react-native';
+import ReelsIcon from '../components/icons/ReelsIcon';
 
 const { width } = Dimensions.get('window');
-const GRID_SIZE = (width - 4) / 3; // 3 columns with 2px gaps
+const GRID_SIZE = (width - 6) / 3; // 3 columns with gaps matching Search
 
 interface SavedItem {
     _id: string;
@@ -145,7 +145,7 @@ const SavedPosts = ({ onClose, onPostPress, onStartupPress, onReelPress }: Saved
                 {/* Video/Reel icon overlay */}
                 {isReel && (
                     <View style={styles.reelIconOverlay}>
-                        <Play size={16} color="#fff" fill="#fff" />
+                        <ReelsIcon color="#fff" size={16} />
                     </View>
                 )}
             </TouchableOpacity>
@@ -239,8 +239,9 @@ const styles = StyleSheet.create({
     },
     gridItem: {
         width: GRID_SIZE,
-        height: GRID_SIZE,
-        margin: 1,
+        height: GRID_SIZE * 4 / 3,
+        marginHorizontal: 1,
+        marginBottom: 1,
         position: 'relative',
     },
     gridImage: {
@@ -260,9 +261,9 @@ const styles = StyleSheet.create({
     },
     unsaveBtn: {
         position: 'absolute',
-        top: 4,
-        right: 4,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(0,0,0,0.7)',
         borderRadius: 12,
         padding: 4,
     },
@@ -287,9 +288,9 @@ const styles = StyleSheet.create({
     },
     reelIconOverlay: {
         position: 'absolute',
-        top: 4,
-        right: 4,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(0,0,0,0.7)',
         borderRadius: 4,
         padding: 4,
         zIndex: 10,

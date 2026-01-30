@@ -556,20 +556,20 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                             </View>
                             <View style={{ flex: 1, justifyContent: 'center', marginLeft: 18 }}>
                                 <View style={{ flexDirection: 'column', marginBottom: 8 }}>
-                                    <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>{src?.name}</Text>
+                                    <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>{src?.name}</Text>
                                 </View>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingRight: 40 }}>
                                     <View style={{ alignItems: 'flex-start' }}>
-                                        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>{posts.length}</Text>
-                                        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>posts</Text>
+                                        <Text style={[styles.statNum, { color: theme.text }]}>{posts.length}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.text }]}>posts</Text>
                                     </View>
                                     <TouchableOpacity style={{ alignItems: 'flex-start' }} onPress={() => { setFollowersModalInitialTab('followers'); setFollowersModalVisible(true); }}>
-                                        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>{followersCount ?? src?.stats?.followers ?? 0}</Text>
-                                        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>followers</Text>
+                                        <Text style={[styles.statNum, { color: theme.text }]}>{followersCount ?? src?.stats?.followers ?? 0}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.text }]}>followers</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={{ alignItems: 'flex-start' }} onPress={() => { setFollowersModalInitialTab('following'); setFollowersModalVisible(true); }}>
-                                        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>{followingCount ?? 0}</Text>
-                                        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>following</Text>
+                                        <Text style={[styles.statNum, { color: theme.text }]}>{followingCount ?? 0}</Text>
+                                        <Text style={[styles.statLabel, { color: theme.text }]}>following</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -596,10 +596,10 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
 
                         {!viewingUserId || (currentUserId && viewingUserId === currentUserId) ? (
                             <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 8 }}>
-                                <TouchableOpacity style={{ flex: 1, backgroundColor: '#2e2e2e', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }} onPress={() => onNavigate ? onNavigate('setup') : null}>
+                                <TouchableOpacity style={{ flex: 1, backgroundColor: '#2e2e2e', borderRadius: 8, paddingVertical: 8, alignItems: 'center' }} onPress={() => onNavigate ? onNavigate('setup') : null}>
                                     <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{accountType === 'investor' ? 'Edit Profile' : 'Setup Profile'}</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={{ flex: 1, backgroundColor: '#2e2e2e', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }} onPress={() => {
+                                <TouchableOpacity style={{ flex: 1, backgroundColor: '#2e2e2e', borderRadius: 8, paddingVertical: 8, alignItems: 'center' }} onPress={() => {
                                     const { Share } = require('react-native');
                                     Share.share({ message: `Check out ${src?.name}'s profile on Atmosphere!`, url: `https://atmosphere.app/profile/${ownProfileId || ''}` });
                                 }}>
@@ -609,7 +609,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                         ) : (
                             <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 8 }}>
                                 <TouchableOpacity
-                                    style={{ flex: 1, backgroundColor: isFollowing ? '#2e2e2e' : '#0095f6', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
+                                    style={{ flex: 1, backgroundColor: isFollowing ? '#2e2e2e' : '#0095f6', borderRadius: 8, paddingVertical: 8, alignItems: 'center' }}
                                     onPress={async () => {
                                         if (!viewingUserId || followLoading) return;
                                         setFollowLoading(true);
@@ -634,7 +634,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                                     <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{isFollowing ? 'Following' : 'Follow'}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={{ flex: 1, backgroundColor: '#2e2e2e', borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}
+                                    style={{ flex: 1, backgroundColor: '#2e2e2e', borderRadius: 8, paddingVertical: 8, alignItems: 'center' }}
                                     onPress={() => {
                                         if (onChatWithUser && viewingUserId) {
                                             onChatWithUser(String(viewingUserId));

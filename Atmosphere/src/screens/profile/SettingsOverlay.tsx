@@ -67,7 +67,7 @@ function Collapsible({ title, open, onToggle, children, theme }: any) {
 
 export default function SettingsOverlay({ src, theme, accountType = 'personal', onClose, onNavigate }: Props) {
     const { showAlert } = useAlert();
-    const slideAnim = useRef(new Animated.Value(-Dimensions.get('window').width)).current;
+    const slideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
     const width = Dimensions.get('window').width;
 
     // Settings state
@@ -252,7 +252,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
 
     const handleClose = () => {
         Animated.timing(slideAnim, {
-            toValue: -width,
+            toValue: width,
             duration: 200,
             useNativeDriver: true,
         }).start(({ finished }) => {
@@ -554,22 +554,22 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
 
                         <Text style={[styles.sectionLabel, themePlaceholderStyle]}>CONTENT</Text>
                         <View style={[styles.sectionCard, themeBorderStyle]}>
-                                {/* Professional Dashboard - for startup/investor accounts */}
-                                {(accountType === 'investor' || accountType === 'startup') && (
-                                    <TouchableOpacity style={styles.settingRow} onPress={() => {
-                                        handleClose();
-                                        if (onNavigate) onNavigate('dashboard');
-                                    }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                            <BarChart2 size={20} color={theme.placeholder} style={{ marginRight: 12 }} />
-                                            <View style={styles.settingLeft}>
-                                                <Text style={[styles.settingTitle, themeTextStyle]}>Professional dashboard</Text>
-                                                <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>View insights and analytics</Text>
-                                            </View>
+                            {/* Professional Dashboard - for startup/investor accounts */}
+                            {(accountType === 'investor' || accountType === 'startup') && (
+                                <TouchableOpacity style={styles.settingRow} onPress={() => {
+                                    handleClose();
+                                    if (onNavigate) onNavigate('dashboard');
+                                }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                        <BarChart2 size={20} color={theme.placeholder} style={{ marginRight: 12 }} />
+                                        <View style={styles.settingLeft}>
+                                            <Text style={[styles.settingTitle, themeTextStyle]}>Professional dashboard</Text>
+                                            <Text style={[styles.settingSubtitle, themePlaceholderStyle]}>View insights and analytics</Text>
                                         </View>
-                                        <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
-                                    </TouchableOpacity>
-                                )}
+                                    </View>
+                                    <Text style={[styles.chev, themePlaceholderStyle]}>{'›'}</Text>
+                                </TouchableOpacity>
+                            )}
                             <TouchableOpacity style={styles.settingRow} onPress={() => {
                                 handleClose();
                                 if (onNavigate) onNavigate('saved');
