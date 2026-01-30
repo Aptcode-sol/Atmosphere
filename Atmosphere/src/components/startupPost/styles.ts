@@ -110,7 +110,7 @@ export const styles = StyleSheet.create({
     currentRoundValue: { color: '#fff', fontWeight: '600', fontSize: 14 },
     fundingBarWrap: { marginTop: 0 },
     fundingBarTrack: {
-        height: 32,
+        height: 24,
         borderRadius: 6,
         backgroundColor: '#1a1a1a',
         overflow: 'hidden',
@@ -141,7 +141,8 @@ export const styles = StyleSheet.create({
     },
     verifiedSubtext: {
         color: '#878787',
-        fontSize: 12,
+        fontSize: 10,
+        fontWeight: '400',
         marginTop: 2,
     },
 });

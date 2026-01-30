@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { View, TouchableOpacity, StyleSheet, DeviceEventEmitter } from "react-native";
+import { View, TouchableOpacity, StyleSheet, DeviceEventEmitter, Image } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Home,
@@ -9,8 +9,16 @@ import {
   Rocket,
   TrendingUp,
   Briefcase,
-  Calendar
+  Calendar,
+  SquarePlay,
 } from "lucide-react-native";
+import ReelsIcon from './icons/ReelsIcon';
+import ReelsOutline from './icons/ReelsOutline';
+import HomeFilled from './icons/HomeFilled';
+import HomeOutline from './icons/HomeOutline';
+import ShareIcon from './icons/ShareIcon';
+
+
 import { NavigationContext, NavigationRouteContext } from "@react-navigation/native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,7 +29,7 @@ const NAV_MODE_KEY = "navMode";
 const leftModeTabs = [
   { id: "home", Icon: Home, label: "Home", route: "Home" },
   { id: "search", Icon: Search, label: "Search", route: "Search" },
-  { id: "reels", Icon: Film, label: "Reels", route: "Reels" },
+  { id: "reels", Icon: SquarePlay, label: "Reels", route: "Reels" },
   { id: "profile", Icon: User, label: "Profile", route: "Profile" },
 ];
 
@@ -45,6 +53,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
   const [appMode, setAppMode] = useState<AppMode>("left");
   const [lastLeftPage, setLastLeftPage] = useState<string>(leftModeTabs[0].route);
   const [lastRightPage, setLastRightPage] = useState<string>(rightModeTabs[0].route);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -52,6 +61,12 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
         const stored = await AsyncStorage.getItem(NAV_MODE_KEY);
         if (stored === "left" || stored === "right") {
           setAppMode(stored);
+        }
+        // Load user avatar
+        const userJson = await AsyncStorage.getItem('user');
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          setUserAvatarUrl(user.avatarUrl || null);
         }
       } catch {
         // ignore
@@ -125,11 +140,21 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
               style={[styles.tab]}
               activeOpacity={0.8}
             >
-              <IconComponent
-                color={active ? "#fff" : "#9aa0a6"}
-                size={26}
-                strokeWidth={active ? 2.5 : 1.5}
-              />
+              <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: active && tab.id === 'home' ? '#111' : 'transparent' }}>
+                {tab.id === 'home' ? (
+                  active ? (
+                    <HomeFilled color="#fff" size={24} />
+                  ) : (
+                    <HomeOutline color="#fff" size={24} />
+                  )
+                ) : (
+                  <IconComponent
+                    color="#fff"
+                    size={26}
+                    strokeWidth={active ? 2.5 : 1.4}
+                  />
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -142,6 +167,35 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
 
         {tabs.slice(2, 4).map((tab) => {
           const active = isTabActive(tab.route);
+
+          // Render profile as avatar with border, or user icon with border
+          if (tab.id === 'profile') {
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                onPress={() => handleTabPress(tab.route)}
+                style={[styles.tab]}
+                activeOpacity={0.8}
+              >
+                {userAvatarUrl ? (
+                  <Image
+                    source={{ uri: userAvatarUrl }}
+                    style={[styles.avatarIcon, active && styles.avatarIconActive]}
+                  />
+                ) : (
+                  <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#111' : 'transparent' }}>
+                    <User
+                      color="#fff"
+                      size={22}
+                      strokeWidth={active ? 2.5 : 1.2}
+                    />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }
+
+          // Render reels with filled/outline icons
           const IconComponent = tab.Icon;
           return (
             <TouchableOpacity
@@ -150,14 +204,24 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
               style={[styles.tab]}
               activeOpacity={0.8}
             >
-              <IconComponent
-                color={active ? "#fff" : "#9aa0a6"}
-                size={26}
-                strokeWidth={active ? 2.5 : 1.5}
-              />
+              <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#111' : 'transparent' }}>
+                {tab.id === 'reels' ? (
+                  active ? (
+                    <ReelsIcon color="#fff" size={24} />
+                  ) : (
+                    <ReelsOutline color="#fff" size={24} />
+                  )
+                ) : (
+                  <IconComponent
+                    color="#fff"
+                    size={26}
+                    strokeWidth={active ? 2.5 : 1.2}
+                  />
+                )}
+              </View>
             </TouchableOpacity>
           );
-        })}
+        })}}
       </View>
     </View>
   );
@@ -184,6 +248,17 @@ const styles = StyleSheet.create({
     height: NAV_HEIGHT,
     borderRadius: 18,
     marginHorizontal: 4,
+  },
+  avatarIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  avatarIconActive: {
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   toggle: {
     width: 60,

@@ -7,7 +7,8 @@ import { getImageSource } from '../../lib/image';
 import CommentsOverlay from '../CommentsOverlay';
 import { useAlert } from '../CustomAlert';
 import ShareModal from '../ShareModal';
-import { Heart, Crown, MessageCircle, Send, Bookmark } from 'lucide-react-native';
+import { Heart, Crown, MessageCircle, Bookmark } from 'lucide-react-native';
+import ShareIcon from '../icons/ShareIcon';
 
 import { StartupPostProps, AlertConfig } from './types';
 import { styles } from './styles';
@@ -91,7 +92,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                 // Quick pop in
                 Animated.parallel([
                     Animated.spring(heartScale, {
-                        toValue: 1.2,
+                        toValue: 2,
                         useNativeDriver: true,
                         tension: 100,
                         friction: 6,
@@ -245,24 +246,24 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                 <View style={styles.actionsRow}>
                     <View style={styles.statItemRow}>
                         <TouchableOpacity style={styles.statItem} onPress={toggleLike}>
-                            <Heart size={24} color={liked ? '#ef4444' : '#fff'} fill={liked ? '#ef4444' : 'none'} />
+                            <Heart size={24} color={liked ? '#ef4444' : '#fff'} fill={liked ? '#ef4444' : 'none'} strokeWidth={1.7} />
                             <Text style={styles.statCount}>{likes}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.statItem} onPress={toggleCrown}>
-                            <Crown size={24} color={crowned ? '#eab308' : '#fff'} fill={crowned ? '#eab308' : 'none'} />
+                            <Crown size={24} color={crowned ? '#eab308' : '#fff'} fill={crowned ? '#eab308' : 'none'} strokeWidth={1.7} />
                             <Text style={styles.statCount}>{crownsCount}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.statItem} onPress={() => setCommentsOverlayVisible(true)}>
-                            <MessageCircle size={24} color="#fff" />
+                            <MessageCircle size={24} color="#fff" strokeWidth={1.7} />
                             <Text style={styles.statCount}>{commentsCount}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.statItem} onPress={() => setShareModalVisible(true)}>
-                            <Send size={24} color="#fff" />
+                            <ShareIcon color="#fff" size={24} />
                             <Text style={styles.statCount}>{stats.shares}</Text>
                         </TouchableOpacity>
                         <View style={styles.flex1} />
                         <TouchableOpacity onPress={toggleSave}>
-                            <Bookmark size={24} color="#fff" fill={saved ? '#fff' : 'none'} />
+                            <Bookmark size={24} color="#fff" fill={saved ? '#fff' : 'none'} strokeWidth={1.7} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -274,7 +275,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                         <Text style={styles.stageText}>STAGE : <Text style={styles.stageValue}>{String(companyData.stage || 'MVP LAUNCHED')}</Text></Text>
                     </View> */}
                     <View style={styles.pillsRow}>
-                        <View style={styles.pill}><Text style={styles.pillText}>Rvnu generating</Text></View>
+                        <View style={styles.pill}><Text style={styles.pillText}>Revenue generating</Text></View>
                         <View style={styles.pill}><Text style={styles.pillText}>Rounds : {companyData.rounds ?? 0}</Text></View>
                         <View style={styles.pill}><Text style={styles.pillText}>Age : {companyData.age ?? 0} yr</Text></View>
                     </View>

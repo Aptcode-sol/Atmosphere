@@ -1,0 +1,15 @@
+import React from 'react';
+import Svg, { Path } from 'react-native-svg';
+
+type Props = { color?: string; size?: number };
+
+export default function HomeFilled({ color = '#fff', size = 24 }: Props) {
+    return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Path
+                d="m21.762 8.786-7-6.68a3.994 3.994 0 0 0-5.524 0l-7 6.681A4.017 4.017 0 0 0 1 11.68V19c0 2.206 1.794 4 4 4h3.005a1 1 0 0 0 1-1v-7.003a2.997 2.997 0 0 1 5.994 0V22a1 1 0 0 0 1 1H19c2.206 0 4-1.794 4-4v-7.32a4.02 4.02 0 0 0-1.238-2.894Z"
+                fill={color}
+            />
+        </Svg>
+    );
+}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react-native';
+import { Heart, MessageCircle, Bookmark } from 'lucide-react-native';
+import ShareIcon from '../../components/icons/ShareIcon';
 import { ReelActionsProps } from './types';
 import { styles, COLORS } from './styles';
 
@@ -46,7 +47,7 @@ const ReelActions: React.FC<ReelActionsProps> = ({
                 style={styles.actionBtn}
                 onPress={onShare}
             >
-                <Send
+                <ShareIcon
                     size={26}
                     color={reel.isShared ? COLORS.success : "#fff"}
                 />

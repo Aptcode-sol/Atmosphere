@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { View, Text, Image, ActivityIndicator, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, SafeAreaView, Animated } from 'react-native';
-import { ArrowLeft, Heart, MessageCircle, Send, Bookmark } from 'lucide-react-native';
+import { ArrowLeft, Heart, MessageCircle, Bookmark } from 'lucide-react-native';
+import ShareIcon from '../components/icons/ShareIcon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getBaseUrl, DEFAULT_BASE_URL } from '../lib/config';
@@ -346,7 +347,7 @@ const PostDetail: React.FC<PostDetailProps & { onBackPress?: () => void }> = ({ 
 
           {/* Share */}
           <TouchableOpacity style={styles.actionBtn} onPress={handleShareClick}>
-            <Send size={26} color="#fff" />
+            <ShareIcon size={26} color="#fff" />
             <Text style={[styles.actionCount, { color: theme.text }]}>{post.sharesCount || 0}</Text>
           </TouchableOpacity>
 
