@@ -31,7 +31,7 @@ export default function InvestorExpand({ investorDetails, profileData, cardConta
             <View style={{ width: cardContainerWidth, gap: 16 }}>
                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Investor Profile</Text>
 
-                <View style={[cardStyles.card, { width: '100%' }]}> {/* main investor card */}
+                <View style={[cardStyles.card, { width: '100%' }]}>
                     <View style={cardStyles.aboutSection}>
                         <Text style={cardStyles.aboutLabel}>About</Text>
                         <Text style={cardStyles.aboutText}>

@@ -36,6 +36,7 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [hasPerformedInitialLoad, setHasPerformedInitialLoad] = useState(false);
 
     // Modal states
     const [commentsReelId, setCommentsReelId] = useState<string | null>(null);
@@ -80,7 +81,13 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
     }, []);
 
     useEffect(() => {
-        loadReels();
+        // Only load if this is the first time for this userId (or userId changes)
+        if (!hasPerformedInitialLoad || !userId) {
+            loadReels();
+            if (!userId) {
+                setHasPerformedInitialLoad(true);
+            }
+        }
     }, [userId, initialReelId]);
 
     // Scroll to initial reel if present

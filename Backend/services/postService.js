@@ -42,6 +42,8 @@ exports.createPost = async (req, res, next) => {
 exports.listPosts = async (req, res, next) => {
     try {
         const { limit = 20, skip = 0, userId, tag } = req.query;
+        const Reel = require('../models/Reel');
+        const { refreshSignedUrl } = require('./s3Service');
 
         // Get blocked user IDs
         const blockedUsers = await User.find({ blocked: true }).select('_id').lean();
@@ -52,25 +54,82 @@ exports.listPosts = async (req, res, next) => {
         if (tag) filter.tags = tag;
         if (blockedIds.length > 0) filter.author = { ...filter.author, $nin: blockedIds };
 
-        const posts = await Post.find(filter).populate('author', 'username displayName avatarUrl verified').sort({ createdAt: -1 }).limit(parseInt(limit)).skip(parseInt(skip));
+        // Fetch posts and reels without pagination first
+        const [posts, reels] = await Promise.all([
+            Post.find(filter).populate('author', 'username displayName avatarUrl verified').lean(),
+            Reel.find(filter).populate('author', 'username displayName avatarUrl verified').lean()
+        ]);
 
-        const refreshedPosts = await Promise.all(posts.map(post => refreshPostUrls(post)));
+        // Refresh URLs and add type field
+        const refreshedPosts = await Promise.all(posts.map(async (post) => {
+            const refreshed = await refreshPostUrls(post);
+            return { ...refreshed, type: 'post' };
+        }));
 
-        // Enrich with save status for current user
-        let enrichedPosts = refreshedPosts;
+        const refreshedReels = await Promise.all(reels.map(async (reel) => {
+            const r = reel;
+            if (r.videoUrl) r.videoUrl = await refreshSignedUrl(r.videoUrl);
+            if (r.thumbnailUrl) r.thumbnailUrl = await refreshSignedUrl(r.thumbnailUrl);
+            if (r.author && r.author.avatarUrl) r.author.avatarUrl = await refreshSignedUrl(r.author.avatarUrl);
+            return { ...r, type: 'reel' };
+        }));
+
+        // Combine and sort by createdAt
+        const combined = [...refreshedPosts, ...refreshedReels].sort((a, b) =>
+            new Date(b.createdAt) - new Date(a.createdAt)
+        );
+
+        // Apply pagination on combined result
+        const paginatedItems = combined.slice(parseInt(skip), parseInt(skip) + parseInt(limit));
+
+        // Enrich with save status and interaction status for current user
+        let enrichedItems = paginatedItems;
         if (req.user) {
             const Saved = require('../models/Saved');
-            const savedDocs = await Saved.find({ user: req.user._id, post: { $in: posts.map(p => p._id) } }).lean();
+            const ReelLike = require('../models/ReelLike');
+            const Like = require('../models/Like');
+
+            const postIds = paginatedItems.filter(item => item.type === 'post').map(p => p._id);
+            const reelIds = paginatedItems.filter(item => item.type === 'reel').map(r => r._id);
+
+            const [savedDocs, postLikes, reelLikes] = await Promise.all([
+                Saved.find({
+                    user: req.user._id,
+                    $or: [{ post: { $in: postIds } }, { contentId: { $in: reelIds } }]
+                }).lean(),
+                Like.find({ post: { $in: postIds }, user: req.user._id }).lean(),
+                ReelLike.find({ reel: { $in: reelIds }, user: req.user._id }).lean()
+            ]);
+
             const savedMap = {};
-            savedDocs.forEach(s => { savedMap[s.post.toString()] = s._id.toString(); });
-            enrichedPosts = refreshedPosts.map(p => ({
-                ...p,
-                isSaved: !!savedMap[p._id.toString()],
-                savedId: savedMap[p._id.toString()] || null
-            }));
+            savedDocs.forEach(s => {
+                const key = String(s.post || s.contentId);
+                savedMap[key] = s._id.toString();
+            });
+
+            const postLikeMap = new Set(postLikes.map(l => l.post.toString()));
+            const reelLikeMap = new Set(reelLikes.map(l => l.reel.toString()));
+
+            enrichedItems = paginatedItems.map(item => {
+                if (item.type === 'post') {
+                    return {
+                        ...item,
+                        isSaved: !!savedMap[item._id.toString()],
+                        savedId: savedMap[item._id.toString()] || null,
+                        likedByUser: postLikeMap.has(item._id.toString())
+                    };
+                } else {
+                    return {
+                        ...item,
+                        isSaved: !!savedMap[item._id.toString()],
+                        savedId: savedMap[item._id.toString()] || null,
+                        isLiked: reelLikeMap.has(item._id.toString())
+                    };
+                }
+            });
         }
 
-        res.json({ posts: enrichedPosts, count: enrichedPosts.length });
+        res.json({ posts: enrichedItems, count: enrichedItems.length });
     } catch (err) { next(err); }
 };
 

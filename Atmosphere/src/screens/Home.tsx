@@ -48,6 +48,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
     const [backendSkip, setBackendSkip] = useState(0);
     const [initialLoadDone, setInitialLoadDone] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [hasPerformedInitialLoad, setHasPerformedInitialLoad] = useState(false);
 
     // Navbar scroll animation
     const navbarTranslateY = useRef(new Animated.Value(0)).current;
@@ -265,28 +266,31 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
 
     // Load cache on mount
     useEffect(() => {
-        const loadCache = async () => {
-            try {
-                const cached = await AsyncStorage.getItem(CACHE_KEY);
-                if (cached) {
-                    const rawData = JSON.parse(cached);
-                    console.log('[Home] Loaded cached feed:', rawData.length, 'items');
-                    // Normalize cached data (generates fresh IDs for this session)
-                    const normalized = normalizeData(rawData);
-                    setPosts(normalized);
-                    setBackendSkip(rawData.length);
-                    setLoading(false); // Show content immediately
-                    setInitialLoadDone(true);
+        if (!hasPerformedInitialLoad) {
+            const loadCache = async () => {
+                try {
+                    const cached = await AsyncStorage.getItem(CACHE_KEY);
+                    if (cached) {
+                        const rawData = JSON.parse(cached);
+                        console.log('[Home] Loaded cached feed:', rawData.length, 'items');
+                        // Normalize cached data (generates fresh IDs for this session)
+                        const normalized = normalizeData(rawData);
+                        setPosts(normalized);
+                        setBackendSkip(rawData.length);
+                        setLoading(false); // Show content immediately
+                        setInitialLoadDone(true);
+                    }
+                } catch (e) {
+                    console.error('[Home] Failed to load cache:', e);
                 }
-            } catch (e) {
-                console.error('[Home] Failed to load cache:', e);
-            }
-        };
-        loadCache();
-        // Then fetch fresh data
-        loadPosts(true);
+            };
+            loadCache();
+            // Then fetch fresh data
+            loadPosts(true);
+            setHasPerformedInitialLoad(true);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [hasPerformedInitialLoad]);
 
     const loadPosts = async (isRefresh = false) => {
         if (loadingMore && !isRefresh) return;

@@ -1,26 +1,31 @@
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
-import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions, DeviceEventEmitter } from 'react-native';
+import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions, DeviceEventEmitter, ViewToken } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getImageSource } from '../lib/image';
 import { fetchExplorePosts, searchEntities, searchUsers } from '../lib/api';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import ReelsIcon from '../components/icons/ReelsIcon';
+import { Image as ImageIcon } from 'lucide-react-native';
+import Video from 'react-native-video';
 
 const { width } = Dimensions.get('window');
-const ITEM_SIZE = (width - 4) / 3; // 3 columns with 2px gaps
+const ITEM_WIDTH = (width - 6) / 3; // 3 columns with gaps
+const ITEM_HEIGHT = ITEM_WIDTH * 4 / 3; // Square
 
 type TabType = 'explore' | 'posts' | 'accounts';
 
 type SearchScreenProps = {
     onPostPress?: (postId: string) => void;
     onUserPress?: (userId: string) => void;
+    onReelPress?: (reelId: string) => void;
 };
 
 const PAGE_SIZE = 15;
 const EXPLORE_CACHE_KEY = 'ATMOSPHERE_EXPLORE_FEED_CACHE';
 
-const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress }) => {
+const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, onReelPress }) => {
     const { theme } = useContext(ThemeContext);
     const [query, setQuery] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('explore');
@@ -39,6 +44,9 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress })
 
     const [initialLoadDone, setInitialLoadDone] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeReelId, setActiveReelId] = useState<string | null>(null);
+    const [hasPerformedInitialLoad, setHasPerformedInitialLoad] = useState(false);
+    const [playedReelIds, setPlayedReelIds] = useState<Set<string>>(new Set());
 
     const flatListRef = useRef<FlatList>(null);
 
@@ -61,28 +69,58 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress })
         return () => sub.remove();
     }, [onRefresh]);
 
+    // Reset played reels when search query or data changes
+    useEffect(() => {
+        setPlayedReelIds(new Set());
+        setActiveReelId(null);
+    }, [query, activeTab]);
+
+    // Auto-play next unplayed reel every 7 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Find all reels in current data
+            const allReels = currentData
+                .filter((item) => item && (item.type === 'reel' || item.meta?.postType === 'reel'));
+
+            // Find all unplayed reels
+            const unplayedReels = allReels
+                .map((item, index) => ({ item, index }))
+                .filter(({ item }) => {
+                    const reelId = item?._id || item?.id;
+                    return !playedReelIds.has(reelId);
+                });
+
+            if (unplayedReels.length > 0) {
+                // Play the first unplayed reel
+                const { item } = unplayedReels[0];
+                const reelId = item._id || item.id;
+                setPlayedReelIds(prev => new Set([...prev, reelId]));
+                setActiveReelId(reelId);
+                console.log('Auto-playing next reel:', reelId, 'Played so far:', playedReelIds.size + 1);
+            } else if (allReels.length > 0) {
+                // All reels played, reset and start from first reel
+                const firstReel = allReels[0];
+                const firstReelId = firstReel._id || firstReel.id;
+                setPlayedReelIds(new Set([firstReelId]));
+                setActiveReelId(firstReelId);
+                console.log('All reels played! Looping back to first reel:', firstReelId);
+            }
+        }, 7000); // Change every 7 seconds
+
+        return () => clearInterval(interval);
+    }, [currentData, playedReelIds]);
+
     // Debounce Search
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Initial Load & Cache
+    // Initial Load - Skip cache, load fresh data only on first mount
     useEffect(() => {
-        const loadCache = async () => {
-            try {
-                const cached = await AsyncStorage.getItem(EXPLORE_CACHE_KEY);
-                if (cached) {
-                    const data = JSON.parse(cached);
-                    setExplorePosts(data);
-                    setExploreSkip(data.length);
-                    setInitialLoadDone(true);
-                }
-            } catch (e) {
-                console.warn('Failed to load explore cache', e);
-            }
-        };
-        loadCache();
-        loadExplore(true);
+        if (!hasPerformedInitialLoad) {
+            loadExplore(true);
+            setHasPerformedInitialLoad(true);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [hasPerformedInitialLoad]);
 
     const loadExplore = async (reset = false) => {
         if (exploreLoading) return;
@@ -205,6 +243,35 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress })
     const currentData = query.trim() ? searchResults : explorePosts;
     const isGrid = !query.trim() || activeTab === 'posts';
 
+    // Handle viewable items change for video preview
+    const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+        // Find all visible reels in the current view that haven't been played yet
+        const unplayedReels = viewableItems.filter(item => {
+            const itemData = currentData[item.index];
+            const reelId = itemData?._id || itemData?.id;
+            return itemData && (itemData.type === 'reel' || itemData.meta?.postType === 'reel') && !playedReelIds.has(reelId);
+        });
+
+        if (unplayedReels.length > 0) {
+            // Select the first unplayed reel from visible reels (will progress row by row)
+            const selectedReel = unplayedReels[0];
+            const itemData = currentData[selectedReel.index];
+            const reelId = itemData._id || itemData.id;
+
+            // Mark this reel as played
+            setPlayedReelIds(prev => new Set([...prev, reelId]));
+            setActiveReelId(reelId);
+            console.log('Playing reel:', reelId, 'videoUrl:', itemData.videoUrl, 'Played so far:', playedReelIds.size + 1);
+        } else {
+            // No unplayed reel visible, stop playing
+            setActiveReelId(null);
+        }
+    }, [currentData, playedReelIds]);
+
+    const viewabilityConfig = {
+        itemVisiblePercentThreshold: 50,
+    };
+
     // Get user role/type label (empty for personal accounts)
     const getUserTypeLabel = (item: any) => {
         if (item.roles?.includes('investor') || item.role === 'investor' || item.accountType === 'investor') {
@@ -242,25 +309,61 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress })
     const renderItem = ({ item, index: _index }: { item: any, index: number }) => {
         // Posts (Grid)
         if (isGrid) {
-            const imgUri = item.media?.[0]?.url || item.image || item.thumbUrl || 'https://via.placeholder.com/400x400.png?text=Post';
+            const isReel = item.meta?.postType === 'reel' || item.type === 'reel';
+            const isActiveReel = isReel && (item._id === activeReelId || item.id === activeReelId);
+            const imgUri = isReel
+                ? (item.thumbnailUrl || item.thumbUrl || 'https://via.placeholder.com/400x300.png?text=Reel')
+                : (item.media?.[0]?.url || item.image || item.thumbUrl || 'https://via.placeholder.com/400x300.png?text=Post');
+
+            const handlePress = () => {
+                if (isReel && onReelPress) {
+                    onReelPress(item._id || item.id);
+                } else if (!isReel && onPostPress) {
+                    onPostPress(item._id || item.id);
+                }
+            };
+
             return (
-                <TouchableOpacity
-                    style={styles.gridItem}
-                    activeOpacity={0.9}
-                    onPress={() => onPostPress && (onPostPress(item._id || item.id))}
-                >
-                    <Image
-                        source={getImageSource(imgUri)}
-                        style={styles.gridImage}
-                        resizeMode="cover"
-                        onError={(e) => console.warn('Search img err', e.nativeEvent)}
-                    />
-                    {item.meta?.postType === 'reel' && (
-                        <View style={styles.reelBadge}>
-                            <Text style={styles.reelIcon}>▶</Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
+                <View style={styles.gridItemWrapper}>
+                    <TouchableOpacity
+                        style={styles.gridItem}
+                        activeOpacity={0.9}
+                        onPress={handlePress}
+                    >
+                        {/* Show Video for active reel, Image otherwise */}
+                        {isActiveReel && item.videoUrl ? (
+                            <Video
+                                source={{ uri: item.videoUrl }}
+                                style={styles.gridVideo}
+                                resizeMode="cover"
+                                repeat={true}
+                                paused={false}
+                                muted={true}
+                                progressUpdateInterval={500}
+                                useNativeControls={false}
+                                onLoad={() => console.log('Video loaded:', item._id)}
+                                onError={(e) => console.warn('Video error for', item._id, ':', e)}
+                                onBuffer={() => console.log('Video buffering:', item._id)}
+                                rate={1.0}
+                            />
+                        ) : (
+                            <Image
+                                source={getImageSource(imgUri)}
+                                style={styles.gridImage}
+                                resizeMode="cover"
+                                onError={(e) => console.warn('Search img err', e.nativeEvent)}
+                            />
+                        )}
+                        {/* Reel icon badge */}
+                        {isReel && (
+                            <View style={styles.typeBadge}>
+                                <ReelsIcon color="#fff" size={16} />
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                    {/* Divider line below */}
+                    <View style={styles.divider} />
+                </View>
             );
         }
 
@@ -359,6 +462,8 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress })
                 onEndReachedThreshold={0.5}
                 ListFooterComponent={renderFooter}
                 contentContainerStyle={isGrid ? styles.gridContent : styles.listContent}
+                viewabilityConfig={viewabilityConfig}
+                onViewableItemsChanged={onViewableItemsChanged}
                 ListEmptyComponent={
                     !searchLoading && !exploreLoading && initialLoadDone ? (
                         <View style={styles.emptyContainer}>
@@ -407,27 +512,33 @@ const styles = StyleSheet.create({
     tabText: { fontSize: 14, fontWeight: '600' },
     loader: { margin: 20 },
     footerSpacer: { height: 20 },
-    gridContent: { paddingHorizontal: 1, paddingBottom: 10 },
+    gridContent: { paddingHorizontal: 0, paddingBottom: 0, paddingLeft: 0 },
+    gridItemWrapper: { width: ITEM_WIDTH, marginHorizontal: 1, marginBlockEnd: 1 },
     gridItem: {
-        width: ITEM_SIZE,
-        height: ITEM_SIZE,
-        margin: 1,
-        borderRadius: 4,
+        width: ITEM_WIDTH,
+        height: ITEM_HEIGHT,
+        borderRadius: 2,
         overflow: 'hidden',
         backgroundColor: '#1a1a1a',
         position: 'relative',
     },
     gridImage: { width: '100%', height: '100%', backgroundColor: '#1a1a1a' },
-    reelBadge: {
+    gridVideo: { width: '100%', height: '100%', backgroundColor: '#000' },
+    typeBadge: {
         position: 'absolute',
-        top: 8,
-        right: 8,
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(0,0,0,0.7)',
         borderRadius: 4,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        padding: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    reelIcon: { color: '#fff', fontSize: 12 },
+    divider: {
+        height: 1,
+        backgroundColor: '#333',
+        marginTop: 0,
+    },
     listContent: { paddingHorizontal: 0, paddingTop: 8 },
     userItem: {
         flexDirection: 'row',
