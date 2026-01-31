@@ -6,7 +6,7 @@ export default StyleSheet.create({
     topBar: { height: 56, paddingHorizontal: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
     iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
     iconText: { fontSize: 25, fontWeight: '600' },
-    topTitle: { fontWeight: '700', fontSize: 24 },
+    topTitle: { fontWeight: '700', fontSize: 23 },
     loadingWrap: { padding: 28, alignItems: 'center' },
     profileHeader: { flexDirection: 'row', padding: 16, alignItems: 'center' },
     avatarWrap: { marginRight: 12 },

@@ -62,13 +62,17 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
 
     const contentId = getContentId(companyData);
     const fundingPercent = getFundingPercent(companyData.fundingRaised || 0, companyData.fundingNeeded || 0);
-
-    console.log('StartupPost funding data:', {
-        name: companyData.name,
-        fundingRaised: companyData.fundingRaised,
-        fundingNeeded: companyData.fundingNeeded,
-        fundingPercent: fundingPercent
-    });
+    const revenueType = (companyData as any)?.financialProfile?.revenueType || (companyData as any)?.revenueType || '';
+    console.log("data", companyData)
+    const latestFundingRound = (() => {
+        const rounds = (companyData as any)?.fundingRounds;
+        if (!Array.isArray(rounds) || rounds.length === 0) return '';
+        for (let i = rounds.length - 1; i >= 0; i -= 1) {
+            const round = rounds[i]?.round;
+            if (round) return String(round);
+        }
+        return '';
+    })();
 
     // Double-tap to like
     const lastTap = useRef<number>(0);
@@ -214,7 +218,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                 <View style={styles.headerTop}>
                     <TouchableOpacity style={styles.headerLeftRow} activeOpacity={0.8} onPress={handleOpenProfile}>
                         <Image source={getImageSource(companyData.profileImage)} style={styles.avatar} />
-                        <View style={styles.headerLeft}>
+                        <View style={[styles.headerLeft, companyData.verified ? styles.headerLeftVerified : styles.headerLeftCentered]}>
                             <View style={styles.rowCenter}>
                                 <Text style={[styles.companyName, styles.whiteText]}>{companyData.name}</Text>
                             </View>
@@ -271,15 +275,17 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile }: StartupPos
                 <View style={styles.body}>
                     <Text style={styles.whatsLabel}>WHAT'S {companyData.name.toUpperCase()}</Text>
                     <Text style={styles.descriptionFull}>{companyData.description}</Text>
-                    {/* <View style={styles.stageRow}>
-                        <Text style={styles.stageText}>STAGE : <Text style={styles.stageValue}>{String(companyData.stage || 'MVP LAUNCHED')}</Text></Text>
-                    </View> */}
+                    <View style={styles.stageRow}>
+                        {((companyData as any).stage || (companyData as any).roundType) ? (
+                            <Text style={styles.stageText}>STAGE : <Text style={styles.stageValue}>{String((companyData as any).stage || (companyData as any).roundType)}</Text></Text>
+                        ) : null}
+                    </View>
                     <View style={styles.pillsRow}>
-                        <View style={styles.pill}><Text style={styles.pillText}>Revenue generating</Text></View>
+                        <View style={styles.pill}><Text style={styles.pillText}>{revenueType || 'Revenue type'}</Text></View>
                         <View style={styles.pill}><Text style={styles.pillText}>Rounds : {companyData.rounds ?? 0}</Text></View>
                         <View style={styles.pill}><Text style={styles.pillText}>Age : {companyData.age ?? 0} yr</Text></View>
                     </View>
-                    <Text style={styles.currentRound}>Current round : <Text style={styles.currentRoundValue}>{String(companyData.stage || 'Seed')}</Text></Text>
+                    <Text style={styles.currentRound}>Current round : <Text style={styles.currentRoundValue}>{(companyData as any).currentRound || latestFundingRound || String(companyData.stage || 'Seed')}</Text></Text>
                     <View style={styles.fundingBarWrap}>
                         <View style={styles.fundingBarTrack}>
                             <View style={[styles.fundingFilled, { width: `${fundingPercent}%` }]} />

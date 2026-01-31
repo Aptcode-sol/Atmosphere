@@ -22,6 +22,8 @@ export const styles = StyleSheet.create({
         gap: 12,
     },
     headerLeft: { marginLeft: 0 },
+    headerLeftCentered: { justifyContent: 'center', alignItems: 'center' },
+    headerLeftVerified: { justifyContent: 'flex-start', alignItems: 'flex-start' },
     avatar: {
         width: 36,
         height: 36,
@@ -107,7 +109,7 @@ export const styles = StyleSheet.create({
     },
     pillText: { color: '#fff', fontWeight: '500', fontSize: 12 },
     currentRound: { color: '#888', marginTop: 0, marginBottom: 8, fontSize: 12 },
-    currentRoundValue: { color: '#fff', fontWeight: '600', fontSize: 14 },
+    currentRoundValue: { color: '#fff', fontWeight: '500', fontSize: 13.5 },
     fundingBarWrap: { marginTop: 0 },
     fundingBarTrack: {
         height: 24,

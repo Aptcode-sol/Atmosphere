@@ -3,3 +3,8 @@
 
 # Build release apk
 ./gradlew assembleRelease
+
+# Build AAB
+.\gradlew bundleRelease
+
+CN=sanket yelugotla, OU=atmosphere, O=atmosphere, L=vizag, ST=andhra pradesh, C=IN correct?

@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 6,
         right: 6,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'transparent',
         borderRadius: 4,
         padding: 4,
         zIndex: 10,

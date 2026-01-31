@@ -114,7 +114,7 @@ export default function ProfilePager({
                         onError={(e) => { console.warn('Profile grid image error', e.nativeEvent, imageUrl); }}
                     />
                     {isReel && (
-                        <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 4, padding: 4, alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'transparent', borderRadius: 4, padding: 4, alignItems: 'center', justifyContent: 'center' }}>
                             <ReelsIcon color="#fff" size={16} />
                         </View>
                     )}
@@ -272,8 +272,10 @@ export default function ProfilePager({
                                     keyExtractor={(it) => `${it._type}-${String(it._id || it.id || Math.random())}`}
                                     numColumns={3}
                                     scrollEnabled={false}
-                                    contentContainerStyle={{ paddingHorizontal: 1, paddingBottom: 80 }}
-                                    columnWrapperStyle={{ gap: 2, marginBottom: 2 }}
+                                    // Match Search grid spacing: no extra horizontal padding or column gap
+                                    contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 80 }}
+                                    // Avoid extra gap - each item handles its own margins
+                                    columnWrapperStyle={{}}
                                     renderItem={renderGridItem}
                                     removeClippedSubviews={true}
                                     maxToRenderPerBatch={9}

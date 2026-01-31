@@ -369,8 +369,8 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                 )}
 
                 {/* 5. Company Details Card */}
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12 }}>Company Details</Text>
                 <View style={cardStyles.card}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12 }}>Company Details</Text>
                     <View style={{ gap: 12 }}>
                         {industry ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -395,9 +395,9 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                     </View>
                 </View>
 
-                {/* 4. Team Section */}
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8 }}>Team</Text>
+                {/* 6. Team Section */}
                 <View style={[cardStyles.card, { paddingVertical: 20 }]}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 0 }}>Team</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         <View style={{ flexDirection: 'row', gap: 16, paddingHorizontal: 4 }}>
                             {teamMembers.length > 0 ? (
@@ -436,9 +436,9 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                     </ScrollView>
                 </View>
 
-                {/* 5. Financial Overview */}
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 8 }}>Financial Overview</Text>
+                {/* 7. Financial Overview */}
                 <View style={cardStyles.card}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 0 }}>Financial Overview</Text>
                     <View style={{ gap: 12 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Text style={{ color: '#888', fontSize: 13 }}>Startup Type</Text>

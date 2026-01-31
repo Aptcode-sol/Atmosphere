@@ -354,9 +354,8 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
                                 onError={(e) => console.warn('Search img err', e.nativeEvent)}
                             />
                         )}
-                        {/* Reel icon badge */}
-                        {isReel && (
-                            <View style={styles.typeBadge}>
+                        {isReel && !isActiveReel && (
+                            <View style={[styles.typeBadge, { backgroundColor: 'transparent' }]}>
                                 <ReelsIcon color="#fff" size={16} />
                             </View>
                         )}
@@ -499,7 +498,7 @@ const styles = StyleSheet.create({
     searchIcon: { marginRight: 8 },
     input: { flex: 1, fontSize: 16, paddingVertical: 0 },
     clearButton: { padding: 4 },
-    tabsContainer: { borderBottomWidth: 1, paddingHorizontal: 0 },
+    tabsContainer: { borderBottomWidth: 0.5, paddingHorizontal: 0 },
     tab: {
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -528,7 +527,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 6,
         right: 6,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'transparent',
         borderRadius: 4,
         padding: 4,
         alignItems: 'center',

@@ -196,7 +196,10 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
         return (data || []).map((p: any) => {
             // Get funding rounds (investments) from the startup data
             const fundingRounds = p.fundingRounds || [];
-            const currentRound = p.stage || p.roundType || 'Seed';
+            const latestFundingRound = Array.isArray(fundingRounds)
+                ? [...fundingRounds].reverse().map((inv: any) => inv?.round).find((r: any) => Boolean(r))
+                : '';
+            const currentRound = p.currentRound || latestFundingRound || p.stage || p.roundType || 'Seed';
 
             // Calculate rounds count from unique round values
             const uniqueRounds = Array.isArray(fundingRounds)
@@ -247,6 +250,9 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
                 profileImage: p.profileImage || 'https://via.placeholder.com/400x240.png?text=Startup',
                 description: String(p.description || p.about || ''),
                 stage: String(p.stage || 'unknown'),
+                currentRound: String(currentRound || ''),
+                financialProfile: p.financialProfile || null,
+                revenueType: p.revenueType || (p.financialProfile && p.financialProfile.revenueType) || '',
                 rounds: calculatedRounds,
                 age: Number(p.age || 0),
                 fundingRaised: finalFundingRaised,

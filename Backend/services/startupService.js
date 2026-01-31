@@ -2,6 +2,16 @@ const { StartupDetails, User } = require('../models');
 const { refreshSignedUrl } = require('./s3Service');
 const { recordStartupView } = require('./analyticsService');
 
+// Get latest round value from funding rounds
+const getLatestFundingRound = (fundingRounds) => {
+    if (!Array.isArray(fundingRounds) || fundingRounds.length === 0) return '';
+    for (let i = fundingRounds.length - 1; i >= 0; i -= 1) {
+        const round = fundingRounds[i] && fundingRounds[i].round;
+        if (round) return String(round);
+    }
+    return '';
+};
+
 // Helper to refresh URLs
 const refreshStartupData = async (startup) => {
     const s = startup.toObject ? startup.toObject() : startup;
@@ -9,6 +19,10 @@ const refreshStartupData = async (startup) => {
     // Ensure funding data is properly extracted from financialProfile if not set at root level
     if ((!s.fundingRaised || s.fundingRaised === 0) && s.financialProfile && s.financialProfile.fundingAmount) {
         s.fundingRaised = Number(s.financialProfile.fundingAmount) || 0;
+    }
+    // Lift revenueType to top-level for easier access
+    if (!s.revenueType && s.financialProfile && s.financialProfile.revenueType) {
+        s.revenueType = s.financialProfile.revenueType;
     }
     // Ensure fundingNeeded exists
     if (!s.fundingNeeded || s.fundingNeeded === 0) {
@@ -78,7 +92,8 @@ exports.getStartupByUser = async (req, res, next) => {
 
         // Calculate funding metrics same way as listStartupCards
         const fundingRounds = refreshedDetails.fundingRounds || [];
-        const currentRound = refreshedDetails.stage || refreshedDetails.roundType || 'Seed';
+        const latestRound = getLatestFundingRound(fundingRounds);
+        const currentRound = latestRound || refreshedDetails.stage || refreshedDetails.roundType || 'Seed';
         const uniqueRounds = Array.isArray(fundingRounds)
             ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]
             : [];
@@ -96,6 +111,10 @@ exports.getStartupByUser = async (req, res, next) => {
         refreshedDetails.rounds = calculatedRounds;
         refreshedDetails.fundingRaised = finalFundingRaised;
         refreshedDetails.totalRaisedAll = totalRaisedAll;
+        refreshedDetails.currentRound = currentRound;
+        if (!refreshedDetails.revenueType && refreshedDetails.financialProfile && refreshedDetails.financialProfile.revenueType) {
+            refreshedDetails.revenueType = refreshedDetails.financialProfile.revenueType;
+        }
 
         // Add user-specific flags if authenticated
         if (req.user) {
@@ -144,7 +163,8 @@ exports.getStartupById = async (req, res, next) => {
 
         // Calculate funding metrics same way as listStartupCards
         const fundingRounds = refreshedDetails.fundingRounds || [];
-        const currentRound = refreshedDetails.stage || refreshedDetails.roundType || 'Seed';
+        const latestRound = getLatestFundingRound(fundingRounds);
+        const currentRound = latestRound || refreshedDetails.stage || refreshedDetails.roundType || 'Seed';
         const uniqueRounds = Array.isArray(fundingRounds)
             ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]
             : [];
@@ -162,6 +182,10 @@ exports.getStartupById = async (req, res, next) => {
         refreshedDetails.rounds = calculatedRounds;
         refreshedDetails.fundingRaised = finalFundingRaised;
         refreshedDetails.totalRaisedAll = totalRaisedAll;
+        refreshedDetails.currentRound = currentRound;
+        if (!refreshedDetails.revenueType && refreshedDetails.financialProfile && refreshedDetails.financialProfile.revenueType) {
+            refreshedDetails.revenueType = refreshedDetails.financialProfile.revenueType;
+        }
 
         // Add user-specific flags if authenticated
         if (req.user) {
@@ -231,7 +255,8 @@ exports.listStartupCards = async (req, res, next) => {
         const startupCardsBase = refreshedStartups.map(startup => {
             // Calculate funding metrics same way as frontend normalizeData
             const fundingRounds = startup.fundingRounds || [];
-            const currentRound = startup.stage || startup.roundType || 'Seed';
+            const latestRound = getLatestFundingRound(fundingRounds);
+            const currentRound = latestRound || startup.stage || startup.roundType || 'Seed';
 
             // Calculate rounds count from unique round values
             const uniqueRounds = Array.isArray(fundingRounds)
@@ -277,6 +302,9 @@ exports.listStartupCards = async (req, res, next) => {
                 profileImage: startup.profileImage,
                 description: startup.about,
                 stage: startup.stage,
+                currentRound: currentRound,
+                financialProfile: startup.financialProfile,
+                revenueType: startup.revenueType || (startup.financialProfile && startup.financialProfile.revenueType),
                 rounds: calculatedRounds,
                 age: startup.age,
                 fundingRaised: finalFundingRaised,
@@ -456,7 +484,8 @@ exports.hottestStartups = async (req, res, next) => {
             // Apply funding calculation same way as listStartupCards
             const calculatedEnriched = refreshedEnriched.map(startup => {
                 const fundingRounds = startup.fundingRounds || [];
-                const currentRound = startup.stage || startup.roundType || 'Seed';
+                const latestRound = getLatestFundingRound(fundingRounds);
+                const currentRound = latestRound || startup.stage || startup.roundType || 'Seed';
 
                 const uniqueRounds = Array.isArray(fundingRounds)
                     ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]
@@ -495,7 +524,8 @@ exports.hottestStartups = async (req, res, next) => {
         // Apply funding calculation for non-authenticated users too
         const calculatedTop = refreshedTop.map(startup => {
             const fundingRounds = startup.fundingRounds || [];
-            const currentRound = startup.stage || startup.roundType || 'Seed';
+            const latestRound = getLatestFundingRound(fundingRounds);
+            const currentRound = latestRound || startup.stage || startup.roundType || 'Seed';
 
             const uniqueRounds = Array.isArray(fundingRounds)
                 ? [...new Set(fundingRounds.map((inv) => inv.round).filter(Boolean))]

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { Heart, Send } from 'lucide-react-native';
+import { Heart } from 'lucide-react-native';
+import ShareIcon from './icons/ShareIcon';
 
 interface TopNavbarProps {
   title?: string;
@@ -47,7 +48,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* RIGHT SIDE */}
         <View style={styles.right}>
           <TouchableOpacity onPress={onChatsPress} style={styles.iconButton}>
-            <Send size={26} color="#fff" />
+            <ShareIcon color="#fff" size={24} />
             {messagesCount > 0 && (
               <View style={styles.msgBadge}>
                 <Text style={styles.msgBadgeText}>{messagesCount}</Text>

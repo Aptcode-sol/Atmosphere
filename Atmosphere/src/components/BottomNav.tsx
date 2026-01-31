@@ -16,7 +16,6 @@ import ReelsIcon from './icons/ReelsIcon';
 import ReelsOutline from './icons/ReelsOutline';
 import HomeFilled from './icons/HomeFilled';
 import HomeOutline from './icons/HomeOutline';
-import ShareIcon from './icons/ShareIcon';
 
 
 import { NavigationContext, NavigationRouteContext } from "@react-navigation/native";

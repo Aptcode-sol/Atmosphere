@@ -78,6 +78,7 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
     const [revenueType, setRevenueType] = useState('Pre-revenue');
     const [showRevenueDropdown, setShowRevenueDropdown] = useState(false);
     const [showRoundDropdown, setShowRoundDropdown] = useState(false);
+    const [showStageDropdown, setShowStageDropdown] = useState(false);
     // Investment round picker state (separate from activeSection to avoid closing form)
     const [openRoundPickerId, setOpenRoundPickerId] = useState<number | null>(null);
     const [fundingMethod, setFundingMethod] = useState('');
@@ -433,6 +434,7 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
                     investorDoc: fundingMethod === 'Capital Raised' ? finalInvestorDocUrl : undefined,
                 },
                 roundType,
+                stage: roundType,
                 requiredCapital,
                 documents: finalUploadUrl,
             };
@@ -480,6 +482,12 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
                             <Text style={{ color: selectedIndustries.length > 0 ? '#fff' : '#999' }}>
                                 {selectedIndustries.length > 0 ? selectedIndustries.join(', ') : 'Select focus areas'}
                             </Text>
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.formField}>
+                        <Text style={styles.label}>Stage</Text>
+                        <TouchableOpacity onPress={() => setShowStageDropdown(true)} style={styles.input}>
+                            <Text style={{ color: roundType ? '#fff' : '#999' }}>{roundType || 'Select stage'}</Text>
                         </TouchableOpacity>
                     </View>
                     <View style={styles.formField}>
@@ -745,6 +753,28 @@ export default function StartupPortfolioStep({ onBack, onDone, onNavigateToTrade
                             </TouchableOpacity>
                         ))}
                         <TouchableOpacity style={styles.modalCancel} onPress={() => setShowRevenueDropdown(false)}>
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Stage Dropdown Modal */}
+            <Modal visible={showStageDropdown} transparent animationType="fade" onRequestClose={() => setShowStageDropdown(false)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowStageDropdown(false)}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Select Stage</Text>
+                        {['Idea', 'Prototype', 'MVP', 'Market ready', 'Semi running', 'Fully running'].map((type) => (
+                            <TouchableOpacity
+                                key={type}
+                                style={[styles.modalOption, roundType === type && styles.modalOptionActive]}
+                                onPress={() => { setRoundType(type); setShowStageDropdown(false); }}
+                            >
+                                <Text style={[styles.modalOptionLabel, roundType === type && styles.modalOptionLabelActive]}>{type}</Text>
+                                {roundType === type && <Text style={styles.checkmark}>✓</Text>}
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity style={styles.modalCancel} onPress={() => setShowStageDropdown(false)}>
                             <Text style={styles.modalCancelText}>Cancel</Text>
                         </TouchableOpacity>
                     </View>
