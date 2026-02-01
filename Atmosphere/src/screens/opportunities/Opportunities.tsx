@@ -482,13 +482,13 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                                                 onPress={() => handleEditJobPost(item)}
                                                 style={{ backgroundColor: '#333', padding: 8, borderRadius: 6 }}
                                             >
-                                                <MaterialIcons name="edit" size={18} color="#fff" />
+                                                <MaterialIcons name="edit" size={20} color="#fff" />
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 onPress={() => handleCloseJobPost(item._id || item.id)}
                                                 style={{ backgroundColor: '#c0392b', padding: 8, borderRadius: 6 }}
                                             >
-                                                <MaterialIcons name="delete" size={18} color="#fff" />
+                                                <MaterialIcons name="delete" size={20} color="#fff" />
                                             </TouchableOpacity>
                                         </View>
                                     )}

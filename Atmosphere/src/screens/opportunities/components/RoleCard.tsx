@@ -265,7 +265,7 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                 </Text>
                 <View style={styles.locationRow}>
                     <View style={styles.metaItem}>
-                        <MaterialIcons name="place" size={14} color={accentColor} style={{ marginRight: 4 }} />
+                        <MaterialIcons name="place" size={16} color={accentColor} style={{ marginRight: 4 }} />
                         <Text style={[styles.metaText, { color: accentColor }]}>
                             {item.location || item.locationType || 'Remote'}
                         </Text>
@@ -317,7 +317,7 @@ function RoleCard({ item, isMyAd = false, expanded = false, onExpand, onApplySuc
                         }}
                         onPress={onExpand}
                     >
-                        <MaterialIcons name="file-download" size={14} color="#fff" style={{ marginRight: 4 }} />
+                        <MaterialIcons name="file-download" size={16} color="#fff" style={{ marginRight: 4 }} />
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Export CSV</Text>
                     </TouchableOpacity>
                 ) : (

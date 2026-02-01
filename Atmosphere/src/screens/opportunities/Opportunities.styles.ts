@@ -56,6 +56,11 @@ const styles = StyleSheet.create({
     filterIcon: {
         fontSize: 18,
     },
+    filterIconBtn: {
+        padding: 8,
+        borderRadius: 6,
+        backgroundColor: '#333',
+    },
     loaderContainer: {
         alignItems: 'center',
         marginTop: 40,

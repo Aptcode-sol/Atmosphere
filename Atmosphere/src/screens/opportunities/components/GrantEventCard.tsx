@@ -79,13 +79,13 @@ function GrantEventCard({ item, type }: GrantEventCardProps) {
             <View style={styles.roleSection}>
                 <View style={styles.locationRow}>
                     <View style={styles.metaItem}>
-                        <MaterialIcons name="place" size={14} color={subTextColor} style={{ marginRight: 4 }} />
+                        <MaterialIcons name="place" size={16} color={subTextColor} style={{ marginRight: 4 }} />
                         <Text style={[styles.metaText, { color: subTextColor }]}>
                             {item.location || 'Remote'}
                         </Text>
                     </View>
                     <View style={styles.metaItem}>
-                        <MaterialIcons name="event" size={14} color={subTextColor} style={{ marginRight: 4 }} />
+                        <MaterialIcons name="event" size={16} color={subTextColor} style={{ marginRight: 4 }} />
                         <Text style={[styles.metaText, { color: subTextColor }]}>
                             {formatDate(item.deadline || item.date)}
                         </Text>
@@ -164,7 +164,7 @@ function GrantEventCard({ item, type }: GrantEventCardProps) {
                         )}
                         {type === 'Event' && item.attendees && (
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <MaterialIcons name="group" size={14} color={subTextColor} style={{ marginRight: 4 }} />
+                                <MaterialIcons name="group" size={16} color={subTextColor} style={{ marginRight: 4 }} />
                                 <Text style={[styles.employmentText, { color: subTextColor }]}>
                                     {item.attendees}
                                 </Text>
@@ -187,7 +187,7 @@ function GrantEventCard({ item, type }: GrantEventCardProps) {
                         <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
                             {type === 'Grant' ? 'Apply' : 'Register'}
                         </Text>
-                        <MaterialIcons name="open-in-new" size={16} color="#fff" style={{ marginLeft: 6 }} />
+                        <MaterialIcons name="open-in-new" size={18} color="#fff" style={{ marginLeft: 6 }} />
                     </TouchableOpacity>
                 </View>
             )}

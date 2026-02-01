@@ -1290,7 +1290,7 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
                 {/* Search and Filter - now inside scrollable content */}
                 <View style={styles.searchRow}>
                     <View style={styles.searchBox}>
-                        <MaterialCommunityIcons name="magnify" size={18} color="#bfbfbf" />
+                        <MaterialCommunityIcons name="magnify" size={20} color="#bfbfbf" />
                         <TextInput
                             placeholder="Search companies..."
                             placeholderTextColor="#bfbfbf"
@@ -1310,7 +1310,7 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
                     >
                         <MaterialCommunityIcons
                             name={showSavedOnly ? "bookmark" : "bookmark-outline"}
-                            size={20}
+                            size={24}
                             color={showSavedOnly ? "#fff" : "#bfbfbf"}
                         />
                     </TouchableOpacity>
@@ -1321,11 +1321,11 @@ const Trading = ({ initialTab, onTabChange }: TradingProps) => {
                     style={styles.filterButton}
                     onPress={toggleFilterWithAnimation}
                 >
-                    <MaterialCommunityIcons name="tune" size={18} color="#fff" />
+                    <MaterialCommunityIcons name="tune" size={20} color="#fff" />
                     <Text style={styles.filterButtonText}>Filters</Text>
                     <MaterialCommunityIcons
                         name={isFilterOpen ? "chevron-up" : "chevron-down"}
-                        size={20}
+                        size={22}
                         color="#bfbfbf"
                     />
                 </TouchableOpacity>
