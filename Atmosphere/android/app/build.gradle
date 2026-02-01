@@ -85,8 +85,8 @@ android {
         applicationId "com.atmosphere"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
     }
     
     signingConfigs {
@@ -154,7 +154,7 @@ android {
         abi {
             reset()
             enable true
-            universalApk false  // Set to true if you also want a universal APK
+            universalApk true  // Produce a universal APK for sideloading
             include "armeabi-v7a", "arm64-v8a"
         }
     }
