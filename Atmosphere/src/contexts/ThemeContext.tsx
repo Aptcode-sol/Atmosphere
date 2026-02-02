@@ -11,12 +11,22 @@ export type Theme = {
     accent: string;
 };
 
+// const lightTheme: Theme = {
+//     background: '#ffffff',
+//     cardBackground: '#fafafa',
+//     border: '#dddddd',
+//     text: '#111111',
+//     placeholder: '#9e9e9e',
+//     primary: '#404040',
+//     accent: '#555555',
+// };
+
 const lightTheme: Theme = {
-    background: '#ffffff',
-    cardBackground: '#fafafa',
-    border: '#dddddd',
-    text: '#111111',
-    placeholder: '#9e9e9e',
+    background: '#050505',
+    cardBackground: '#0b0b0b',
+    border: '#262626',
+    text: '#f2f2f2',
+    placeholder: '#8a8a8a',
     primary: '#404040',
     accent: '#555555',
 };
