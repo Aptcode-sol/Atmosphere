@@ -2,6 +2,10 @@
 import React from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert, StyleSheet, FlatList } from 'react-native';
 import { Play, Video, Heart, Crown, MessageCircle, Send, Building2, Calendar, Globe, Users } from 'lucide-react-native';
+import CommentsOverlay from '../../components/CommentsOverlay';
+import ShareModal from '../../components/ShareModal';
+import { getContentId } from '../../components/startupPost/utils';
+import { likeStartup, unlikeStartup, crownStartup, uncrownStartup } from '../../lib/api';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -225,7 +229,28 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
 
     // Get funding rounds (investments) and current round
     const rounds = details.fundingRounds || details.rounds || details.financialProfile?.rounds || [];
-    const currentRound = details.roundType || details.stage || details.currentRound || (rounds.length > 0 ? rounds[rounds.length - 1].round : 'Seed');
+
+    const getLatestRound = (rds: any[]) => {
+        if (!Array.isArray(rds) || rds.length === 0) {
+            return details.roundType || details.stage || details.currentRound || 'Seed';
+        }
+        // Prefer entries with date fields
+        const withDates = rds.map(r => ({
+            round: r.round || r.roundType || r.name || r.type,
+            date: r.createdAt || r.date || r.addedAt || r.updatedAt || r.timestamp || 0
+        }));
+        // If any date is truthy, pick max
+        const hasValidDate = withDates.some(w => !!w.date);
+        if (hasValidDate) {
+            const latest = withDates.reduce((a, b) => (new Date(a.date).getTime() > new Date(b.date).getTime() ? a : b));
+            return latest.round || (details.roundType || details.stage || details.currentRound || 'Seed');
+        }
+        // Fallback to last element
+        const last = rds[rds.length - 1];
+        return last.round || last.roundType || details.roundType || details.stage || details.currentRound || 'Seed';
+    };
+
+    const currentRound = getLatestRound(rounds);
 
     // Calculate fundingRaised from investments matching current round only
     const matchingInvestments = Array.isArray(rounds)
@@ -294,6 +319,69 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
         shares: typeof details.sharesCount === 'number' ? details.sharesCount : (stats.shares || 0)
     };
 
+    // Interactive state for stats (mirror StartupPost behaviour)
+    const [liked, setLiked] = React.useState<boolean>(Boolean(details.likedByCurrentUser || profileData?.likedByCurrentUser || false));
+    const [likesCount, setLikesCount] = React.useState<number>(displayStats.likes || 0);
+    const [crowned, setCrowned] = React.useState<boolean>(Boolean(details.crownedByCurrentUser || profileData?.crownedByCurrentUser || false));
+    const [crownsCount, setCrownsCount] = React.useState<number>(displayStats.crowns || 0);
+    const [commentsCount, setCommentsCount] = React.useState<number>(displayStats.comments || 0);
+    const [sharesCount, setSharesCount] = React.useState<number>(displayStats.shares || 0);
+    const [commentsVisible, setCommentsVisible] = React.useState<boolean>(false);
+    const [shareVisible, setShareVisible] = React.useState<boolean>(false);
+
+    const [likeLoading, setLikeLoading] = React.useState(false);
+    const [crownLoading, setCrownLoading] = React.useState(false);
+
+    const contentId = getContentId(details || profileData || {});
+
+    const toggleLike = async () => {
+        if (likeLoading) return;
+        setLikeLoading(true);
+        const prev = liked;
+        setLiked(!prev);
+        setLikesCount(c => prev ? Math.max(0, c - 1) : c + 1);
+        try {
+            if (prev) await unlikeStartup(contentId);
+            else await likeStartup(contentId);
+        } catch (err) {
+            setLiked(prev);
+            setLikesCount(c => prev ? c + 1 : Math.max(0, c - 1));
+        } finally {
+            setLikeLoading(false);
+        }
+    };
+
+    const toggleCrown = async () => {
+        if (crownLoading) return;
+        setCrownLoading(true);
+        const prev = crowned;
+        setCrowned(!prev);
+        setCrownsCount(c => !prev ? c + 1 : Math.max(0, c - 1));
+        try {
+            if (prev) await uncrownStartup(contentId);
+            else await crownStartup(contentId);
+        } catch (err) {
+            setCrowned(prev);
+            setCrownsCount(c => prev ? c + 1 : Math.max(0, c - 1));
+        } finally {
+            setCrownLoading(false);
+        }
+    };
+
+    const onCommentAdded = (newCount?: number) => {
+        if (typeof newCount === 'number') setCommentsCount(newCount);
+        else setCommentsCount(c => c + 1);
+    };
+
+    const onCommentDeleted = (newCount?: number) => {
+        if (typeof newCount === 'number') setCommentsCount(newCount);
+        else setCommentsCount(c => Math.max(0, c - 1));
+    };
+
+    const onShareComplete = (inc?: number) => {
+        setSharesCount(s => s + (typeof inc === 'number' ? inc : 1));
+    };
+
     const formatCurrency = (amount: number | string) => {
         const num = Number(amount) || 0;
         if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
@@ -317,25 +405,28 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
             </View>
 
             <View style={{ paddingHorizontal: 16 }}>
-                {/* 2. Stats Row */}
+                {/* 2. Stats Row (interactive) */}
                 <View style={cardStyles.card}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Heart size={20} color="#fff" />
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{displayStats.likes}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Crown size={20} color="#fff" />
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{displayStats.crowns}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={toggleLike}>
+                            <Heart size={20} color={liked ? '#ef4444' : '#fff'} fill={liked ? '#ef4444' : 'none'} strokeWidth={1.7} />
+                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{likesCount}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={toggleCrown}>
+                            <Crown size={20} color={crowned ? '#eab308' : '#fff'} fill={crowned ? '#eab308' : 'none'} strokeWidth={1.7} />
+                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{crownsCount}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => setCommentsVisible(true)}>
                             <MessageCircle size={20} color="#fff" />
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{displayStats.comments}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{commentsCount}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} onPress={() => setShareVisible(true)}>
                             <Send size={20} color="#fff" />
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{displayStats.shares}</Text>
-                        </View>
+                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{sharesCount}</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -441,7 +532,7 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                     <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 12, marginTop: 0 }}>Financial Overview</Text>
                     <View style={{ gap: 12 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <Text style={{ color: '#888', fontSize: 13 }}>Startup Type</Text>
+                            <Text style={{ color: '#888', fontSize: 13 }}>Revenue Type</Text>
                             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>{revenueType}</Text>
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -588,6 +679,26 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
                     </View>
                 </View>
             </Modal>
+            {/* Comments and Share modals for interactive stats */}
+            <CommentsOverlay
+                startupId={String(contentId)}
+                visible={commentsVisible}
+                onClose={() => setCommentsVisible(false)}
+                onCommentAdded={onCommentAdded}
+                onCommentDeleted={onCommentDeleted}
+                type="startup"
+            />
+
+            <ShareModal
+                contentId={String(contentId)}
+                type="startup"
+                contentTitle={companyName}
+                contentImage={details.profileImage || profileData?.profileImage}
+                contentOwner={companyName}
+                visible={shareVisible}
+                onClose={() => setShareVisible(false)}
+                onShareComplete={onShareComplete}
+            />
         </View >
     );
 };

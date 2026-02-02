@@ -9,6 +9,12 @@ type Props = {
     onCreate?: () => void;
     theme: any;
 };
+// New props: control visibility when viewing other users' profiles
+type HeaderProps = Props & {
+    showCreate?: boolean;
+    showLeftBack?: boolean;
+    hideRight?: boolean;
+};
 
 const HamburgerIcon = ({ color = '#fff', size = 18 }: { color?: string; size?: number }) => (
     <View style={[hambStyles.container, { width: size, height: size }]}>
@@ -18,23 +24,37 @@ const HamburgerIcon = ({ color = '#fff', size = 18 }: { color?: string; size?: n
     </View>
 );
 
-export default function ProfileHeader({ name, onOpenSettings, onCreate, onBack, theme }: Props) {
+export default function ProfileHeader({ name, onOpenSettings, onCreate, onBack, theme, showCreate = true, showLeftBack = false, hideRight = false }: HeaderProps) {
     return (
         <View style={styles.topBar}>
-            <TouchableOpacity style={styles.iconButton} onPress={onCreate} accessibilityLabel="Create new">
-                <Text style={[styles.iconText, { color: theme.text }]}>＋</Text>
-            </TouchableOpacity>
-
-            <Text style={[styles.topTitle, { color: theme.text }]}>{name}</Text>
-
-            {onBack ? (
+            {/* Left: either left-back or create button or spacer */}
+            {showLeftBack ? (
                 <TouchableOpacity style={styles.iconButton} onPress={onBack} accessibilityLabel="Back">
                     <Text style={[styles.iconText, { color: theme.text }]}>{'‹'}</Text>
                 </TouchableOpacity>
-            ) : (
-                <TouchableOpacity style={styles.iconButton} onPress={onOpenSettings} accessibilityLabel="Open settings">
-                    <HamburgerIcon color={theme.text} size={20} />
+            ) : showCreate ? (
+                <TouchableOpacity style={styles.iconButton} onPress={onCreate} accessibilityLabel="Create new">
+                    <Text style={[styles.iconText, { color: theme.text }]}>＋</Text>
                 </TouchableOpacity>
+            ) : (
+                <View style={styles.iconButton} />
+            )}
+
+            <Text style={[styles.topTitle, { color: theme.text }]}>{name}</Text>
+
+            {/* Right: either hidden, or settings/hamburger (if no onBack on right) */}
+            {hideRight ? (
+                <View style={styles.iconButton} />
+            ) : (
+                onBack ? (
+                    <TouchableOpacity style={styles.iconButton} onPress={onBack} accessibilityLabel="Back">
+                        <Text style={[styles.iconText, { color: theme.text }]}>{'‹'}</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity style={styles.iconButton} onPress={onOpenSettings} accessibilityLabel="Open settings">
+                        <HamburgerIcon color={theme.text} size={20} />
+                    </TouchableOpacity>
+                )
             )}
         </View>
     );

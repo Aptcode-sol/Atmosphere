@@ -1,25 +1,42 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const TeamMemberSchema = new Schema({
     name: String,
     username: String,
     role: String,
-    userId: String // Optional string - allows empty values when user is not selected from search
+    userId: String, // Optional string - allows empty values when user is not selected from search
 });
 
 const FundingRoundSchema = new Schema({
-    round: String,
+    round: {
+        type: String,
+        enum: [
+            "MVP",
+            "Idea",
+            "Prototype",
+            "Market ready",
+            "Semi running",
+            "Fully running",
+        ],
+        default: "Idea",
+    },
     amount: Number,
     investorName: String,
-    doc: String
+    doc: String,
 });
 
-const PreviousInvestmentSchema = new Schema({ companyName: String, companyId: String, date: Date, amount: Number, docs: [String] });
+const PreviousInvestmentSchema = new Schema({
+    companyName: String,
+    companyId: String,
+    date: Date,
+    amount: Number,
+    docs: [String],
+});
 
 const StartupDetailsSchema = new Schema(
     {
-        user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        user: { type: Schema.Types.ObjectId, ref: "User", required: true },
         companyName: String,
         about: String,
         location: String,
@@ -31,8 +48,11 @@ const StartupDetailsSchema = new Schema(
         teamMembers: [TeamMemberSchema],
         fundingRounds: [FundingRoundSchema],
         financialProfile: {
-            revenueType: { type: String, enum: ['Pre-revenue', 'Revenue generating', 'Bootstrapped', 'Capital Raised'] },
-            fundingMethod: { type: String, enum: ['Bootstrapped', 'Capital Raised'] },
+            revenueType: {
+                type: String,
+                enum: ["Pre-revenue", "Revenue generating"],
+            },
+            fundingMethod: { type: String, enum: ["Bootstrapped", "Capital Raised"] },
             fundingAmount: Number,
             investorName: String,
             investorDoc: String,
@@ -41,7 +61,18 @@ const StartupDetailsSchema = new Schema(
         previousInvestments: [PreviousInvestmentSchema],
         verified: { type: Boolean, default: false },
         profileImage: String,
-        stage: { type: String, enum: ['MVP Launched', 'Revenue Generating', 'Pre-seed', 'Seed', 'Series A', 'Series B', 'Series C', 'Series D', 'Series D and beyond'], default: 'Seed' },
+        stage: {
+            type: String,
+            enum: [
+                "MVP",
+                "Idea",
+                "Prototype",
+                "Market ready",
+                "Semi running",
+                "Fully running",
+            ],
+            default: "Idea",
+        },
         rounds: { type: Number, default: 0 },
         age: { type: Number, default: 1 },
         fundingRaised: { type: Number, default: 0 },
@@ -50,7 +81,7 @@ const StartupDetailsSchema = new Schema(
         documents: String, // URL to verification documents
         meta: { type: Schema.Types.Mixed },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
-module.exports = mongoose.model('StartupDetails', StartupDetailsSchema);
+module.exports = mongoose.model("StartupDetails", StartupDetailsSchema);

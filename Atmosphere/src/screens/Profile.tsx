@@ -534,7 +534,23 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     />
                 }
             >
-                <ProfileHeader name={loading ? '' : (src?.username || '')} onOpenSettings={() => setLeftDrawerOpen(true)} onCreate={onCreatePost} onBack={onClose} theme={theme} />
+                {
+                    (() => {
+                        const isViewingOther = Boolean(viewingUserId && currentUserId && String(viewingUserId) !== String(currentUserId));
+                        return (
+                            <ProfileHeader
+                                name={loading ? '' : (src?.username || '')}
+                                onOpenSettings={() => setLeftDrawerOpen(true)}
+                                onCreate={onCreatePost}
+                                onBack={onClose}
+                                theme={theme}
+                                showCreate={!isViewingOther}
+                                showLeftBack={isViewingOther}
+                                hideRight={isViewingOther}
+                            />
+                        );
+                    })()
+                }
 
                 {/* Setup is opened via parent navigation (LandingPage route 'setup') */}
 
