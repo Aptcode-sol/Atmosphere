@@ -42,7 +42,7 @@ export default function InvestorExpand({ investorDetails, profileData, cardConta
                     <Text style={cardStyles.sectionTitle}>Investment Focus</Text>
 
                     <View style={cardStyles.firstRow}>
-                        <Target size={16} color="#888" />
+                        <Target size={18} color="#888" />
                         <Text style={cardStyles.rowTitle}>Industries</Text>
                     </View>
                     <View style={cardStyles.chipRow}>
@@ -54,13 +54,13 @@ export default function InvestorExpand({ investorDetails, profileData, cardConta
                     </View>
 
                     <View style={cardStyles.row}>
-                        <TrendingUp size={16} color="#888" />
+                        <TrendingUp size={18} color="#888" />
                         <Text style={cardStyles.rowTitle}>Stage</Text>
                     </View>
                     <Text style={cardStyles.rowValue}>{stage || 'Early Stage'}</Text>
 
                     <View style={cardStyles.row}>
-                        <Briefcase size={16} color="#888" />
+                        <Briefcase size={18} color="#888" />
                         <Text style={cardStyles.rowTitle}>Interested rounds</Text>
                     </View>
                     <Text style={cardStyles.rowValue}>
@@ -68,13 +68,13 @@ export default function InvestorExpand({ investorDetails, profileData, cardConta
                     </Text>
 
                     <View style={cardStyles.row}>
-                        <Globe size={16} color="#888" />
+                        <Globe size={18} color="#888" />
                         <Text style={cardStyles.rowTitle}>Investable Geography</Text>
                     </View>
                     <Text style={cardStyles.rowValue}>{geography || 'North America, Europe'}</Text>
 
                     <View style={cardStyles.row}>
-                        <DollarSign size={16} color="#888" />
+                        <DollarSign size={18} color="#888" />
                         <Text style={cardStyles.rowTitle}>Check Size</Text>
                     </View>
                     <Text style={cardStyles.rowValue}>
@@ -82,7 +82,7 @@ export default function InvestorExpand({ investorDetails, profileData, cardConta
                     </Text>
 
                     <View style={cardStyles.row}>
-                        <CheckCircle size={16} color="#888" />
+                        <CheckCircle size={18} color="#888" />
                         <Text style={cardStyles.rowTitle}>Verified Investments</Text>
                     </View>
                     <Text style={cardStyles.rowValue}>{holdings.length || 4}</Text>
@@ -132,11 +132,11 @@ const cardStyles = {
         marginBottom: 12,
         paddingBottom: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#1d1d1d',
+        borderBottomColor: '#333333',
     },
     aboutLabel: {
-        color: '#666',
-        fontSize: 12,
+        color: '#a6a6a6',
+        fontSize: 14,
         fontWeight: '600' as const,
         marginBottom: 6,
     },
@@ -146,54 +146,55 @@ const cardStyles = {
         lineHeight: 20,
     },
     sectionTitle: {
-        color: '#666',
-        fontSize: 12,
+        color: '#a6a6a6',
+        fontSize: 14,
         fontWeight: '600' as const,
         marginBottom: 12,
-        marginTop: 8, // Reduced from 12
+        marginTop: 0,
     },
     row: {
         flexDirection: 'row' as const,
-        alignItems: 'flex-start' as const,
+        alignItems: 'center' as const,
         gap: 8,
-        marginBottom: 4, // Reduced from 8 to keep label and value closer
+        marginBottom: 6,
     },
     firstRow: {
         flexDirection: 'row' as const,
         alignItems: 'center' as const,
         gap: 8,
         marginTop: 0,
-        marginBottom: 4,
+        marginBottom: 0,
+        margineLeft: 10,
     },
     rowTitle: {
-        color: '#e5e5e5',
-        fontSize: 13,
-        fontWeight: '600' as const,
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700' as const,
     },
     rowValue: {
-        color: '#999',
+        color: '#ccc',
         fontSize: 13,
-        marginLeft: 24,
-        marginTop: 0,
-        marginBottom: 16, // Added spacing between items
+        marginLeft: 28,
+        marginTop: -4,
+        marginBottom: 8,
     },
     chipRow: {
         flexDirection: 'row' as const,
         flexWrap: 'wrap' as const,
-        gap: 6,
-        marginTop: 8,
-        marginLeft: 24,
-        marginBottom: 20, // Added spacing after chips
+        gap: 8,
+        marginTop: 4,
+        marginLeft: 18,
+        marginBottom: 8,
     },
     chip: {
-        backgroundColor: '#1a1a1a',
+        backgroundColor: '#222',
         borderWidth: 0,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 18,
     },
     chipText: {
-        color: '#999',
+        color: '#e6e6e6',
         fontSize: 12,
     },
 };
