@@ -4,7 +4,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Home,
   Search,
-  Film,
   User,
   Rocket,
   TrendingUp,
@@ -12,6 +11,8 @@ import {
   Calendar,
   SquarePlay,
 } from "lucide-react-native";
+import IconFA from 'react-native-vector-icons/FontAwesome';
+import IconEntypo from 'react-native-vector-icons/Entypo';
 import ReelsIcon from './icons/ReelsIcon';
 import ReelsOutline from './icons/ReelsOutline';
 import HomeFilled from './icons/HomeFilled';
@@ -38,6 +39,7 @@ const rightModeTabs = [
   { id: "opportunities", Icon: Briefcase, label: "Opportunities", route: "Opportunities" },
   { id: "meetings", Icon: Calendar, label: "Meetings", route: "Meetings" },
 ];
+
 
 type BottomNavProps = {
   onRouteChange?: (routeName: string) => void;
@@ -195,6 +197,54 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
           }
 
           // Render reels with filled/outline icons
+          // Special-case Opportunities: show FontAwesome suitcase when active
+          if (tab.id === 'opportunities') {
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                onPress={() => handleTabPress(tab.route)}
+                style={[styles.tab]}
+                activeOpacity={0.8}
+              >
+                <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#111' : 'transparent' }}>
+                  {active ? (
+                    <IconFA name="suitcase" size={24} color="#fff" />
+                  ) : (
+                    <Briefcase
+                      color="#fff"
+                      size={26}
+                      strokeWidth={active ? 2.5 : 1.2}
+                    />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          }
+
+          // Special-case Meetings: show Entypo calendar when active
+          if (tab.id === 'meetings') {
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                onPress={() => handleTabPress(tab.route)}
+                style={[styles.tab]}
+                activeOpacity={0.8}
+              >
+                <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: active ? '#111' : 'transparent' }}>
+                  {active ? (
+                    <IconEntypo name="calendar" size={24} color="#fff" />
+                  ) : (
+                    <Calendar
+                      color="#fff"
+                      size={26}
+                      strokeWidth={active ? 2.5 : 1.2}
+                    />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          }
+
           const IconComponent = tab.Icon;
           return (
             <TouchableOpacity
@@ -220,7 +270,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
               </View>
             </TouchableOpacity>
           );
-        })}}
+        })}
       </View>
     </View>
   );
