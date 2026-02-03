@@ -456,7 +456,7 @@ const CommentsOverlay = ({ startupId, visible, onClose, onCommentAdded, onCommen
                     {/* Scrollable comments list - takes remaining space */}
                     <View style={{ flex: 1, overflow: 'hidden' }} {...contentPanResponder.panHandlers}>
                         {loading ? (
-                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+                            <View style={{ height: DEFAULT_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
                                 <ActivityIndicator size="large" color="#666" />
                             </View>
                         ) : comments.length === 0 ? (
