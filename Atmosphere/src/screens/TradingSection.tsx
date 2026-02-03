@@ -1408,16 +1408,10 @@ const Trading = ({ initialTab, onTabChange, onChatSelect }: TradingProps) => {
                 <View style={styles.filtersRow}>
                     <Text style={styles.filtersCount}>{data.length} trades</Text>
                     <TouchableOpacity
-                        style={styles.filterButtonSmall}
+                        style={styles.filterIconBtn}
                         onPress={toggleFilterWithAnimation}
                     >
-                        <IconFA name="filter" size={16} color="#fff" />
-                        <Text style={styles.filterButtonTextSmall}>Filters</Text>
-                        <MaterialCommunityIcons
-                            name={isFilterOpen ? "chevron-up" : "chevron-down"}
-                            size={18}
-                            color="#bfbfbf"
-                        />
+                        <IconFA name="filter" size={18} color="#fff" />
                     </TouchableOpacity>
                 </View>
                 {/* Suggested for you heading */}

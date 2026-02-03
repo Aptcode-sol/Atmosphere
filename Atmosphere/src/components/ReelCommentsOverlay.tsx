@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
-import { View, Text, Modal, TouchableOpacity, FlatList, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated, Easing, Dimensions } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, FlatList, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Animated, Easing, Dimensions, PanResponder } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getReelComments, addReelComment, deleteReelComment, getProfile, getReelCommentReplies } from '../lib/api';
 import Icon from 'react-native-vector-icons/Feather';
 
 // Import shared components and utilities
-import { Comment, ReplyingTo, commentStyles as styles, SHEET_HEIGHT, timeAgo, getAvatarLetter, getDisplayName } from './comments';
+import { Comment, ReplyingTo, commentStyles as styles, timeAgo, getAvatarLetter, getDisplayName } from './comments';
 import CommentInput from './comments/CommentInput';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
+const DEFAULT_HEIGHT = SCREEN_HEIGHT * 0.55;
 
 interface ReelCommentsOverlayProps {
     reelId: string;
@@ -20,7 +22,6 @@ interface ReelCommentsOverlayProps {
 
 const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onCommentDeleted }: ReelCommentsOverlayProps) => {
     const { theme } = useContext(ThemeContext) as any;
-    const anim = useRef(new Animated.Value(0)).current;
     const inputRef = useRef<TextInput>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(false);
@@ -33,6 +34,17 @@ const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onComme
     const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
     const [repliesLoading, setRepliesLoading] = useState<Set<string>>(new Set());
     const [repliesData, setRepliesData] = useState<{ [key: string]: Comment[] }>({});
+
+    // Animation state
+    const translateY = useRef(new Animated.Value(FULL_HEIGHT)).current;
+    const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+    // Track the offset when drag starts
+    const dragStartY = useRef(FULL_HEIGHT - DEFAULT_HEIGHT);
+
+    // Track if FlatList is at top (for pull-to-close from content area)
+    const isAtScrollTop = useRef(true);
+    const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
         let mounted = true;
@@ -60,13 +72,138 @@ const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onComme
         return () => { mounted = false; };
     }, [visible, reelId]);
 
+    // Animate in/out when `visible` changes
     useEffect(() => {
         if (visible) {
-            Animated.timing(anim, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+            dragStartY.current = FULL_HEIGHT - DEFAULT_HEIGHT;
+            Animated.parallel([
+                Animated.spring(translateY, {
+                    toValue: FULL_HEIGHT - DEFAULT_HEIGHT,
+                    useNativeDriver: true,
+                    damping: 20,
+                    mass: 0.8,
+                    stiffness: 100
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 0.6,
+                    duration: 300,
+                    useNativeDriver: true
+                })
+            ]).start();
         } else {
-            Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start();
+            Animated.parallel([
+                Animated.timing(translateY, {
+                    toValue: FULL_HEIGHT,
+                    duration: 250,
+                    useNativeDriver: true
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 0,
+                    duration: 250,
+                    useNativeDriver: true
+                })
+            ]).start();
         }
-    }, [visible, anim]);
+    }, [visible, translateY, backdropOpacity]);
+
+    const closeModal = () => {
+        Animated.parallel([
+            Animated.timing(translateY, {
+                toValue: FULL_HEIGHT,
+                duration: 200,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.ease)
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true
+            })
+        ]).start(() => onClose && onClose());
+    };
+
+    const expandModal = () => {
+        dragStartY.current = 0;
+        Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            mass: 0.8,
+            stiffness: 100
+        }).start();
+    };
+
+    const collapseToDefault = () => {
+        dragStartY.current = FULL_HEIGHT - DEFAULT_HEIGHT;
+        Animated.spring(translateY, {
+            toValue: FULL_HEIGHT - DEFAULT_HEIGHT,
+            useNativeDriver: true,
+            damping: 20,
+            mass: 0.8,
+            stiffness: 100
+        }).start();
+    };
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
+            onPanResponderGrant: () => {
+                translateY.stopAnimation((value) => {
+                    dragStartY.current = value;
+                });
+            },
+            onPanResponderMove: (_, gestureState) => {
+                let newY = dragStartY.current + gestureState.dy;
+                newY = Math.max(0, Math.min(FULL_HEIGHT, newY));
+                translateY.setValue(newY);
+                const progress = 1 - (newY / FULL_HEIGHT);
+                backdropOpacity.setValue(progress * 0.6);
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                // Directly animate based on direction - no stopAnimation delay
+                if (gestureState.dy < 0) {
+                    expandModal();
+                } else {
+                    closeModal();
+                }
+            }
+        })
+    ).current;
+
+    const contentPanResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return isAtScrollTop.current && gestureState.dy > 10;
+            },
+            onPanResponderGrant: () => {
+                translateY.stopAnimation((value) => {
+                    dragStartY.current = value;
+                });
+            },
+            onPanResponderMove: (_, gestureState) => {
+                if (gestureState.dy > 0) {
+                    let newY = dragStartY.current + gestureState.dy;
+                    newY = Math.max(0, Math.min(FULL_HEIGHT, newY));
+                    translateY.setValue(newY);
+                    const progress = 1 - (newY / FULL_HEIGHT);
+                    backdropOpacity.setValue(progress * 0.6);
+                }
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                if (gestureState.dy > 0) {
+                    closeModal();
+                } else {
+                    expandModal();
+                }
+            }
+        })
+    ).current;
+
+    const handleScroll = (event: any) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+        isAtScrollTop.current = offsetY <= 0;
+    };
 
     const loadReplies = async (commentId: string) => {
         if (repliesLoading.has(commentId)) return;
@@ -147,10 +284,6 @@ const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onComme
         } finally {
             setSubmitting(false);
         }
-    };
-
-    const closeModal = () => {
-        Animated.timing(anim, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => onClose && onClose());
     };
 
     const handleDelete = async (item: Comment) => {
@@ -243,61 +376,81 @@ const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onComme
             </View>
         );
     };
+    const INPUT_HEIGHT = 70;
 
     return (
         <Modal visible={visible} transparent onRequestClose={closeModal}>
             <TouchableWithoutFeedback onPress={closeModal}>
-                <Animated.View style={[styles.backdrop, { opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.6] }) }]} />
+                <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
             </TouchableWithoutFeedback>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+
+            <View style={{ flex: 1 }}>
+                {/* Animated sheet - ends above the input area */}
                 <Animated.View
                     style={[
                         styles.sheet,
-                        { width: Math.min(640, SCREEN_WIDTH), height: SHEET_HEIGHT },
-                        { transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [SHEET_HEIGHT, 0] }) }] },
-                        { opacity: anim }
+                        {
+                            position: 'absolute',
+                            left: 0,
+                            right: 0,
+                            bottom: INPUT_HEIGHT,
+                            height: FULL_HEIGHT - INPUT_HEIGHT,
+                            width: Math.min(640, SCREEN_WIDTH),
+                            alignSelf: 'center',
+                        },
+                        { transform: [{ translateY: translateY }] }
                     ]}
                 >
-                    <View style={styles.handleRow}>
+                    {/* Handle bar at top */}
+                    <View style={styles.handleRow} {...panResponder.panHandlers}>
                         <View style={styles.handle} />
-                        <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
-                            <Icon name="x" size={20} color="#666" />
-                        </TouchableOpacity>
                     </View>
+
+                    {/* Comments title */}
                     <Text style={styles.title}>Comments</Text>
 
-                    <View style={styles.contentWrap}>
+                    {/* Scrollable comments list - takes remaining space */}
+                    <View style={{ flex: 1, overflow: 'hidden' }} {...contentPanResponder.panHandlers}>
                         {loading ? (
-                            <ActivityIndicator size="large" color="#666" />
+                            <ActivityIndicator size="large" color="#666" style={{ flex: 1 }} />
+                        ) : comments.length === 0 ? (
+                            <View style={styles.emptyWrap}>
+                                <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
+                            </View>
                         ) : (
-                            <>
-                                {comments.length === 0 ? (
-                                    <View style={styles.emptyWrap}>
-                                        <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
-                                    </View>
-                                ) : (
-                                    <FlatList
-                                        data={comments}
-                                        keyExtractor={(i) => String(i._id || i.id || i.createdAt || Math.random())}
-                                        renderItem={({ item }) => renderComment(item)}
-                                        showsVerticalScrollIndicator={false}
-                                    />
-                                )}
-                            </>
+                            <FlatList
+                                ref={flatListRef}
+                                data={comments}
+                                keyExtractor={(i) => String(i._id || i.id || i.createdAt || Math.random())}
+                                renderItem={({ item }) => renderComment(item)}
+                                showsVerticalScrollIndicator={true}
+                                onScroll={handleScroll}
+                                scrollEventThrottle={16}
+                                style={{ flex: 1 }}
+                                contentContainerStyle={{ paddingBottom: 10 }}
+                            />
                         )}
                     </View>
-
-                    <CommentInput
-                        ref={inputRef}
-                        text={text}
-                        setText={setText}
-                        submitting={submitting}
-                        replyingTo={replyingTo}
-                        onSubmit={submit}
-                        onCancelReply={cancelReply}
-                    />
                 </Animated.View>
-            </KeyboardAvoidingView>
+
+                {/* Fixed input bar at screen bottom - ALWAYS visible */}
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
+                >
+                    <View style={{ backgroundColor: '#0a0a0a', borderTopWidth: 1, borderTopColor: '#222' }}>
+                        <CommentInput
+                            ref={inputRef}
+                            text={text}
+                            setText={setText}
+                            submitting={submitting}
+                            replyingTo={replyingTo}
+                            onSubmit={submit}
+                            onCancelReply={cancelReply}
+                        />
+                    </View>
+                </KeyboardAvoidingView>
+            </View>
         </Modal>
     );
 };

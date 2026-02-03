@@ -16,6 +16,7 @@ import {
     Dimensions,
     Image,
     Share,
+    PanResponder,
 } from 'react-native';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { getFollowersList, getProfile, shareContent } from '../lib/api';
@@ -23,7 +24,8 @@ import { getImageSource } from '../lib/image';
 import Icon from 'react-native-vector-icons/Feather';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.50);
+const FULL_HEIGHT = SCREEN_HEIGHT * 0.9;
+const DEFAULT_HEIGHT = SCREEN_HEIGHT * 0.55;
 
 type Follower = {
     _id: string;
@@ -56,14 +58,23 @@ const ShareModal: React.FC<ShareModalProps> = ({
     alreadyShared = false,
 }) => {
     const { theme } = useContext(ThemeContext) as any;
-    const anim = useRef(new Animated.Value(0)).current;
     const [followers, setFollowers] = useState<Follower[]>([]);
     const [filteredFollowers, setFilteredFollowers] = useState<Follower[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState('');
-    // current user id is not used here; omit state to avoid lint warnings
+
+    // Animation state
+    const translateY = useRef(new Animated.Value(FULL_HEIGHT)).current;
+    const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+    // Track the offset when drag starts
+    const dragStartY = useRef(FULL_HEIGHT - DEFAULT_HEIGHT);
+
+    // Track if FlatList is at top (for pull-to-close from content area)
+    const isAtScrollTop = useRef(true);
+    const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
         let mounted = true;
@@ -113,21 +124,135 @@ const ShareModal: React.FC<ShareModalProps> = ({
     // Animate in/out
     useEffect(() => {
         if (visible) {
-            Animated.timing(anim, {
-                toValue: 1,
-                duration: 300,
-                easing: Easing.out(Easing.cubic),
-                useNativeDriver: true,
-            }).start();
+            dragStartY.current = FULL_HEIGHT - DEFAULT_HEIGHT;
+            Animated.parallel([
+                Animated.spring(translateY, {
+                    toValue: FULL_HEIGHT - DEFAULT_HEIGHT,
+                    useNativeDriver: true,
+                    damping: 20,
+                    mass: 0.8,
+                    stiffness: 100
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 0.6,
+                    duration: 300,
+                    useNativeDriver: true
+                })
+            ]).start();
         } else {
-            Animated.timing(anim, {
-                toValue: 0,
-                duration: 240,
-                easing: Easing.in(Easing.cubic),
-                useNativeDriver: true,
-            }).start();
+            Animated.parallel([
+                Animated.timing(translateY, {
+                    toValue: FULL_HEIGHT,
+                    duration: 250,
+                    useNativeDriver: true
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 0,
+                    duration: 250,
+                    useNativeDriver: true
+                })
+            ]).start();
         }
-    }, [visible, anim]);
+    }, [visible, translateY, backdropOpacity]);
+
+    const closeModal = () => {
+        Animated.parallel([
+            Animated.timing(translateY, {
+                toValue: FULL_HEIGHT,
+                duration: 200,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.ease)
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true
+            })
+        ]).start(() => onClose && onClose());
+    };
+
+    const expandModal = () => {
+        dragStartY.current = 0;
+        Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            mass: 0.8,
+            stiffness: 100
+        }).start();
+    };
+
+    const collapseToDefault = () => {
+        dragStartY.current = FULL_HEIGHT - DEFAULT_HEIGHT;
+        Animated.spring(translateY, {
+            toValue: FULL_HEIGHT - DEFAULT_HEIGHT,
+            useNativeDriver: true,
+            damping: 20,
+            mass: 0.8,
+            stiffness: 100
+        }).start();
+    };
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
+            onPanResponderGrant: () => {
+                translateY.stopAnimation((value) => {
+                    dragStartY.current = value;
+                });
+            },
+            onPanResponderMove: (_, gestureState) => {
+                let newY = dragStartY.current + gestureState.dy;
+                newY = Math.max(0, Math.min(FULL_HEIGHT, newY));
+                translateY.setValue(newY);
+                const progress = 1 - (newY / FULL_HEIGHT);
+                backdropOpacity.setValue(progress * 0.6);
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                // Directly animate based on direction - no stopAnimation delay
+                if (gestureState.dy < 0) {
+                    expandModal();
+                } else {
+                    closeModal();
+                }
+            }
+        })
+    ).current;
+
+    const contentPanResponder = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return isAtScrollTop.current && gestureState.dy > 10;
+            },
+            onPanResponderGrant: () => {
+                translateY.stopAnimation((value) => {
+                    dragStartY.current = value;
+                });
+            },
+            onPanResponderMove: (_, gestureState) => {
+                if (gestureState.dy > 0) {
+                    let newY = dragStartY.current + gestureState.dy;
+                    newY = Math.max(0, Math.min(FULL_HEIGHT, newY));
+                    translateY.setValue(newY);
+                    const progress = 1 - (newY / FULL_HEIGHT);
+                    backdropOpacity.setValue(progress * 0.6);
+                }
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                if (gestureState.dy > 0) {
+                    closeModal();
+                } else {
+                    expandModal();
+                }
+            }
+        })
+    ).current;
+
+    const handleScroll = (event: any) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+        isAtScrollTop.current = offsetY <= 0;
+    };
 
     const toggleSelect = (id: string) => {
         setSelectedIds((prev) => {
@@ -154,20 +279,12 @@ const ShareModal: React.FC<ShareModalProps> = ({
                 contentOwner
             });
 
-            // Use a slight delay or optimistic response for share count
-            // Since unified share might process differently, for now just pass back 1 or generic count
-            // if we need accurate count, we'd depend on the response from shareContent
             if (onShareComplete) {
                 onShareComplete(1); // Indicate success
             }
 
             // Close modal after share
-            Animated.timing(anim, {
-                toValue: 0,
-                duration: 240,
-                easing: Easing.in(Easing.cubic),
-                useNativeDriver: true,
-            }).start(() => onClose && onClose());
+            closeModal();
         } catch (err) {
             console.warn('ShareModal: share failed', err);
             // @ts-ignore
@@ -178,27 +295,13 @@ const ShareModal: React.FC<ShareModalProps> = ({
         }
     };
 
-    const closeModal = () => {
-        Animated.timing(anim, {
-            toValue: 0,
-            duration: 240,
-            easing: Easing.in(Easing.cubic),
-            useNativeDriver: true,
-        }).start(() => onClose && onClose());
-    };
-
     return (
         <Modal visible={visible} transparent onRequestClose={closeModal}>
             <TouchableWithoutFeedback onPress={closeModal}>
                 <Animated.View
                     style={[
                         styles.backdrop,
-                        {
-                            opacity: anim.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0, 0.6],
-                            }),
-                        },
+                        { opacity: backdropOpacity },
                     ]}
                 />
             </TouchableWithoutFeedback>
@@ -212,30 +315,16 @@ const ShareModal: React.FC<ShareModalProps> = ({
                         {
                             backgroundColor: theme?.background || '#121212',
                             width: SCREEN_WIDTH,
-                            height: SHEET_HEIGHT,
-                            transform: [
-                                {
-                                    translateY: anim.interpolate({
-                                        inputRange: [0, 1],
-                                        outputRange: [SHEET_HEIGHT, 0],
-                                    }),
-                                },
-                            ],
-                            opacity: anim,
+                            height: FULL_HEIGHT,
+                            transform: [{ translateY: translateY }]
                         },
                     ]}
                 >
                     {/* Handle and close */}
-                    <View style={styles.handleRow}>
+                    <View style={styles.handleRow} {...panResponder.panHandlers}>
                         <View style={styles.handle} />
-                        <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
-                            <Icon name="x" size={20} color={theme?.placeholder || '#999'} />
-                        </TouchableOpacity>
                     </View>
-
-                    <Text style={[styles.title, { color: theme?.text }]}>
-                        {alreadyShared ? 'Share Again' : `Send to...`}
-                    </Text>
+                    {/* Title and Close Button Removed */}
 
                     {/* Search */}
                     <View style={[styles.searchRow, { borderColor: theme?.border || '#333' }]}>
@@ -250,7 +339,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     </View>
 
                     {/* Followers list */}
-                    <View style={styles.listWrap}>
+                    <View style={[styles.listWrap, { paddingBottom: 120 }]} {...contentPanResponder.panHandlers}>
                         {loading ? (
                             <ActivityIndicator size="large" color="#fff" />
                         ) : filteredFollowers.length === 0 ? (
@@ -263,8 +352,11 @@ const ShareModal: React.FC<ShareModalProps> = ({
                             </View>
                         ) : (
                             <FlatList
+                                ref={flatListRef}
                                 data={filteredFollowers}
                                 keyExtractor={(item) => String(item._id)}
+                                onScroll={handleScroll}
+                                scrollEventThrottle={16}
                                 renderItem={({ item }) => {
                                     const isSelected = selectedIds.has(item._id);
                                     return (
@@ -320,13 +412,15 @@ const ShareModal: React.FC<ShareModalProps> = ({
                             />
                         )}
                     </View>
+                </Animated.View>
 
-                    {/* Share to other apps button */}
+                {/* Fixed buttons at bottom */}
+                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: theme?.background || '#121212' }}>
+                    {/* Share to other apps button - commented out for now
                     <TouchableOpacity
                         style={styles.shareToAppsBtn}
                         onPress={async () => {
                             try {
-                                // Create deep link URL
                                 const deepLink = `https://atmosphere.app/${type}/${contentId}`;
                                 const message = contentTitle
                                     ? `Check out "${contentTitle}" on Atmosphere! ${deepLink}`
@@ -335,7 +429,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                                 await Share.share({
                                     message,
                                     title: contentTitle || 'Share from Atmosphere',
-                                    url: deepLink, // iOS uses this
+                                    url: deepLink,
                                 });
                             } catch (err) {
                                 console.warn('Share to apps failed:', err);
@@ -345,25 +439,43 @@ const ShareModal: React.FC<ShareModalProps> = ({
                         <Icon name="share-2" size={18} color="#fff" style={{ marginRight: 8 }} />
                         <Text style={styles.shareToAppsBtnText}>Share to other apps</Text>
                     </TouchableOpacity>
+                    */}
 
-                    {/* Share button */}
-                    <TouchableOpacity
-                        style={[
-                            styles.shareBtn,
-                            (submitting || selectedIds.size === 0) && styles.shareBtnDisabled,
-                        ]}
-                        onPress={handleShare}
-                        disabled={submitting || selectedIds.size === 0}
-                    >
-                        <Text style={styles.shareBtnText}>
-                            {submitting
-                                ? 'Send...'
-                                : selectedIds.size > 0
-                                    ? `Send to ${selectedIds.size} person${selectedIds.size > 1 ? 's' : ''}`
-                                    : 'Select people'}
-                        </Text>
-                    </TouchableOpacity>
-                </Animated.View>
+                    {/* Button row */}
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                        {/* Copy Link button */}
+                        <TouchableOpacity
+                            style={[styles.shareBtn, { flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#444' }]}
+                            onPress={async () => {
+                                try {
+                                    const deepLink = `https://atmosphere.app/${type}/${contentId}`;
+                                    const Clipboard = require('@react-native-clipboard/clipboard').default;
+                                    Clipboard.setString(deepLink);
+                                    // Could show a toast here
+                                } catch (err) {
+                                    console.warn('Copy link failed:', err);
+                                }
+                            }}
+                        >
+                            <Text style={[styles.shareBtnText, { color: '#fff' }]}>Copy Link</Text>
+                        </TouchableOpacity>
+
+                        {/* Send button */}
+                        <TouchableOpacity
+                            style={[
+                                styles.shareBtn,
+                                { flex: 1 },
+                                (submitting || selectedIds.size === 0) && styles.shareBtnDisabled,
+                            ]}
+                            onPress={handleShare}
+                            disabled={submitting || selectedIds.size === 0}
+                        >
+                            <Text style={styles.shareBtnText}>
+                                {submitting ? 'Sending...' : 'Send'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </KeyboardAvoidingView>
         </Modal >
     );
@@ -398,9 +510,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        paddingVertical: 14,
+        marginBottom: 8,
     },
     handle: {
-        width: 48,
+        width: 60,
         height: 5,
         borderRadius: 3,
         backgroundColor: '#444',
@@ -428,7 +542,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         paddingHorizontal: 10,
         paddingVertical: 6,
-        marginTop: 10,
+        marginTop: 0,
         marginBottom: 8,
     },
     searchInput: {

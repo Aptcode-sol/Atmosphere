@@ -125,17 +125,6 @@ export const TradeCard: React.FC<TradeCardProps> = ({
                             color={isSaved ? "#fff" : "#999"}
                         />
                     </TouchableOpacity>
-                    {onChatWithOwner && (
-                        <TouchableOpacity
-                            style={[styles.collapsedActionBtn, styles.buyCardActionBtn, styles.collapsedChatBtn]}
-                            onPress={(e) => {
-                                e.stopPropagation();
-                                onChatWithOwner();
-                            }}
-                        >
-                            <MaterialCommunityIcons name="chat-outline" size={18} color="#999" />
-                        </TouchableOpacity>
-                    )}
                 </View>
             </TouchableOpacity>
 
@@ -262,20 +251,9 @@ export const TradeCard: React.FC<TradeCardProps> = ({
                     )}
 
                     {/* Action Buttons */}
-                    {onChatWithOwner ? (
-                        <View style={styles.tradeActionRow}>
-                            <TouchableOpacity style={styles.chatOwnerButton} onPress={onChatWithOwner}>
-                                <Text style={styles.chatOwnerText}>Chat</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.expressInterestButton} onPress={onExpressInterest}>
-                                <Text style={styles.expressInterestText}>Express Interest</Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <TouchableOpacity style={styles.expressInterestButton} onPress={onExpressInterest}>
-                            <Text style={styles.expressInterestText}>Express Interest</Text>
-                        </TouchableOpacity>
-                    )}
+                    <TouchableOpacity style={styles.expressInterestButton} onPress={onExpressInterest}>
+                        <Text style={styles.expressInterestText}>Express Interest</Text>
+                    </TouchableOpacity>
                 </Animated.View>
             )}
         </View>

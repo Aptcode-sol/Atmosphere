@@ -557,6 +557,7 @@ export const styles = StyleSheet.create({
         flexDirection: 'column',
         gap: 8,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     collapsedActionBtn: {
         padding: 8,
@@ -765,7 +766,7 @@ export const styles = StyleSheet.create({
     expressInterestButton: {
         flex: 1,
         backgroundColor: '#4a4a4a',
-        paddingVertical: 14,
+        paddingVertical: 10,
         borderRadius: 8,
         alignItems: 'center',
     },

@@ -27,7 +27,7 @@ export const commentStyles = StyleSheet.create({
         backgroundColor: '#0a0a0a',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        paddingTop: 12,
+        paddingTop: 20,
         paddingHorizontal: 16,
         borderTopWidth: 1,
         borderLeftWidth: 1,
@@ -37,13 +37,14 @@ export const commentStyles = StyleSheet.create({
     handleRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        paddingVertical: 14,
     },
     handle: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: '#333'
+        width: 60,
+        height: 5,
+        borderRadius: 3,
+        backgroundColor: '#444'
     },
     closeBtn: {
         position: 'absolute',
