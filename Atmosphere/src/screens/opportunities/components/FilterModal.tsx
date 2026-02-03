@@ -72,10 +72,11 @@ function FilterModal({ visible, onClose, tabType, filters, setFilters }: FilterM
             return filters.grantType !== 'all' || filters.grantSector !== 'All Sectors';
         } else if (tabType === 'Events') {
             return filters.eventType !== 'all' || filters.eventSector !== 'All Sectors' || filters.eventLocation !== 'All Locations';
-        } else {
+        } else if (tabType === 'Team' || tabType === 'Jobs') {
             return filters.teamSector !== 'All Sectors' || filters.teamLocation !== 'All Locations' ||
                 filters.teamRemote !== 'all' || filters.teamEmployment !== 'all';
         }
+        return false;
     };
 
     const clearFilters = () => {
@@ -83,7 +84,7 @@ function FilterModal({ visible, onClose, tabType, filters, setFilters }: FilterM
             setFilters({ ...filters, grantType: 'all', grantSector: 'All Sectors' });
         } else if (tabType === 'Events') {
             setFilters({ ...filters, eventType: 'all', eventSector: 'All Sectors', eventLocation: 'All Locations' });
-        } else {
+        } else if (tabType === 'Team' || tabType === 'Jobs') {
             setFilters({ ...filters, teamSector: 'All Sectors', teamLocation: 'All Locations', teamRemote: 'all', teamEmployment: 'all' });
         }
     };
@@ -113,7 +114,7 @@ function FilterModal({ visible, onClose, tabType, filters, setFilters }: FilterM
                                 {renderFilterSection('Location', 'eventLocation', locations, filters.eventLocation)}
                             </>
                         )}
-                        {tabType === 'Team' && (
+                        {(tabType === 'Team' || tabType === 'Jobs') && (
                             <>
                                 {renderFilterSection('Sector', 'teamSector', sectors, filters.teamSector)}
                                 {renderFilterSection('Location', 'teamLocation', locations, filters.teamLocation)}

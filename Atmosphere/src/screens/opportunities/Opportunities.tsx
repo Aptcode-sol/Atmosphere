@@ -576,9 +576,6 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                         if (isLoadingMore && data.length > 0) {
                             return <ActivityIndicator style={styles.footerLoader} color={theme.primary} />;
                         }
-                        if (data.length === 0) {
-                            return <Text style={styles.emptyText}>No {tabName.toLowerCase()} found.</Text>;
-                        }
                         return null;
                     }}
                     ListEmptyComponent={() => (
