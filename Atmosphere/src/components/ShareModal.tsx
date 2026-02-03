@@ -331,7 +331,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                         <Icon name="search" size={16} color={theme?.placeholder || '#888'} />
                         <TextInput
                             style={[styles.searchInput, { color: theme?.text }]}
-                            placeholder="Search followers..."
+                            placeholder="Search"
                             placeholderTextColor={theme?.placeholder || '#888'}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     },
     shareBtn: {
         backgroundColor: '#fff',
-        paddingVertical: 14,
+        paddingVertical: 10,
         borderRadius: 12,
         alignItems: 'center',
         marginTop: 12,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     },
     shareBtnText: {
         color: '#000',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
     },
     shareToAppsBtn: {
