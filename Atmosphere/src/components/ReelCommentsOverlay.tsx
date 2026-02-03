@@ -412,7 +412,9 @@ const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onComme
                     {/* Scrollable comments list - takes remaining space */}
                     <View style={{ flex: 1, overflow: 'hidden' }} {...contentPanResponder.panHandlers}>
                         {loading ? (
-                            <ActivityIndicator size="large" color="#666" style={{ flex: 1 }} />
+                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+                                <ActivityIndicator size="large" color="#666" />
+                            </View>
                         ) : comments.length === 0 ? (
                             <View style={styles.emptyWrap}>
                                 <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
@@ -433,23 +435,39 @@ const ReelCommentsOverlay = ({ reelId, visible, onClose, onCommentAdded, onComme
                     </View>
                 </Animated.View>
 
-                {/* Fixed input bar at screen bottom - ALWAYS visible */}
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
+                {/* Fixed input bar at screen bottom - ALWAYS visible, animates out on close */}
+                <Animated.View
+                    style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        zIndex: 20,
+                        transform: [{
+                            translateY: translateY.interpolate({
+                                inputRange: [0, FULL_HEIGHT - DEFAULT_HEIGHT, FULL_HEIGHT],
+                                outputRange: [0, 0, 100], // Slide down 100px when closed
+                                extrapolate: 'clamp'
+                            })
+                        }]
+                    }}
                 >
-                    <View style={{ backgroundColor: '#0a0a0a', borderTopWidth: 1, borderTopColor: '#222' }}>
-                        <CommentInput
-                            ref={inputRef}
-                            text={text}
-                            setText={setText}
-                            submitting={submitting}
-                            replyingTo={replyingTo}
-                            onSubmit={submit}
-                            onCancelReply={cancelReply}
-                        />
-                    </View>
-                </KeyboardAvoidingView>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    >
+                        <View style={{ backgroundColor: '#0a0a0a', borderTopWidth: 1, borderTopColor: '#222' }}>
+                            <CommentInput
+                                ref={inputRef}
+                                text={text}
+                                setText={setText}
+                                submitting={submitting}
+                                replyingTo={replyingTo}
+                                onSubmit={submit}
+                                onCancelReply={cancelReply}
+                            />
+                        </View>
+                    </KeyboardAvoidingView>
+                </Animated.View>
             </View>
         </Modal>
     );

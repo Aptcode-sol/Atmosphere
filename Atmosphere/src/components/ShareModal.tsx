@@ -357,6 +357,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                                 keyExtractor={(item) => String(item._id)}
                                 onScroll={handleScroll}
                                 scrollEventThrottle={16}
+                                contentContainerStyle={{ paddingBottom: 100 }}
                                 renderItem={({ item }) => {
                                     const isSelected = selectedIds.has(item._id);
                                     return (
@@ -414,32 +415,26 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     </View>
                 </Animated.View>
 
-                {/* Fixed buttons at bottom */}
-                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: theme?.background || '#121212' }}>
-                    {/* Share to other apps button - commented out for now
-                    <TouchableOpacity
-                        style={styles.shareToAppsBtn}
-                        onPress={async () => {
-                            try {
-                                const deepLink = `https://atmosphere.app/${type}/${contentId}`;
-                                const message = contentTitle
-                                    ? `Check out "${contentTitle}" on Atmosphere! ${deepLink}`
-                                    : `Check out this ${type} on Atmosphere! ${deepLink}`;
-
-                                await Share.share({
-                                    message,
-                                    title: contentTitle || 'Share from Atmosphere',
-                                    url: deepLink,
-                                });
-                            } catch (err) {
-                                console.warn('Share to apps failed:', err);
-                            }
-                        }}
-                    >
-                        <Icon name="share-2" size={18} color="#fff" style={{ marginRight: 8 }} />
-                        <Text style={styles.shareToAppsBtnText}>Share to other apps</Text>
-                    </TouchableOpacity>
-                    */}
+                {/* Animated buttons at bottom - slide down with sheet */}
+                <Animated.View
+                    style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        padding: 16,
+                        backgroundColor: theme?.background || '#121212',
+                        transform: [{
+                            translateY: translateY.interpolate({
+                                inputRange: [0, FULL_HEIGHT - DEFAULT_HEIGHT, FULL_HEIGHT],
+                                outputRange: [0, 0, 150], // Slide down 150px when closed
+                                extrapolate: 'clamp'
+                            })
+                        }]
+                    }}
+                >
+                    {/* Share to other apps button - commented out for now */}
+                    {/* ... code ... */}
 
                     {/* Button row */}
                     <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -475,7 +470,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
                             </Text>
                         </TouchableOpacity>
                     </View>
-                </View>
+                </Animated.View>
             </KeyboardAvoidingView>
         </Modal >
     );
