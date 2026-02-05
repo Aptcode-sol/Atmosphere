@@ -536,7 +536,7 @@ export const styles = StyleSheet.create({
     },
     collapsedCompanyName: {
         color: '#fff',
-        fontSize: 18,
+        fontSize: 15,
         fontWeight: '600',
     },
     collapsedOwnerName: {
@@ -617,7 +617,7 @@ export const styles = StyleSheet.create({
     },
     investorName: {
         color: '#fff',
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
         textAlign: 'right',
     },
@@ -799,25 +799,25 @@ export const styles = StyleSheet.create({
     expressInterestButton: {
         flex: 1,
         backgroundColor: '#4a4a4a',
-        paddingVertical: 10,
+        paddingVertical: 8,
         borderRadius: 8,
         alignItems: 'center',
     },
     expressInterestText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
     },
     // Action buttons row - Express Interest + Save side by side
     actionButtonsRow: {
         flexDirection: 'row',
         gap: 12,
-        marginTop: 8,
+        marginTop: 12,
     },
     saveButtonOutline: {
         flex: 0.6,
         backgroundColor: 'transparent',
-        paddingVertical: 10,
+        paddingVertical: 8,
         borderRadius: 8,
         alignItems: 'center',
         flexDirection: 'row',
@@ -828,7 +828,7 @@ export const styles = StyleSheet.create({
     },
     saveButtonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
     },
 });
