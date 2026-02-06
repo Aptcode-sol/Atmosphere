@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, ActivityIndicator, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, Platform, StatusBar } from 'react-native';
 import { Image } from 'react-native';
 import { Crown, Heart, Flame } from 'lucide-react-native';
 import * as api from '../lib/api';
@@ -7,30 +7,44 @@ import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
 import HottestSkeleton from '../components/skeletons/HottestSkeleton';
-// import TopNavbar from '../components/TopNavbar';
 
 const { width } = Dimensions.get('window');
 
 type StartupCard = any;
 
-const HottestStartups = () => {
-    const [filterDay] = useState<'today' | '7days'>('today');
+interface HottestStartupsProps {
+    onOpenProfile?: (userId: string) => void;
+}
+
+const HottestStartups = ({ onOpenProfile }: HottestStartupsProps) => {
     const [loading, setLoading] = useState(true);
     const [topList, setTopList] = useState<StartupCard[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedWeek, setSelectedWeek] = useState<number>(1);
+    const [currentWeekOfMonth, setCurrentWeekOfMonth] = useState<number>(1);
+    const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth());
     const { theme } = useContext(ThemeContext);
 
     const CACHE_KEY = 'ATMOSPHERE_HOTTEST_STARTUPS_CACHE';
 
-    const loadStartups = async (isRefresh = false) => {
-        if (isRefresh) setLoading(true); // Optional: keep loading spinner for full refresh feel or just rely on RC
+    // Month names for display
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-        // Try cache first if not refreshing
-        if (!isRefresh) {
+    const loadStartups = async (week?: number, isRefresh = false) => {
+        if (isRefresh) setLoading(true);
+
+        // Try cache first if not refreshing and no specific week
+        if (!isRefresh && !week) {
             try {
                 const cached = await AsyncStorage.getItem(CACHE_KEY);
                 if (cached) {
-                    setTopList(JSON.parse(cached));
+                    const cachedData = JSON.parse(cached);
+                    setTopList(cachedData.startups || []);
+                    if (cachedData.weekInfo) {
+                        setCurrentWeekOfMonth(cachedData.weekInfo.currentWeek || 1);
+                        setSelectedWeek(cachedData.weekInfo.selectedWeek || cachedData.weekInfo.currentWeek || 1);
+                        setCurrentMonth(cachedData.weekInfo.month ?? new Date().getMonth());
+                    }
                     setLoading(false);
                 }
             } catch (e) { console.warn('HottestStartups: failed cache', e); }
@@ -38,10 +52,18 @@ const HottestStartups = () => {
 
         // Fetch fresh
         try {
-            const startups = await api.fetchHottestStartups(10);
-            if (startups) {
-                setTopList(startups);
-                AsyncStorage.setItem(CACHE_KEY, JSON.stringify(startups)).catch(() => { });
+            const result = await api.fetchHottestStartups(10, week);
+            if (result && result.startups) {
+                setTopList(result.startups);
+                if (result.weekInfo) {
+                    setCurrentWeekOfMonth(result.weekInfo.currentWeek || 1);
+                    if (!week) {
+                        setSelectedWeek(result.weekInfo.selectedWeek || result.weekInfo.currentWeek || 1);
+                    }
+                    setCurrentMonth(result.weekInfo.month ?? new Date().getMonth());
+                }
+                // Cache the result
+                AsyncStorage.setItem(CACHE_KEY, JSON.stringify(result)).catch(() => { });
             }
         } catch (e) {
             console.warn('HottestStartups: failed to fetch', e);
@@ -52,17 +74,64 @@ const HottestStartups = () => {
 
     useEffect(() => {
         loadStartups();
-    }, [filterDay]);
+    }, []);
+
+    const handleWeekChange = (week: number) => {
+        if (week !== selectedWeek && week >= 1 && week <= currentWeekOfMonth) {
+            setSelectedWeek(week);
+            setLoading(true);
+            loadStartups(week, true);
+        }
+    };
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await loadStartups(true); // Force fetch
+        await loadStartups(selectedWeek, true);
         setRefreshing(false);
     };
 
-    // legacy safe getters removed — using server-provided `weekCounts` now
+    const handleCardPress = (item: any) => {
+        // Get the userId from the startup data
+        const userId = item.user?._id || item.userId || item.user;
+        if (userId && onOpenProfile) {
+            onOpenProfile(String(userId));
+        }
+    };
 
     const shortOf = (s: any) => s?.about || s?.tagline || s?.shortDescription || s?.description || s?.details?.about || s?.details?.tagline || s?.details?.shortDescription || '';
+
+    // Render week tabs
+    const renderWeekTabs = () => {
+        const weeks = [];
+        for (let i = 1; i <= currentWeekOfMonth; i++) {
+            weeks.push(i);
+        }
+
+        return (
+            <View style={styles.weekTabsContainer}>
+                <Text style={[styles.monthLabel, { color: theme?.text }]}>{monthNames[currentMonth]} {'>'}</Text>
+                <View style={styles.weekTabs}>
+                    {weeks.map((week) => (
+                        <TouchableOpacity
+                            key={week}
+                            style={[
+                                styles.weekTab,
+                                selectedWeek === week && styles.weekTabActive
+                            ]}
+                            onPress={() => handleWeekChange(week)}
+                        >
+                            <Text style={[
+                                styles.weekTabText,
+                                { color: selectedWeek === week ? '#fff' : theme?.placeholder }
+                            ]}>
+                                W{week}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+        );
+    };
 
     const renderPodium = () => {
         const first = topList[0] || null;
@@ -73,7 +142,7 @@ const HottestStartups = () => {
         return (
             <View style={styles.podiumWrap}>
                 {/* 2nd */}
-                <View style={[styles.podiumItem, styles.podiumSecond]}>
+                <TouchableOpacity style={[styles.podiumItem, styles.podiumSecond]} onPress={() => second && handleCardPress(second)} activeOpacity={0.7}>
                     <View style={[styles.medal, { backgroundColor: second?.color || '#9CA3AF' }, styles.medalSilver]}>
                         {avatarOf(second) ? (
                             <Image source={{ uri: avatarOf(second) }} style={styles.podiumImage} />
@@ -98,10 +167,10 @@ const HottestStartups = () => {
                             </View>
                         </View>
                     </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* 1st */}
-                <View style={styles.podiumItemCenter}>
+                <TouchableOpacity style={styles.podiumItemCenter} onPress={() => first && handleCardPress(first)} activeOpacity={0.7}>
                     <View style={[styles.champion, { backgroundColor: first?.color || '#F59E0B' }, styles.championGold]}>
                         {avatarOf(first) ? (
                             <Image source={{ uri: avatarOf(first) }} style={styles.championImage} />
@@ -126,10 +195,10 @@ const HottestStartups = () => {
                             </View>
                         </View>
                     </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* 3rd */}
-                <View style={[styles.podiumItem, styles.podiumThird]}>
+                <TouchableOpacity style={[styles.podiumItem, styles.podiumThird]} onPress={() => third && handleCardPress(third)} activeOpacity={0.7}>
                     <View style={[styles.medal, { backgroundColor: third?.color || '#FB923C' }, styles.medalBronze]}>
                         {avatarOf(third) ? (
                             <Image source={{ uri: avatarOf(third) }} style={styles.podiumImage} />
@@ -154,15 +223,13 @@ const HottestStartups = () => {
                             </View>
                         </View>
                     </View>
-                </View>
+                </TouchableOpacity>
             </View>
         );
     };
 
-
-
     const renderListItem = ({ item }: { item: any }) => (
-        <View style={styles.listCard}>
+        <TouchableOpacity style={styles.listCard} onPress={() => handleCardPress(item)} activeOpacity={0.7}>
             <View style={styles.listAvatar}>
                 {(item.logo || item.profileImage || item.details?.profileImage || item.user?.avatarUrl || item.image) ? (
                     <Image source={{ uri: (item.logo || item.profileImage || item.details?.profileImage || item.user?.avatarUrl || item.image) }} style={styles.listImage} resizeMode="cover" />
@@ -185,21 +252,19 @@ const HottestStartups = () => {
                 </View>
             </View>
             <View style={styles.actionsRight}>
-                <TouchableOpacity style={styles.viewBtn} onPress={() => { /* navigate to profile */ }}>
+                <TouchableOpacity style={styles.viewBtn} onPress={(e) => { e.stopPropagation(); /* navigate to profile */ }}>
                     <Text style={styles.viewBtnText}>View {'>'}</Text>
                 </TouchableOpacity>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
-    // Use a single FlatList as the main scroll container to avoid nesting VirtualizedLists
     if (loading) {
         return <HottestSkeleton />;
     }
 
     return (
         <View style={[styles.container, { backgroundColor: theme?.background || '#000' }]}>
-            {/* <TopNavbar /> */}
             <FlatList
                 data={topList.slice(3)}
                 keyExtractor={i => String(i._startupId || i.id || i._id)}
@@ -207,7 +272,7 @@ const HottestStartups = () => {
                 ItemSeparatorComponent={Separator}
                 contentContainerStyle={[styles.content, { paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 60 }]}
                 style={styles.flatList}
-                ListHeaderComponent={Header({ theme, renderPodium })}
+                ListHeaderComponent={Header({ theme, renderPodium, renderWeekTabs })}
                 refreshControl={
                     <ThemedRefreshControl
                         refreshing={refreshing}
@@ -216,14 +281,13 @@ const HottestStartups = () => {
                     />
                 }
             />
-
         </View>
     );
 };
 
 const Separator = () => <View style={styles.separator} />;
 
-const Header = ({ theme, renderPodium }: { theme: any; renderPodium: () => React.ReactNode | null; }) => () => (
+const Header = ({ theme, renderPodium, renderWeekTabs }: { theme: any; renderPodium: () => React.ReactNode | null; renderWeekTabs: () => React.ReactNode }) => () => (
     <>
         <View style={styles.headerCenter}>
             <View style={styles.headerHeadingRow}>
@@ -232,6 +296,7 @@ const Header = ({ theme, renderPodium }: { theme: any; renderPodium: () => React
             </View>
             <Text style={[styles.sub, { color: theme?.placeholder }]}>Discover the top 10 most liked companies in the past 7 days.</Text>
         </View>
+        {renderWeekTabs()}
         {renderPodium()}
         <View style={styles.headerSpacer} />
     </>
@@ -243,6 +308,14 @@ const styles = StyleSheet.create({
     headerCenter: { alignItems: 'center', marginBottom: 18 },
     heading: { color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 8 },
     sub: { color: '#9CA3AF', fontSize: 12, textAlign: 'center', marginTop: 6, maxWidth: width - 40 },
+    // Week tabs styles
+    weekTabsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, gap: 8 },
+    monthLabel: { fontSize: 16, fontWeight: '600', color: '#fff' },
+    weekTabs: { flexDirection: 'row', gap: 8 },
+    weekTab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'transparent' },
+    weekTabActive: { backgroundColor: '#F59E0B' },
+    weekTabText: { fontSize: 14, fontWeight: '600' },
+    // Podium styles
     podiumWrap: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 18, marginVertical: 16 },
     podiumItem: { width: 100, alignItems: 'center' },
     podiumItemCenter: { width: 120, alignItems: 'center' },
@@ -279,8 +352,8 @@ const styles = StyleSheet.create({
     actionsRight: { flexDirection: 'row', alignItems: 'center' },
     iconBtn: { padding: 8, marginRight: 4 },
     viewBtn: { backgroundColor: '#000', borderWidth: 1, borderColor: '#333', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 24, marginLeft: 8 },
-    viewBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 }
-    , separator: { height: 12 },
+    viewBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+    separator: { height: 12 },
     loadingWrap: { justifyContent: 'center', alignItems: 'center' },
     headerSpacer: { height: 25 },
     flatList: { flex: 1 },

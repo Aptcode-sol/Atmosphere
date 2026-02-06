@@ -380,6 +380,33 @@ exports.listStartupCards = async (req, res, next) => {
 exports.hottestStartups = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit || '10', 10) || 10;
+        const weekParam = parseInt(req.query.week || '0', 10); // 0 = current week, 1-4 = specific week
+
+        // Calculate week boundaries for the current month
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const currentDay = now.getDate();
+
+        // Determine current week of month (1-4)
+        const currentWeekOfMonth = Math.min(4, Math.ceil(currentDay / 7));
+
+        // If week param is 0 or not specified, use current week
+        // If week param is greater than current week, use current week
+        const targetWeek = (weekParam > 0 && weekParam <= currentWeekOfMonth) ? weekParam : currentWeekOfMonth;
+
+        // Calculate start and end dates for the target week
+        const weekStartDay = (targetWeek - 1) * 7 + 1;
+        const weekEndDay = targetWeek === 4
+            ? new Date(currentYear, currentMonth + 1, 0).getDate() // Last day of month for week 4
+            : targetWeek * 7;
+
+        const weekStart = new Date(currentYear, currentMonth, weekStartDay, 0, 0, 0, 0);
+        const weekEnd = new Date(currentYear, currentMonth, weekEndDay, 23, 59, 59, 999);
+
+        // For week-based filtering, clamp weekEnd to current time if it's in the future
+        const effectiveWeekEnd = weekEnd > now ? now : weekEnd;
+
         // fetch a reasonable batch to consider (avoid scanning entire collection)
         const maxFetch = Math.max(limit, 200);
         const startups = await StartupDetails.find()
@@ -390,26 +417,23 @@ exports.hottestStartups = async (req, res, next) => {
 
         const startupIds = startups.map(s => s._id);
 
-        // compute time window (last 7 days)
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-        // Aggregate counts in parallel for crowns, likes, comments (by startup) within last 7 days
+        // Aggregate counts in parallel for crowns, likes, comments (by startup) within the target week
         const StartupCrown = require('../models/StartupCrown');
         const StartupLike = require('../models/StartupLike');
         const StartupComment = require('../models/StartupComment');
 
         const crownsAggP = StartupCrown.aggregate([
-            { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekAgo } } },
+            { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekStart, $lte: effectiveWeekEnd } } },
             { $group: { _id: '$startup', count: { $sum: 1 } } }
         ]).allowDiskUse(true).exec();
 
         const likesAggP = StartupLike.aggregate([
-            { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekAgo } } },
+            { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekStart, $lte: effectiveWeekEnd } } },
             { $group: { _id: '$startup', count: { $sum: 1 } } }
         ]).allowDiskUse(true).exec();
 
         const commentsAggP = StartupComment.aggregate([
-            { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekAgo } } },
+            { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekStart, $lte: effectiveWeekEnd } } },
             { $group: { _id: '$startup', count: { $sum: 1 } } }
         ]).allowDiskUse(true).exec();
 
@@ -418,12 +442,13 @@ exports.hottestStartups = async (req, res, next) => {
         try {
             const StartupShare = require('../models/StartupShare');
             sharesAggP = StartupShare.aggregate([
-                { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekAgo } } },
+                { $match: { startup: { $in: startupIds }, createdAt: { $gte: weekStart, $lte: effectiveWeekEnd } } },
                 { $group: { _id: '$startup', count: { $sum: 1 } } }
             ]).allowDiskUse(true).exec();
         } catch (e) {
             // no StartupShare model — leave shares counts empty
         }
+
 
         const [crownsAgg, likesAgg, commentsAgg, sharesAgg] = await Promise.all([crownsAggP, likesAggP, commentsAggP, sharesAggP]);
 
@@ -518,7 +543,7 @@ exports.hottestStartups = async (req, res, next) => {
                 };
             });
 
-            return res.json({ startups: calculatedEnriched, count: calculatedEnriched.length });
+            return res.json({ startups: calculatedEnriched, count: calculatedEnriched.length, weekInfo: { currentWeek: currentWeekOfMonth, selectedWeek: targetWeek, month: currentMonth, year: currentYear } });
         }
 
         const refreshedTop = await Promise.all(top.map(async s => refreshStartupData(s)));
@@ -558,7 +583,7 @@ exports.hottestStartups = async (req, res, next) => {
             };
         });
 
-        return res.json({ startups: calculatedTop, count: calculatedTop.length });
+        return res.json({ startups: calculatedTop, count: calculatedTop.length, weekInfo: { currentWeek: currentWeekOfMonth, selectedWeek: targetWeek, month: currentMonth, year: currentYear } });
     } catch (err) {
         console.log('Error in hottestStartups:', err);
         next(err);

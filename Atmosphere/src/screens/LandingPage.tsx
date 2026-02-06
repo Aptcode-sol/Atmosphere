@@ -331,7 +331,7 @@ const LandingPage = ({ initialDeepLink, onDeepLinkHandled }: LandingPageProps) =
                 }
                 return <StartupPortfolioStep onDone={() => setRoute('profile')} onBack={() => setRoute('profile')} onNavigateToTrade={() => { setTradeInitialTab('Sell'); setRoute('trade'); }} />;
             case 'topstartups':
-                return <TopStartups />;
+                return <TopStartups onOpenProfile={(id: string) => { setSelectedProfileId(id); navigateTo('profile', false); }} />;
             case 'trade':
                 return (
                     <TradingSection

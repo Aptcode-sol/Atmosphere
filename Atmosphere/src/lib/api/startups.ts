@@ -9,9 +9,13 @@ export async function fetchStartupPosts(limit = 20, skip = 0) {
     return data.startups ?? [];
 }
 
-export async function fetchHottestStartups(limit = 10) {
-    const data = await request('/api/startup-details/hottest', { limit }, { method: 'GET' });
-    return data.startups ?? [];
+export async function fetchHottestStartups(limit = 10, week?: number) {
+    const params: any = { limit };
+    if (week && week >= 1 && week <= 4) {
+        params.week = week;
+    }
+    const data = await request('/api/startup-details/hottest', params, { method: 'GET' });
+    return { startups: data.startups ?? [], weekInfo: data.weekInfo };
 }
 
 export async function saveStartupProfile(payload: any) {

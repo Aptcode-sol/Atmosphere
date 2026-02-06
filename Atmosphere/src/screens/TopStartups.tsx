@@ -1,8 +1,12 @@
 import React from 'react';
 import HottestStartups from './HottestStartups';
 
-const TopStartups = () => {
-    return <HottestStartups />;
+interface TopStartupsProps {
+    onOpenProfile?: (userId: string) => void;
+}
+
+const TopStartups = ({ onOpenProfile }: TopStartupsProps) => {
+    return <HottestStartups onOpenProfile={onOpenProfile} />;
 };
 
 export default TopStartups;
