@@ -13,6 +13,8 @@ import StartupExpand from './StartupExpand';
 import PersonalExpand from './PersonalExpand';
 import { TradeCard } from '../Trading/components';
 import { styles as tradingStyles } from '../Trading/styles';
+import GridSkeleton from '../../components/skeletons/GridSkeleton';
+import ProfileSkeleton from '../../components/skeletons/ProfileSkeleton';
 
 type Props = {
     posts?: any[];
@@ -136,11 +138,11 @@ export default function ProfilePager({
     // Render Expand Section based on account type
     const renderExpandSection = () => {
         if (accountType === 'investor') {
-            return <InvestorExpand investorDetails={investorDetails} profileData={profileData} cardContainerWidth={cardContainerWidth} />;
+            return <InvestorExpand investorDetails={investorDetails} profileData={profileData} cardContainerWidth={cardContainerWidth} isActive={activeTab === 'expand'} />;
         } else if (accountType === 'startup') {
-            return <StartupExpand rawProfileData={rawProfileData} profileData={profileData} screenW={screenW} />;
+            return <StartupExpand rawProfileData={rawProfileData} profileData={profileData} screenW={screenW} isActive={activeTab === 'expand'} />;
         } else {
-            return <PersonalExpand profileData={profileData} cardContainerWidth={cardContainerWidth} />;
+            return <PersonalExpand profileData={profileData} cardContainerWidth={cardContainerWidth} isActive={activeTab === 'expand'} />;
         }
     };
 
@@ -255,10 +257,7 @@ export default function ProfilePager({
                         <View onLayout={(e) => handleLayout('posts', e)} style={{ width: '100%' }}>
                             <View style={{ height: 12 }} />
                             {isLoading ? (
-                                <View style={styles.pagerEmpty}>
-                                    <ActivityIndicator size="small" color={theme.primary} />
-                                    <Text style={[styles.emptyText, { color: theme.placeholder }]}>Loading...</Text>
-                                </View>
+                                <GridSkeleton />
                             ) : combinedContent.length === 0 ? (
                                 <View style={styles.pagerEmpty}>
                                     <Text style={[styles.emptyTitle, { color: theme.text }]}>No posts yet</Text>

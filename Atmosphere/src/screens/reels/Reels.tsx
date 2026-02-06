@@ -20,6 +20,7 @@ import ReelCommentsOverlay from '../../components/ReelCommentsOverlay';
 import ShareModal from '../../components/ShareModal';
 import { getImageSource } from '../../lib/image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReelSkeleton from '../../components/skeletons/ReelSkeleton';
 
 import { ReelItem, ReelsProps } from './types';
 import { styles, COLORS, SCREEN_WIDTH } from './styles';
@@ -475,11 +476,7 @@ const Reels = ({ userId, initialReelId, onBack, onOpenProfile }: ReelsProps) => 
     }).current;
 
     if (loading) {
-        return (
-            <View style={[styles.container, styles.center]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
-        );
+        return <ReelSkeleton />;
     }
 
     if (reels.length === 0) {

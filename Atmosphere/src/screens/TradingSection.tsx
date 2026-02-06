@@ -15,6 +15,7 @@ import { styles } from './Trading/styles';
 import { TradingForm } from './Trading/components/TradingForm';
 import { TradeCard } from './Trading/components/TradeCard';
 import { useAlert } from '../components/CustomAlert';
+import TradeSkeleton from '../components/skeletons/TradeSkeleton';
 // import { FilterBar } from './Trading/components/FilterBar';
 // import { getYearsAgo } from './Trading/utils';
 
@@ -68,7 +69,7 @@ const Trading = ({ initialTab, onTabChange, onChatSelect, onOpenProfile }: Tradi
 
     // Buy/Sell specific states
     const [buyTrades, setBuyTrades] = useState<any[]>([]);
-    const [buyLoading, setBuyLoading] = useState(false);
+    const [buyLoading, setBuyLoading] = useState(true);
     const [investors, setInvestors] = useState<InvestorPortfolio[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [investorsLoading, setInvestorsLoading] = useState<boolean>(true);
@@ -1003,8 +1004,10 @@ const Trading = ({ initialTab, onTabChange, onChatSelect, onOpenProfile }: Tradi
     const renderInvestorPortfolios = () => {
         if (investorsLoading) {
             return (
-                <View style={centeredLoaderStyle as any}>
-                    <ActivityIndicator size="large" color="#1a73e8" />
+                <View style={{ padding: 16 }}>
+                    <TradeSkeleton />
+                    <TradeSkeleton />
+                    <TradeSkeleton />
                 </View>
             );
         }
@@ -1427,22 +1430,32 @@ const Trading = ({ initialTab, onTabChange, onChatSelect, onOpenProfile }: Tradi
                         <IconFA name="filter" size={18} color="#fff" />
                     </TouchableOpacity>
                 </View>
-                {/* Suggested for you heading */}
-                <Text style={styles.suggestedHeading}>Suggested for you</Text>
                 {/* Inline loading indicator for filter changes (after first load) */}
                 {!isFirstLoad && buyLoading && (
                     <View style={{ paddingVertical: 16, alignItems: 'center' as const }}>
                         <ActivityIndicator size="small" color="#1a73e8" />
                     </View>
                 )}
+                {/* Suggested for you heading - only show when not loading or has data */}
+                {(!buyLoading || data.length > 0) && (
+                    <Text style={styles.suggestedHeading}>Suggested for you</Text>
+                )}
             </>
         );
 
         // Only show full page loader on first load, not on filter changes
         if (isFirstLoad && buyLoading && data.length === 0) {
+            // Render header consistently and show skeleton cards below while initial load completes
             return (
-                <View style={centeredLoaderStyle}>
-                    <ActivityIndicator size="large" color="#1a73e8" />
+                <View style={{ flex: 1, backgroundColor: '#070707' }}>
+                    <View>
+                        <ListHeader />
+                    </View>
+                    <View style={{ padding: 16 }}>
+                        <TradeSkeleton />
+                        <TradeSkeleton />
+                        <TradeSkeleton />
+                    </View>
                 </View>
             );
         }

@@ -17,6 +17,7 @@ import { getBaseUrl } from '../../lib/config';
 import { Meeting } from './types';
 import { styles } from './Meetings.styles';
 import { MeetingCard, NoMeetings, CreateMeetingModal } from './components';
+import MeetingSkeleton from '../../components/skeletons/MeetingSkeleton';
 
 type MeetingsProps = {
     onJoinMeeting?: (meetingId: string) => void;
@@ -206,9 +207,7 @@ const Meetings = ({ onJoinMeeting }: MeetingsProps) => {
 
             {/* Meeting List with Pull to Refresh */}
             {loading && !refreshing ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#22c55e" />
-                </View>
+                <MeetingSkeleton />
             ) : (
                 <FlatList
                     data={displayList}

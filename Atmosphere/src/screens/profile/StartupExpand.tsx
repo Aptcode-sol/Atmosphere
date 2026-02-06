@@ -17,15 +17,23 @@ import { getImageSource } from '../../lib/image';
 import Slider from '@react-native-community/slider';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const StartupVideoPlayer = ({ videoUrl }: { videoUrl: string }) => {
+const StartupVideoPlayer = ({ videoUrl, isActive }: { videoUrl: string; isActive: boolean }) => {
     const VideoPlayer = require('react-native-video').default;
-    const [paused, setPaused] = React.useState(false); // Auto-play
+    const [paused, setPaused] = React.useState(true); // Start paused
     const [muted, setMuted] = React.useState(false);
     const [currentTime, setCurrentTime] = React.useState(0);
     const [duration, setDuration] = React.useState(0);
     const [showControls, setShowControls] = React.useState(true); // Show initially
     const videoRef = React.useRef<any>(null);
     const controlsTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Control video playback based on tab visibility
+    React.useEffect(() => {
+        if (!isActive) {
+            // Pause video when tab is not active
+            setPaused(true);
+        }
+    }, [isActive]);
 
     // Auto-hide controls after 2 seconds on mount
     React.useEffect(() => {
@@ -118,9 +126,10 @@ type Props = {
     rawProfileData: any;
     profileData: any;
     screenW: number;
+    isActive: boolean;
 };
 
-export default function StartupExpand({ rawProfileData, profileData, screenW }: Props) {
+export default function StartupExpand({ rawProfileData, profileData, screenW, isActive }: Props) {
     // Use rawProfileData.details for full backend data (teamMembers, video, fundingRounds)
     const details = rawProfileData?.details || rawProfileData?.startupDetails || rawProfileData || profileData?.details || profileData || {};
 
@@ -471,7 +480,7 @@ export default function StartupExpand({ rawProfileData, profileData, screenW }: 
             {/* 1. Video Section - matching paddingHorizontal with stats below */}
             <View style={{ marginHorizontal: 16, height: 280, backgroundColor: '#000', marginBottom: 16, borderRadius: 12, overflow: 'hidden' }}>
                 {videoUrl ? (
-                    <StartupVideoPlayer videoUrl={videoUrl} />
+                    <StartupVideoPlayer videoUrl={videoUrl} isActive={isActive} />
                 ) : (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' }}>
                         <Play size={40} color="#333" />

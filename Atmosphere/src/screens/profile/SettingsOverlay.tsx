@@ -10,6 +10,7 @@ import { Picker } from '@react-native-picker/picker';
 import { pick, types } from '@react-native-documents/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ArrowLeft, User, AtSign, Key, Mail, Phone, BarChart2, Bookmark, Settings2, MessageSquare, Users, Shield, Briefcase, Crown, HelpCircle, Info, Eye, EyeOff, Check, X } from 'lucide-react-native';
+import SettingsSkeleton from '../../components/skeletons/SettingsSkeleton';
 
 const SETTINGS_CACHE_KEY = 'ATMOSPHERE_SETTINGS_CACHE';
 
@@ -492,9 +493,7 @@ export default function SettingsOverlay({ src, theme, accountType = 'personal', 
 
             <ScrollView contentContainerStyle={[styles.settingsContent, { paddingBottom: 48 }]}>
                 {loading ? (
-                    <View style={centerPaddingStyle}>
-                        <ActivityIndicator size="large" color={theme.primary} />
-                    </View>
+                    <SettingsSkeleton />
                 ) : (
                     <>
                         {/* ACCOUNT INFORMATION Section */}

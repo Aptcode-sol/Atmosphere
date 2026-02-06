@@ -9,6 +9,7 @@ import { fetchStartupPosts } from '../lib/api';
 import { getBaseUrl } from '../lib/config';
 import { CACHE_KEYS } from '../lib/cache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import StartupPostSkeleton from '../components/skeletons/StartupPostSkeleton';
 
 interface Post {
     id: string;
@@ -374,9 +375,10 @@ const Home: React.FC<HomeProps> = ({ onNavigate, onChatSelect: _onChatSelect, on
     const renderContent = () => {
         if (loading && !initialLoadDone) {
             return (
-                <View style={styles.centerLoader}>
-                    <ActivityIndicator size="large" color={theme.primary} />
-                    <Text style={[styles.loadingText, { color: theme.text }]}>Loading posts...</Text>
+                <View style={styles.container}>
+                    <StartupPostSkeleton />
+                    <StartupPostSkeleton />
+                    <StartupPostSkeleton />
                 </View>
             );
         }

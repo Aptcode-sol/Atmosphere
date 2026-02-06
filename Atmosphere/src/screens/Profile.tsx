@@ -14,6 +14,7 @@ import { NavigationRouteContext } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import VerifiedBadge from '../components/VerifiedBadge';
 import FollowersFollowingModal from '../components/FollowersFollowingModal';
+import ProfileSkeleton from '../components/skeletons/ProfileSkeleton';
 
 const mockData = (() => {
     const userName = 'Airbound';
@@ -278,8 +279,10 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
             setPostsLoading(true);
 
             // Try Cache
+            let cachedJson: string | null = null;
             try {
                 const cached = await AsyncStorage.getItem(CACHE_KEY);
+                cachedJson = cached;
                 if (cached && mounted && !refreshing) {
                     setPosts(JSON.parse(cached));
                     setPostsLoading(false);
@@ -300,8 +303,12 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                     all = await api.fetchMyPosts();
                 }
                 if (mounted) {
-                    setPosts((all || []));
-                    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(all || [])).catch(() => { });
+                    // Avoid overwriting cached/posts with identical data to prevent flicker
+                    const fetchedJson = JSON.stringify(all || []);
+                    if (fetchedJson !== (cachedJson || JSON.stringify(posts || []))) {
+                        setPosts((all || []));
+                        AsyncStorage.setItem(CACHE_KEY, fetchedJson).catch(() => { });
+                    }
                 }
             } catch {
                 if (mounted && posts.length === 0) setPosts([]);
@@ -555,9 +562,7 @@ const Profile = ({ onNavigate, userId: propUserId, onClose, onCreatePost, onPost
                 {/* Setup is opened via parent navigation (LandingPage route 'setup') */}
 
                 {loading ? (
-                    <View style={styles.loadingWrap}>
-                        <ActivityIndicator size="large" color={theme.primary} />
-                    </View>
+                    <ProfileSkeleton />
                 ) : (
                     <>
                         <View style={styles.profileHeader}>

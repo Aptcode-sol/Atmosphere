@@ -6,9 +6,10 @@ import { MapPin } from 'lucide-react-native';
 type Props = {
     profileData: any;
     cardContainerWidth: number;
+    isActive: boolean;
 };
 
-export default function PersonalExpand({ profileData, cardContainerWidth }: Props) {
+export default function PersonalExpand({ profileData, cardContainerWidth, isActive }: Props) {
     const bio = profileData?.tagline || profileData?.description || profileData?.bio || '';
     const location = profileData?.location || '';
 

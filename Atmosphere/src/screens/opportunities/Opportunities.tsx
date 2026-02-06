@@ -26,6 +26,7 @@ import GrantEventCard from './components/GrantEventCard';
 import RoleCard from './components/RoleCard';
 import FilterModal from './components/FilterModal';
 import styles from './Opportunities.styles';
+import OpportunitySkeleton from '../../components/skeletons/OpportunitySkeleton';
 
 const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void }) => {
     const { theme } = useContext(ThemeContext) as any;
@@ -35,17 +36,17 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
     const [grants, setGrants] = useState<any[]>([]);
     const [grantsSkip, setGrantsSkip] = useState(0);
     const [grantsHasMore, setGrantsHasMore] = useState(true);
-    const [grantsLoading, setGrantsLoading] = useState(false);
+    const [grantsLoading, setGrantsLoading] = useState(true);
 
     const [events, setEvents] = useState<any[]>([]);
     const [eventsSkip, setEventsSkip] = useState(0);
     const [eventsHasMore, setEventsHasMore] = useState(true);
-    const [eventsLoading, setEventsLoading] = useState(false);
+    const [eventsLoading, setEventsLoading] = useState(true);
 
     const [team, setTeam] = useState<any[]>([]);
     const [teamSkip, setTeamSkip] = useState(0);
     const [teamHasMore, setTeamHasMore] = useState(true);
-    const [teamLoading, setTeamLoading] = useState(false);
+    const [teamLoading, setTeamLoading] = useState(true);
 
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [userRole, setUserRole] = useState('');
@@ -453,10 +454,13 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
             }
         }
 
+        // Show skeleton in ListEmptyComponent instead of early return
+        // This ensures headers are always visible
+
         return (
             <View style={{ width }}>
                 <FlatList
-                    data={data}
+                    data={loading ? [] : data}
                     keyExtractor={(item) => String(item._id || item.id)}
                     contentContainerStyle={styles.listContent}
                     renderItem={({ item }) => {
@@ -499,17 +503,6 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                             />
                         );
                     }}
-                    onEndReached={loadMore}
-                    onEndReachedThreshold={0.5}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            tintColor={theme.primary}
-                            title="Release to refresh"
-                            titleColor={theme.text}
-                        />
-                    }
                     ListHeaderComponent={() => (
                         <View>
                             {tabName === 'Jobs' && (
@@ -560,8 +553,8 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                             <View style={styles.listHeader}>
                                 <Text style={styles.resultCount}>
                                     {tabName === 'Jobs'
-                                        ? `${data.length} position${data.length !== 1 ? 's' : ''} available`
-                                        : `Total ${tabName.toLowerCase()}: ${data.length}`}
+                                        ? loading ? 'Loading positions...' : `${data.length} position${data.length !== 1 ? 's' : ''} available`
+                                        : loading ? `Loading ${tabName.toLowerCase()}...` : `${data.length} ${tabName.toLowerCase()} available`}
                                 </Text>
                                 <TouchableOpacity onPress={() => setFilterModalVisible(true)} style={styles.filterIconBtn}>
                                     <IconFA name="filter" size={18} color="#fff" />
@@ -579,14 +572,25 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                         return null;
                     }}
                     ListEmptyComponent={() => (
-                        <View style={{ paddingTop: 40, alignItems: 'center' }}>
-                            {loading ? (
-                                <ActivityIndicator size="large" color={theme.primary} />
-                            ) : (
+                        loading ? (
+                            <OpportunitySkeleton />
+                        ) : (
+                            <View style={{ paddingTop: 40, alignItems: 'center' }}>
                                 <Text style={styles.emptyText}>No {tabName.toLowerCase()} found.</Text>
-                            )}
-                        </View>
+                            </View>
+                        )
                     )}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor={theme.primary}
+                            title="Release to refresh"
+                            titleColor={theme.text}
+                        />
+                    }
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.5}
                 />
             </View>
         );

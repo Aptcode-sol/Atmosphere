@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
 import { View, TextInput, FlatList, ActivityIndicator, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions, DeviceEventEmitter, ViewToken } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -7,8 +7,10 @@ import { fetchExplorePosts, searchEntities, searchUsers } from '../lib/api';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import ReelsIcon from '../components/icons/ReelsIcon';
-import { Image as ImageIcon, Search } from 'lucide-react-native';
+import { Image as ImageIcon } from 'lucide-react-native';
 import Video from 'react-native-video';
+import GridSkeleton from '../components/skeletons/GridSkeleton';
+import ListSkeleton from '../components/skeletons/ListSkeleton';
 
 const { width } = Dimensions.get('window');
 const ITEM_WIDTH = (width - 6) / 3; // 3 columns with gaps
@@ -75,40 +77,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
         setActiveReelId(null);
     }, [query, activeTab]);
 
-    // Auto-play next unplayed reel every 7 seconds
-    useEffect(() => {
-        const interval = setInterval(() => {
-            // Find all reels in current data
-            const allReels = currentData
-                .filter((item) => item && (item.type === 'reel' || item.meta?.postType === 'reel'));
 
-            // Find all unplayed reels
-            const unplayedReels = allReels
-                .map((item, index) => ({ item, index }))
-                .filter(({ item }) => {
-                    const reelId = item?._id || item?.id;
-                    return !playedReelIds.has(reelId);
-                });
-
-            if (unplayedReels.length > 0) {
-                // Play the first unplayed reel
-                const { item } = unplayedReels[0];
-                const reelId = item._id || item.id;
-                setPlayedReelIds(prev => new Set([...prev, reelId]));
-                setActiveReelId(reelId);
-                // console.log('Auto-playing next reel:', reelId, 'Played so far:', playedReelIds.size + 1);
-            } else if (allReels.length > 0) {
-                // All reels played, reset and start from first reel
-                const firstReel = allReels[0];
-                const firstReelId = firstReel._id || firstReel.id;
-                setPlayedReelIds(new Set([firstReelId]));
-                setActiveReelId(firstReelId);
-                // console.log('All reels played! Looping back to first reel:', firstReelId);
-            }
-        }, 7000); // Change every 7 seconds
-
-        return () => clearInterval(interval);
-    }, [currentData, playedReelIds]);
 
     // Debounce Search
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,19 +101,25 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
             const data = await fetchExplorePosts(PAGE_SIZE, skip);
 
             if (reset) {
-                setExplorePosts(data);
-                setExploreSkip(data.length);
-                if (data.length > 0) {
-                    AsyncStorage.setItem(EXPLORE_CACHE_KEY, JSON.stringify(data)).catch(() => { });
+                // Deduplicate incoming page (sometimes backend returns dupes)
+                const deduped = data.filter((v: any, i: number) => {
+                    const id = String(v._id || v.id || i);
+                    return data.findIndex((x: any) => String(x._id || x.id || '') === id) === i;
+                });
+                setExplorePosts(deduped);
+                setExploreSkip(deduped.length);
+                if (deduped.length > 0) {
+                    AsyncStorage.setItem(EXPLORE_CACHE_KEY, JSON.stringify(deduped)).catch(() => { });
                 }
             } else {
-                // Prevent duplicates
+                // Prevent duplicates - compute newItems from previous state inside updater to avoid race
                 setExplorePosts(prev => {
-                    const existingIds = new Set(prev.map(item => item._id || item.id));
-                    const newItems = data.filter((item: any) => !existingIds.has(item._id || item.id));
+                    const existingIds = new Set(prev.map(item => String(item._id || item.id)));
+                    const newItems = data.filter((item: any) => !existingIds.has(String(item._id || item.id)));
+                    // update skip based on deduped items
+                    setExploreSkip(s => s + newItems.length);
                     return [...prev, ...newItems];
                 });
-                setExploreSkip(prev => prev + data.length);
             }
 
             setExploreHasMore(data.length >= PAGE_SIZE);
@@ -175,16 +150,21 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
             }
 
             if (reset) {
-                setSearchResults(data);
-                setSearchSkip(data.length);
+                // Deduplicate incoming search results
+                const deduped = data.filter((v: any, i: number) => {
+                    const id = String(v._id || v.id || i);
+                    return data.findIndex((x: any) => String(x._id || x.id || '') === id) === i;
+                });
+                setSearchResults(deduped);
+                setSearchSkip(deduped.length);
             } else {
-                // Prevent duplicates
+                // Prevent duplicates - compute newItems from previous state inside updater to avoid race
                 setSearchResults(prev => {
-                    const existingIds = new Set(prev.map(item => item._id || item.id));
-                    const newItems = data.filter((item: any) => !existingIds.has(item._id || item.id));
+                    const existingIds = new Set(prev.map(item => String(item._id || item.id)));
+                    const newItems = data.filter((item: any) => !existingIds.has(String(item._id || item.id)));
+                    setSearchSkip(s => s + newItems.length);
                     return [...prev, ...newItems];
                 });
-                setSearchSkip(prev => prev + data.length);
             }
             setSearchHasMore(data.length >= PAGE_SIZE);
 
@@ -241,13 +221,62 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
     };
 
     const currentData = query.trim() ? searchResults : explorePosts;
+    // Ensure UI-level dedupe in case backend/pages returned duplicates across requests
+    const dedupedCurrentData = useMemo(() => {
+        const seen = new Set<string>();
+        const out: any[] = [];
+        (currentData || []).forEach(item => {
+            const id = String(item?._id || item?.id || JSON.stringify(item));
+            if (!seen.has(id)) {
+                seen.add(id);
+                out.push(item);
+            }
+        });
+        return out;
+    }, [currentData]);
     const isGrid = !query.trim() || activeTab === 'posts';
+
+    // Auto-play next unplayed reel every 7 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Find all reels in current data
+            const allReels = dedupedCurrentData
+                .filter((item) => item && (item.type === 'reel' || item.meta?.postType === 'reel'));
+
+            // Find all unplayed reels
+            const unplayedReels = allReels
+                .map((item, index) => ({ item, index }))
+                .filter(({ item }) => {
+                    const reelId = item?._id || item?.id;
+                    return !playedReelIds.has(reelId);
+                });
+
+            if (unplayedReels.length > 0) {
+                // Play the first unplayed reel
+                const { item } = unplayedReels[0];
+                const reelId = item._id || item.id;
+                setPlayedReelIds(prev => new Set([...prev, reelId]));
+                setActiveReelId(reelId);
+                // console.log('Auto-playing next reel:', reelId, 'Played so far:', playedReelIds.size + 1);
+            } else if (allReels.length > 0) {
+                // All reels played, reset and start from first reel
+                const firstReel = allReels[0];
+                const firstReelId = firstReel._id || firstReel.id;
+                setPlayedReelIds(new Set([firstReelId]));
+                setActiveReelId(firstReelId);
+                // console.log('All reels played! Looping back to first reel:', firstReelId);
+            }
+        }, 7000); // Change every 7 seconds
+
+        return () => clearInterval(interval);
+    }, [dedupedCurrentData, playedReelIds]);
 
     // Handle viewable items change for video preview
     const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
         // Find all visible reels in the current view that haven't been played yet
         const unplayedReels = viewableItems.filter(item => {
-            const itemData = currentData[item.index];
+            if (item.index === null) return false;
+            const itemData = dedupedCurrentData[item.index];
             const reelId = itemData?._id || itemData?.id;
             return itemData && (itemData.type === 'reel' || itemData.meta?.postType === 'reel') && !playedReelIds.has(reelId);
         });
@@ -255,18 +284,20 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
         if (unplayedReels.length > 0) {
             // Select the first unplayed reel from visible reels (will progress row by row)
             const selectedReel = unplayedReels[0];
-            const itemData = currentData[selectedReel.index];
-            const reelId = itemData._id || itemData.id;
+            if (selectedReel.index !== null) {
+                const itemData = dedupedCurrentData[selectedReel.index];
+                const reelId = itemData._id || itemData.id;
 
-            // Mark this reel as played
-            setPlayedReelIds(prev => new Set([...prev, reelId]));
-            setActiveReelId(reelId);
-            // console.log('Playing reel:', reelId, 'videoUrl:', itemData.videoUrl, 'Played so far:', playedReelIds.size + 1);
+                // Mark this reel as played
+                setPlayedReelIds(prev => new Set([...prev, reelId]));
+                setActiveReelId(reelId);
+                // console.log('Playing reel:', reelId, 'videoUrl:', itemData.videoUrl, 'Played so far:', playedReelIds.size + 1);
+            }
         } else {
             // No unplayed reel visible, stop playing
             setActiveReelId(null);
         }
-    }, [currentData, playedReelIds]);
+    }, [dedupedCurrentData, playedReelIds]);
 
     const viewabilityConfig = {
         itemVisiblePercentThreshold: 50,
@@ -340,7 +371,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
                                 paused={false}
                                 muted={true}
                                 progressUpdateInterval={500}
-                                useNativeControls={false}
+                                controls={false}
                                 // onLoad={() => console.log('Video loaded:', item._id)}
                                 // onError={(e) => console.warn('Video error for', item._id, ':', e)}
                                 // onBuffer={() => console.log('Video buffering:', item._id)}
@@ -415,7 +446,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
             {/* Search Bar */}
             <View style={styles.searchBarContainer}>
                 <View style={[styles.searchBar, { backgroundColor: '#1a1a1a', borderColor: '#333' }]}>
-                    <Search size={22} color="#888" style={styles.searchIcon} />
+                    <MaterialIcons name="search" size={22} color="#888" style={styles.searchIcon} />
                     <TextInput
                         style={[styles.input, { color: theme.text }]}
                         placeholder="Search accounts, reels, posts..."
@@ -450,37 +481,41 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
                 </View>
             )}
 
-            <FlatList
-                ref={flatListRef}
-                style={{ backgroundColor: theme.background || '#000' }}
-                key={isGrid ? 'grid' : 'list'}
-                data={currentData}
-                numColumns={isGrid ? 3 : 1}
-                keyExtractor={(item, idx) => (item._id || item.id || String(idx))}
-                renderItem={renderItem}
-                onEndReached={loadMore}
-                onEndReachedThreshold={0.5}
-                ListFooterComponent={renderFooter}
-                contentContainerStyle={isGrid ? styles.gridContent : styles.listContent}
-                viewabilityConfig={viewabilityConfig}
-                onViewableItemsChanged={onViewableItemsChanged}
-                ListEmptyComponent={
-                    !searchLoading && !exploreLoading && initialLoadDone ? (
-                        <View style={styles.emptyContainer}>
-                            <Text style={[styles.emptyText, { color: theme.placeholder }]}>
-                                {query.trim() ? `No ${activeTab} found` : 'No posts found'}
-                            </Text>
-                        </View>
-                    ) : null
-                }
-                refreshControl={
-                    <ThemedRefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        progressViewOffset={0}
-                    />
-                }
-            />
+            {(searchLoading || exploreLoading) && !initialLoadDone ? (
+                isGrid ? <GridSkeleton /> : <ListSkeleton />
+            ) : (
+                <FlatList
+                    ref={flatListRef}
+                    style={{ backgroundColor: theme.background || '#000' }}
+                    key={isGrid ? 'grid' : 'list'}
+                    data={dedupedCurrentData}
+                    numColumns={isGrid ? 3 : 1}
+                    keyExtractor={(item, idx) => (item._id || item.id || String(idx))}
+                    renderItem={renderItem}
+                    onEndReached={loadMore}
+                    onEndReachedThreshold={0.5}
+                    ListFooterComponent={renderFooter}
+                    contentContainerStyle={isGrid ? styles.gridContent : styles.listContent}
+                    viewabilityConfig={viewabilityConfig}
+                    onViewableItemsChanged={onViewableItemsChanged}
+                    ListEmptyComponent={
+                        !searchLoading && !exploreLoading && initialLoadDone ? (
+                            <View style={styles.emptyContainer}>
+                                <Text style={[styles.emptyText, { color: theme.placeholder }]}>
+                                    {query.trim() ? `No ${activeTab} found` : 'No posts found'}
+                                </Text>
+                            </View>
+                        ) : null
+                    }
+                    refreshControl={
+                        <ThemedRefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            progressViewOffset={0}
+                        />
+                    }
+                />
+            )}
         </View>
     );
 };
@@ -522,6 +557,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#1a1a1a',
         position: 'relative',
     },
+
     gridImage: { width: '100%', height: '100%', backgroundColor: '#1a1a1a' },
     gridVideo: { width: '100%', height: '100%', backgroundColor: '#000' },
     typeBadge: {
@@ -530,12 +566,11 @@ const styles = StyleSheet.create({
         right: 6,
         backgroundColor: 'transparent',
         borderRadius: 4,
-        padding: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
     divider: {
-        height: 1,
+        height: 0.5,
         backgroundColor: '#333',
         marginTop: 0,
     },

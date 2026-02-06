@@ -6,9 +6,10 @@ type Props = {
     investorDetails: any;
     profileData: any;
     cardContainerWidth: number;
+    isActive: boolean;
 };
 
-export default function InvestorExpand({ investorDetails, profileData, cardContainerWidth }: Props) {
+export default function InvestorExpand({ investorDetails, profileData, cardContainerWidth, isActive }: Props) {
     const details = investorDetails || profileData?.details || {};
     const about = details.about || profileData?.tagline || profileData?.description || '';
     const investmentFocus = details.investmentFocus || [];

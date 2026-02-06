@@ -6,6 +6,7 @@ import * as api from '../lib/api';
 import { ThemeContext } from '../contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ThemedRefreshControl from '../components/ThemedRefreshControl';
+import HottestSkeleton from '../components/skeletons/HottestSkeleton';
 // import TopNavbar from '../components/TopNavbar';
 
 const { width } = Dimensions.get('window');
@@ -193,11 +194,7 @@ const HottestStartups = () => {
 
     // Use a single FlatList as the main scroll container to avoid nesting VirtualizedLists
     if (loading) {
-        return (
-            <View style={[styles.container, styles.loadingWrap, { backgroundColor: theme?.background || '#000' }]}>
-                <ActivityIndicator size="large" color="#FB923C" />
-            </View>
-        );
+        return <HottestSkeleton />;
     }
 
     return (
