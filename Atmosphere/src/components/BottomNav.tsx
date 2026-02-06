@@ -133,8 +133,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ onRouteChange, activeRoute }) => 
 
   if (shouldHideMobileNav) return null;
 
-  // Debug: show which mode and tabs are being rendered so we can verify the 'launch' tab
-  try { console.log('[BottomNav] render', { appMode, tabs: tabs.map(t => t.id) }); } catch (e) { }
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={styles.row}>

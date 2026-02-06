@@ -7,7 +7,7 @@ const requireAuth = require('../middleware/auth');
 
 // Create or update startup profile
 router.post('/profile', requireAuth, (req, res, next) => {
-    console.log('POST /api/startup/profile route hit');
+    // console.log('POST /api/startup/profile route hit');
     createOrUpdateStartup(req, res, next);
 });
 

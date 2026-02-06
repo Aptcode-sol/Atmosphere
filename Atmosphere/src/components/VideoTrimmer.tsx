@@ -63,7 +63,7 @@ const VideoTrimmer = ({
                 onTrimComplete(videoUri);
             }, 500);
         } catch (error: any) {
-            console.log('Video trim error:', error);
+            // console.log('Video trim error:', error);
             setLoading(false);
         }
     }, [videoUri, onTrimComplete]);

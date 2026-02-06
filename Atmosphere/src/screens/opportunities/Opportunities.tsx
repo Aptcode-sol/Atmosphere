@@ -33,21 +33,21 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
     const { theme } = useContext(ThemeContext) as any;
     const [activeTab, setActiveTab] = useState('Grants');
 
-    // Data states
+    // Data states - LOADING DEFAULTS TO TRUE so skeleton shows immediately
     const [grants, setGrants] = useState<any[]>([]);
     const [grantsSkip, setGrantsSkip] = useState(0);
     const [grantsHasMore, setGrantsHasMore] = useState(true);
-    const [grantsLoading, setGrantsLoading] = useState(false);
+    const [grantsLoading, setGrantsLoading] = useState(true); // Default TRUE
 
     const [events, setEvents] = useState<any[]>([]);
     const [eventsSkip, setEventsSkip] = useState(0);
     const [eventsHasMore, setEventsHasMore] = useState(true);
-    const [eventsLoading, setEventsLoading] = useState(false);
+    const [eventsLoading, setEventsLoading] = useState(true); // Default TRUE
 
     const [team, setTeam] = useState<any[]>([]);
     const [teamSkip, setTeamSkip] = useState(0);
     const [teamHasMore, setTeamHasMore] = useState(true);
-    const [teamLoading, setTeamLoading] = useState(false);
+    const [teamLoading, setTeamLoading] = useState(true); // Default TRUE
 
     // Use refs for loading guards to prevent concurrent fetches
     const grantsLoadingRef = React.useRef(false);
@@ -145,50 +145,110 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
         });
     }, [team, filters.teamSector, filters.teamLocation, filters.teamRemote, filters.teamEmployment]);
 
-    // Initial Load - Fast cache load without delays
+    // Initial Load - SIMPLE: Cache-first, then fetch if needed
     useEffect(() => {
         let mounted = true;
 
-        const loadInitialData = async () => {
-            try {
-                // Load all caches in parallel - fast and non-blocking
-                const [grantsCache, eventsCache, teamCache, roleCache] = await Promise.all([
-                    AsyncStorage.getItem('ATMOSPHERE_GRANTS_CACHE'),
-                    AsyncStorage.getItem('ATMOSPHERE_EVENTS_CACHE'),
-                    AsyncStorage.getItem('ATMOSPHERE_TEAM_CACHE'),
-                    AsyncStorage.getItem('role')
-                ]);
+        const init = async () => {
+            // Load role from cache
+            const roleCache = await AsyncStorage.getItem('role');
+            if (mounted && roleCache) setUserRole(roleCache);
 
-                if (mounted) {
-                    // Parse and set cached data
-                    if (grantsCache) {
-                        try { setGrants(JSON.parse(grantsCache)); } catch (e) { }
-                    }
-                    if (eventsCache) {
-                        try { setEvents(JSON.parse(eventsCache)); } catch (e) { }
-                    }
-                    if (teamCache) {
-                        try { setTeam(JSON.parse(teamCache)); } catch (e) { }
-                    }
-                    if (roleCache) setUserRole(roleCache);
+            // Fetch role in background
+            api.fetchAndStoreUserRole().then((role: string) => {
+                if (mounted && role) setUserRole(role);
+            }).catch(() => { });
 
-                    // Mark as done immediately
-                    setInitialLoadDone(true);
+            // GRANTS: Cache-first
+            const grantsCache = await AsyncStorage.getItem('ATMOSPHERE_GRANTS_CACHE');
+            if (grantsCache) {
+                try {
+                    setGrants(JSON.parse(grantsCache));
+                    setGrantsLoading(false);
+                } catch (e) {
+                    // Invalid cache, fetch fresh
+                    await fetchGrantsData();
                 }
+            } else {
+                await fetchGrantsData();
+            }
 
-                // Fetch user role in background
-                api.fetchAndStoreUserRole().then((role: string) => {
-                    if (mounted && role) setUserRole(role);
-                }).catch(() => { });
+            // EVENTS: Cache-first
+            const eventsCache = await AsyncStorage.getItem('ATMOSPHERE_EVENTS_CACHE');
+            if (eventsCache) {
+                try {
+                    setEvents(JSON.parse(eventsCache));
+                    setEventsLoading(false);
+                } catch (e) {
+                    await fetchEventsData();
+                }
+            } else {
+                await fetchEventsData();
+            }
 
+            // JOBS: Cache-first
+            const teamCache = await AsyncStorage.getItem('ATMOSPHERE_TEAM_CACHE');
+            if (teamCache) {
+                try {
+                    setTeam(JSON.parse(teamCache));
+                    setTeamLoading(false);
+                } catch (e) {
+                    await fetchTeamData();
+                }
+            } else {
+                await fetchTeamData();
+            }
+
+            if (mounted) setInitialLoadDone(true);
+        };
+
+        // Helper functions to fetch data
+        const fetchGrantsData = async () => {
+            try {
+                const data = await api.fetchGrants(LIMIT, 0);
+                if (mounted) {
+                    setGrants(data);
+                    setGrantsSkip(LIMIT);
+                    setGrantsHasMore(data.length >= LIMIT);
+                    setGrantsLoading(false);
+                    AsyncStorage.setItem('ATMOSPHERE_GRANTS_CACHE', JSON.stringify(data)).catch(() => { });
+                }
             } catch (e) {
-                console.warn('Initialization error', e);
-                if (mounted) setInitialLoadDone(true);
+                if (mounted) setGrantsLoading(false);
             }
         };
 
-        loadInitialData();
+        const fetchEventsData = async () => {
+            try {
+                const data = await api.fetchEvents(LIMIT, 0);
+                if (mounted) {
+                    setEvents(data);
+                    setEventsSkip(LIMIT);
+                    setEventsHasMore(data.length >= LIMIT);
+                    setEventsLoading(false);
+                    AsyncStorage.setItem('ATMOSPHERE_EVENTS_CACHE', JSON.stringify(data)).catch(() => { });
+                }
+            } catch (e) {
+                if (mounted) setEventsLoading(false);
+            }
+        };
 
+        const fetchTeamData = async () => {
+            try {
+                const data = await api.fetchJobPostings(LIMIT, 0);
+                if (mounted) {
+                    setTeam(data);
+                    setTeamSkip(LIMIT);
+                    setTeamHasMore(data.length >= LIMIT);
+                    setTeamLoading(false);
+                    AsyncStorage.setItem('ATMOSPHERE_TEAM_CACHE', JSON.stringify(data)).catch(() => { });
+                }
+            } catch (e) {
+                if (mounted) setTeamLoading(false);
+            }
+        };
+
+        init();
         return () => { mounted = false; };
     }, []);
 
@@ -276,18 +336,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
         }
     }, []);
 
-    // Trigger fetches based on active tab
-    useEffect(() => {
-        if (!initialLoadDone) return;
-
-        if (activeTab === 'Grants' && !grantsRefreshed) {
-            loadGrants(0);
-        } else if (activeTab === 'Events' && !eventsRefreshed) {
-            loadEvents(0);
-        } else if (activeTab === 'Jobs' && !teamRefreshed) {
-            loadTeam(0);
-        }
-    }, [initialLoadDone, activeTab, grantsRefreshed, eventsRefreshed, teamRefreshed, loadGrants, loadEvents, loadTeam]);
+    // Removed redundant useEffect - init() now handles cache-first logic
 
     const handleFormChange = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -486,15 +535,15 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
             }
         }
 
-        // Show skeleton in ListEmptyComponent instead of early return
-        // This ensures headers are always visible
-        // Only show data if we have it OR if initial load is done and not loading
-        const shouldShowData = data.length > 0 && (!loading || !initialLoadDone);
+        // Simple logic:
+        // - Show data if data.length > 0
+        // - Show skeleton if data.length === 0 AND loading === true
+        // - Show empty message if data.length === 0 AND loading === false
 
         return (
             <View style={{ width }}>
                 <FlatList
-                    data={shouldShowData ? data : []}
+                    data={data}
                     keyExtractor={(item) => String(item._id || item.id)}
                     contentContainerStyle={styles.listContent}
                     renderItem={({ item }) => {
@@ -606,11 +655,11 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                         return null;
                     }}
                     ListEmptyComponent={() => {
-                        // Show skeleton during initial load or when actively loading with no data
-                        if (!initialLoadDone || (loading && data.length === 0)) {
+                        // Show skeleton only if data is empty AND loading
+                        if (loading) {
                             return <OpportunitySkeleton />;
                         }
-                        // Show empty message only when done loading and truly no data
+                        // Show empty message if data is empty AND not loading
                         return (
                             <View style={{ paddingTop: 40, alignItems: 'center' }}>
                                 <Text style={styles.emptyText}>No {tabName.toLowerCase()} found.</Text>
@@ -627,7 +676,7 @@ const Opportunities = ({ onNavigate }: { onNavigate?: (route: string) => void })
                         />
                     }
                     onEndReached={loadMore}
-                    onEndReachedThreshold={0.5}
+                    onEndReachedThreshold={0.8}
                 />
             </View>
         );

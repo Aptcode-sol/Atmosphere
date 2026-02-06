@@ -106,13 +106,13 @@ async function getSavedPostsByUser(userId) {
         const fundingRounds = postData.fundingRounds || [];
         const currentRound = postData.stage || postData.roundType || 'Seed';
 
-        console.log('[savedService] Startup:', postData.companyName, {
-          fundingRoundsLength: fundingRounds.length,
-          currentRound,
-          storedFundingRaised: postData.fundingRaised,
-          storedRounds: postData.rounds,
-          financialProfileAmount: postData.financialProfile?.fundingAmount
-        });
+        // console.log('[savedService] Startup:', postData.companyName, {
+        //   fundingRoundsLength: fundingRounds.length,
+        //   currentRound,
+        //   storedFundingRaised: postData.fundingRaised,
+        //   storedRounds: postData.rounds,
+        //   financialProfileAmount: postData.financialProfile?.fundingAmount
+        // });
 
         // Calculate rounds count from unique round values
         const uniqueRounds = Array.isArray(fundingRounds)

@@ -45,7 +45,7 @@ async function getProfile(userId) {
     }
 
     try {
-        console.log(`profileService: user=${user._id} followersCount=${followersCount} followingCount=${followingCount}`);
+        // console.log(`profileService: user=${user._id} followersCount=${followersCount} followingCount=${followingCount}`);
     } catch (e) { /* ignore */ }
 
     // If the Follow collection shows zero followers but the role-specific details
@@ -55,7 +55,7 @@ async function getProfile(userId) {
     try {
         if ((followersCount === 0 || followersCount == null) && roleDetails && roleDetails.stats && typeof roleDetails.stats.followers === 'number') {
             followersCount = Number(roleDetails.stats.followers || 0);
-            console.log(`profileService: using roleDetails.stats.followers fallback=${followersCount} for user=${user._id}`);
+            // console.log(`profileService: using roleDetails.stats.followers fallback=${followersCount} for user=${user._id}`);
         }
     } catch (e) { /* ignore */ }
 
@@ -95,18 +95,18 @@ async function getProfile(userId) {
 async function updateProfile(userId, data) {
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
-    console.log('updateProfile: user.roles =', user.roles);
+    // console.log('updateProfile: user.roles =', user.roles);
 
     // Update user fields
     const { userData, detailsData } = data;
-    console.log('profileService.updateProfile called for user', userId);
-    if (detailsData) {
-        try {
-            console.log('Incoming detailsData:', JSON.stringify(detailsData));
-        } catch (e) {
-            console.log('Incoming detailsData (non-serializable)');
-        }
-    }
+    // console.log('profileService.updateProfile called for user', userId);
+    // if (detailsData) {
+    //     try {
+    //         console.log('Incoming detailsData:', JSON.stringify(detailsData));
+    //     } catch (e) {
+    //         console.log('Incoming detailsData (non-serializable)');
+    //     }
+    // }
 
     if (userData) {
         const allowedUserFields = ['username', 'email', 'fullName', 'displayName', 'bio', 'avatarUrl', 'otpVerified', 'verified', 'profileSetupComplete', 'onboardingStep', 'links', 'kycCompleted', 'portfolioComplete'];
@@ -141,7 +141,7 @@ async function updateProfile(userId, data) {
                     { $set: detailsData, $setOnInsert: { user: userId } },
                     { new: true, upsert: true }
                 );
-                try { console.log('Updated StartupDetails doc:', JSON.stringify(roleDetails)); } catch { console.log('Updated StartupDetails doc (non-serializable)'); }
+                // try { console.log('Updated StartupDetails doc:', JSON.stringify(roleDetails)); } catch { console.log('Updated StartupDetails doc (non-serializable)'); }
             } catch (dbErr) {
                 console.error('Error updating StartupDetails', dbErr && dbErr.message);
                 throw dbErr;
@@ -153,7 +153,7 @@ async function updateProfile(userId, data) {
                     { $set: detailsData, $setOnInsert: { user: userId } },
                     { new: true, upsert: true }
                 );
-                try { console.log('Updated InvestorDetails doc:', JSON.stringify(roleDetails)); } catch { console.log('Updated InvestorDetails doc (non-serializable)'); }
+                // try { console.log('Updated InvestorDetails doc:', JSON.stringify(roleDetails)); } catch { console.log('Updated InvestorDetails doc (non-serializable)'); }
             } catch (dbErr) {
                 console.error('Error updating InvestorDetails', dbErr && dbErr.message);
                 throw dbErr;
@@ -162,7 +162,7 @@ async function updateProfile(userId, data) {
     }
 
     const profile = await getProfile(userId);
-    try { console.log('getProfile result details:', JSON.stringify(profile.details)); } catch { console.log('getProfile result details (non-serializable)'); }
+    // try { console.log('getProfile result details:', JSON.stringify(profile.details)); } catch { console.log('getProfile result details (non-serializable)'); }
     return profile;
 }
 

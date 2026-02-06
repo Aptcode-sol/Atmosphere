@@ -17,12 +17,12 @@ function copyFonts() {
         const dstFile = path.join(dst, f);
         try {
             fs.copyFileSync(srcFile, dstFile);
-            console.log('Copied', f);
+            // console.log('Copied', f);
         } catch (err) {
             console.error('Failed to copy', f, err.message || err);
         }
     });
-    console.log('Done. Please rebuild the Android app to include the fonts.');
+    // console.log('Done. Please rebuild the Android app to include the fonts.');
 }
 
 copyFonts();

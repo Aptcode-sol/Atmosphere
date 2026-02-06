@@ -315,188 +315,151 @@ const Trading = ({ initialTab, onTabChange, onChatSelect, onOpenProfile }: Tradi
 
     // ... existing load active trades logic ...
 
-    // BUY TAB: Signal initial load done to trigger fetch
+    // BUY TAB: Cache-first initialization (with StrictMode guard)
+    const hasBuyInitRef = useRef(false);
     useEffect(() => {
-        setBuyInitialLoadDone(true);
-    }, []);
+        if (hasBuyInitRef.current) return;
+        hasBuyInitRef.current = true;
 
-    // Ensure we always have current user id for ownership checks
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            try {
-                const profileData = await getProfile();
-                if (mounted && profileData) {
-                    const userId = profileData.user?._id || profileData._id;
-                    setCurrentUserId(userId);
-                }
-            } catch (e) {
-                // ignore
+        const initBuyTrades = async () => {
+            const cached = await AsyncStorage.getItem('ATMOSPHERE_TRADES_BUY_CACHE');
+            if (cached) {
+                try {
+                    setBuyTrades(JSON.parse(cached));
+                    setBuyLoading(false);
+                } catch (e) { }
+            } else {
+                // No cache, fetch from backend - AWAIT so buyInitialLoadDone is set AFTER
+                await fetchBuyTrades(true);
             }
-        })();
-        return () => { mounted = false; };
+            setBuyInitialLoadDone(true);
+        };
+        initBuyTrades();
     }, []);
 
-    // Fetch Current User's Holdings (Sell Tab)
+    // Consolidated profile data load - ONE getProfile call on mount with StrictMode guard
+    const hasLoadedProfileRef = useRef(false);
+    const profileDataRef = useRef<any>(null); // Store profile for Sell tab logic
+
     useEffect(() => {
+        if (hasLoadedProfileRef.current) return;
+        hasLoadedProfileRef.current = true;
+
         let mounted = true;
-        const loadMyHoldings = async () => {
+        const loadProfileData = async () => {
             try {
                 const profileData = await getProfile();
-                if (mounted && profileData) {
-                    // Set account type - roles[0] is the primary source (User model uses roles array)
-                    const userAccountType = profileData.user?.roles?.[0]
-                        || profileData.user?.accountType
-                        || profileData.accountType
-                        || 'personal';
-                    // console.log('[TradingSection] User roles:', profileData.user?.roles);
-                    // console.log('[TradingSection] Detected accountType:', userAccountType);
-                    setAccountType(userAccountType);
+                if (!mounted) return;
 
-                    // Only load holdings for investor accounts
-                    if (userAccountType === 'investor') {
-                        // Extract current user's holdings from their investor details
-                        const investorDetails = profileData.investorDetails || profileData.details;
-                        const holdings = investorDetails?.previousInvestments || [];
-                        const userId = profileData.user?._id || profileData._id;
-                        // store current user id for ownership checks
-                        setCurrentUserId(userId);
-                        const displayName = profileData.user?.displayName || profileData.displayName || 'You';
+                profileDataRef.current = profileData; // Store for later use
 
-                        // Create a single investor entry for the current user
-                        if (holdings.length > 0) {
-                            setInvestors([{
-                                _id: userId,
-                                user: { _id: userId, displayName, username: profileData.user?.username || '' },
-                                previousInvestments: holdings,
-                            } as InvestorPortfolio]);
-                        } else {
-                            setInvestors([]);
-                        }
-                    } else if (userAccountType === 'startup') {
-                        // For startups, create a virtual portfolio entry from their startup profile
-                        const startupDetails = profileData.startupDetails || profileData.details || {};
-                        const userId = profileData.user?._id || profileData._id;
-                        const displayName = profileData.user?.displayName || profileData.displayName || startupDetails.companyName || 'Your Startup';
+                const userId = profileData.user?._id || profileData._id;
+                setCurrentUserId(userId);
 
-                        // Use startup's own company as the "holding" they're selling equity in
-                        if (startupDetails.companyName) {
-                            const startupAsHolding = {
-                                companyName: startupDetails.companyName,
-                                date: startupDetails.establishedOn || new Date().toISOString(),
-                            };
-                            setInvestors([{
-                                _id: userId,
-                                user: { _id: userId, displayName, username: profileData.user?.username || '' },
-                                previousInvestments: [startupAsHolding],
-                                // Store startup details for auto-population
-                                startupDetails: startupDetails,
-                            } as any]);
-
-                            // Auto-expand the startup's company card for the Sell form
-                            const cardKey = `${userId}-${startupDetails.companyName}`;
-                            setExpandedCompany(cardKey);
-
-                            // Auto-populate form fields from startup profile data
-                            // console.log('[TradingSection] startupDetails for auto-populate:', JSON.stringify(startupDetails, null, 2));
-
-                            // Description from 'about' field
-                            if (startupDetails.about) {
-                                setDescription(startupDetails.about);
-                            }
-
-                            // Industries from 'companyType' (single string, convert to array)
-                            if (startupDetails.companyType) {
-                                setSelectedIndustries([startupDetails.companyType]);
-                            }
-
-                            // Video from 'video' field
-                            if (startupDetails.video) {
-                                setVideoUri(startupDetails.video);
-                            }
-
-                            // Profile image from 'profileImage' field (convert to array)
-                            if (startupDetails.profileImage) {
-                                setImageUris([startupDetails.profileImage]);
-                            }
-
-                            // Revenue status from nested 'financialProfile.revenueType'
-                            if (startupDetails.financialProfile?.revenueType) {
-                                const revenueType = startupDetails.financialProfile.revenueType.toLowerCase();
-                                setRevenueStatus(revenueType.includes('revenue') && !revenueType.includes('pre') ? 'revenue-generating' : 'pre-revenue');
-                            }
-
-                            // Username
-                            if (profileData.user?.username) {
-                                setStartupUsername(`@${profileData.user.username}`);
-                            }
-
-                            // console.log('[TradingSection] Auto-populated form fields from startup profile');
-                        } else {
-                            setInvestors([]);
-                        }
-                    }
-                }
+                // Set account type
+                const userAccountType = profileData.user?.roles?.[0]
+                    || profileData.user?.accountType
+                    || profileData.accountType
+                    || 'personal';
+                setAccountType(userAccountType);
+                setInvestorsLoading(false);
             } catch (e) {
-                console.warn('Failed to load my holdings', e);
-            } finally {
+                console.warn('Failed to load profile data', e);
                 if (mounted) setInvestorsLoading(false);
             }
         };
-        // Load holdings on mount and whenever switching to Sell tab
-        loadMyHoldings();
+        loadProfileData();
         return () => { mounted = false; };
+    }, []);
+
+    // Handle Sell tab holdings using stored profile data (no API call)
+    useEffect(() => {
+        if (activeTab !== 'Sell' || !profileDataRef.current) return;
+
+        const profileData = profileDataRef.current;
+        const userId = profileData.user?._id || profileData._id;
+        const userAccountType = profileData.user?.roles?.[0]
+            || profileData.user?.accountType
+            || profileData.accountType
+            || 'personal';
+
+        if (userAccountType === 'investor') {
+            const investorDetails = profileData.investorDetails || profileData.details;
+            const holdings = investorDetails?.previousInvestments || [];
+            const displayName = profileData.user?.displayName || profileData.displayName || 'You';
+
+            if (holdings.length > 0) {
+                setInvestors([{
+                    _id: userId,
+                    user: { _id: userId, displayName, username: profileData.user?.username || '' },
+                    previousInvestments: holdings,
+                } as InvestorPortfolio]);
+            } else {
+                setInvestors([]);
+            }
+        } else if (userAccountType === 'startup') {
+            const startupDetails = profileData.startupDetails || profileData.details || {};
+            const displayName = profileData.user?.displayName || profileData.displayName || startupDetails.companyName || 'Your Startup';
+
+            if (startupDetails.companyName) {
+                const startupAsHolding = {
+                    companyName: startupDetails.companyName,
+                    date: startupDetails.establishedOn || new Date().toISOString(),
+                };
+                setInvestors([{
+                    _id: userId,
+                    user: { _id: userId, displayName, username: profileData.user?.username || '' },
+                    previousInvestments: [startupAsHolding],
+                    startupDetails: startupDetails,
+                } as any]);
+
+                const cardKey = `${userId}-${startupDetails.companyName}`;
+                setExpandedCompany(cardKey);
+
+                if (startupDetails.about) setDescription(startupDetails.about);
+                if (startupDetails.companyType) setSelectedIndustries([startupDetails.companyType]);
+                if (startupDetails.video) setVideoUri(startupDetails.video);
+                if (startupDetails.profileImage) setImageUris([startupDetails.profileImage]);
+                if (startupDetails.financialProfile?.revenueType) {
+                    const revenueType = startupDetails.financialProfile.revenueType.toLowerCase();
+                    setRevenueStatus(revenueType.includes('revenue') && !revenueType.includes('pre') ? 'revenue-generating' : 'pre-revenue');
+                }
+                if (profileData.user?.username) setStartupUsername(`@${profileData.user.username}`);
+            } else {
+                setInvestors([]);
+            }
+        }
     }, [activeTab]);
 
-    // Fetch My Active Trades (Sell Tab)
+    // Load my trades and saved items on mount (once) - with StrictMode guard
+    const hasLoadedTradesRef = useRef(false);
     useEffect(() => {
+        if (hasLoadedTradesRef.current) return;
+        hasLoadedTradesRef.current = true;
+
         let mounted = true;
-        const loadMyTrades = async () => {
+        const loadInitialData = async () => {
             try {
-                const trades = await getMyTrades();
+                // Load both in parallel
+                const [trades, savedData] = await Promise.all([
+                    getMyTrades().catch(() => []),
+                    getSavedTrades().catch(() => ({ savedTradeIds: [] }))
+                ]);
+
                 if (mounted) {
                     setActiveTrades(trades);
+                    setSavedItems(savedData.savedTradeIds);
                 }
             } catch (e) {
-                console.warn('Failed to load my trades', e);
+                console.warn('Failed to load initial trade data', e);
             }
         };
-        loadMyTrades();
+        loadInitialData();
         return () => { mounted = false; };
     }, []);
 
-    // Load saved trade IDs on mount
-    useEffect(() => {
-        const loadSavedItems = async () => {
-            try {
-                const { savedTradeIds } = await getSavedTrades();
-                setSavedItems(savedTradeIds);
-            } catch (e) {
-                console.warn('Failed to load saved trades', e);
-            }
-        };
-        loadSavedItems();
-    }, []);
 
-
-    // Trigger fetch on initial load or filter change
-    useEffect(() => {
-        if (!buyInitialLoadDone) return;
-        // Don't block initial fetch - only block if we're already loading on subsequent fetches
-        if (buyLoading && !isFirstLoad) return;
-
-        // Debounce only if searching
-        if (searchValue) {
-            const timer = setTimeout(() => {
-                fetchBuyTrades(true);
-            }, 500);
-            return () => clearTimeout(timer);
-        } else {
-            fetchBuyTrades(true);
-        }
-
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [buyInitialLoadDone, searchValue, selectedCategories]);
+    // Filter/search changes handled via explicit user action, not automatic useEffect
 
     const handleLoadMoreBuy = () => {
         if (!buyHasMore || buyLoading) return;

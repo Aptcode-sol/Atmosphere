@@ -282,17 +282,17 @@ exports.listStartupCards = async (req, res, next) => {
                 ? fundingRaisedFromRound
                 : Number(startup.fundingRaised || 0);
 
-            console.log('[listStartupCards]', startup.companyName, {
-                fundingRounds: fundingRounds.length,
-                currentRound,
-                uniqueRounds: uniqueRounds.length,
-                calculatedRounds,
-                fundingRaisedFromRound,
-                finalFundingRaised,
-                storedRounds: startup.rounds,
-                storedFundingRaised: startup.fundingRaised,
-                video: startup.video || 'NO VIDEO'
-            });
+            // console.log('[listStartupCards]', startup.companyName, {
+            //     fundingRounds: fundingRounds.length,
+            //     currentRound,
+            //     uniqueRounds: uniqueRounds.length,
+            //     calculatedRounds,
+            //     fundingRaisedFromRound,
+            //     finalFundingRaised,
+            //     storedRounds: startup.rounds,
+            //     storedFundingRaised: startup.fundingRaised,
+            //     video: startup.video || 'NO VIDEO'
+            // });
 
             return {
                 id: startup._id,
@@ -567,7 +567,7 @@ exports.hottestStartups = async (req, res, next) => {
 
 exports.createOrUpdateStartup = async (req, res, next) => {
     try {
-        console.log('createOrUpdateStartup called with req.user._id:', req.user && req.user._id, 'req.body:', req.body);
+        // console.log('createOrUpdateStartup called with req.user._id:', req.user && req.user._id, 'req.body:', req.body);
         const data = req.body;
         // Map frontend field names to backend schema fields
         if (data.roundType) data.stage = data.roundType;

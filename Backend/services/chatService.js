@@ -4,7 +4,7 @@ exports.listChats = async (req, res, next) => {
     try {
         const { limit = 20, skip = 0, type } = req.query;
         
-        console.log('listChats called - User ID:', req.user._id);
+        // console.log('listChats called - User ID:', req.user._id);
 
         const filter = { participants: req.user._id };
         if (type === 'group') {
@@ -20,7 +20,7 @@ exports.listChats = async (req, res, next) => {
             .limit(parseInt(limit))
             .skip(parseInt(skip));
 
-        console.log('Chats found:', chats.length);
+        // console.log('Chats found:', chats.length);
         res.json({ chats });
     } catch (err) {
         console.error('Error in listChats:', err);

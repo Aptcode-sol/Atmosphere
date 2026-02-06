@@ -12,6 +12,7 @@ router.post('/order', authMiddleware, tradeService.placeOrder);
 // New trade routes
 router.post('/trades', authMiddleware, tradeService.createTrade);
 router.get('/trades/my', authMiddleware, tradeService.getMyTrades);
+router.get('/trades/saved', authMiddleware, tradeService.getSavedTrades); // MUST be before :id
 router.get('/trades/user/:userId', optionalAuth, tradeService.getTradesByUserId);
 router.get('/trades', optionalAuth, tradeService.getAllTrades);
 router.get('/trades/:id', optionalAuth, tradeService.getTradeById);
@@ -19,6 +20,5 @@ router.put('/trades/:id', authMiddleware, tradeService.updateTrade);
 router.delete('/trades/:id', authMiddleware, tradeService.deleteTrade);
 router.post('/trades/:id/view', optionalAuth, tradeService.incrementViews);
 router.post('/trades/:id/save', authMiddleware, tradeService.toggleSave);
-router.get('/trades/saved', authMiddleware, tradeService.getSavedTrades);
 
 module.exports = router;

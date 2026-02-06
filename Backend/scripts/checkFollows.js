@@ -6,13 +6,13 @@ async function run(userId) {
     try {
         await connect();
         const Follow = models.Follow;
-        console.log('Checking follows for user:', userId);
+        // console.log('Checking follows for user:', userId);
         const followers = await Follow.find({ following: userId }).limit(50).lean();
         const following = await Follow.find({ follower: userId }).limit(50).lean();
-        console.log('followersCount:', followers.length);
-        console.log('followingCount:', following.length);
-        console.log('sample followers:', followers.slice(0, 5));
-        console.log('sample following:', following.slice(0, 5));
+        // console.log('followersCount:', followers.length);
+        // console.log('followingCount:', following.length);
+        // console.log('sample followers:', followers.slice(0, 5));
+        // console.log('sample following:', following.slice(0, 5));
     } catch (e) {
         console.error(e);
     } finally {

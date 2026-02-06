@@ -64,7 +64,7 @@ const StartupPost = ({ post, company, currentUserId, onOpenProfile, isVisible = 
 
     // Debug log
     if ((companyData as any).video) {
-        console.log('[StartupPost Video]', companyData.name, '| isVisible:', isVisible, '| manuallyPaused:', manuallyPaused, '| videoPaused:', videoPaused);
+        // console.log('[StartupPost Video]', companyData.name, '| isVisible:', isVisible, '| manuallyPaused:', manuallyPaused, '| videoPaused:', videoPaused);
     }
 
     const navigation = useContext(NavigationContext) as any | undefined;

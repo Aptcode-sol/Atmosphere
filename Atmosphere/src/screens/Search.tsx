@@ -81,15 +81,16 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
 
     // Debounce Search
     const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hasLoadedRef = useRef(false); // Use ref to survive StrictMode
+    const justLoadedRef = useRef(false); // Prevent immediate onEndReached after load
 
-    // Initial Load - Skip cache, load fresh data only on first mount
+    // Initial Load - use ref guard to prevent double fetch in StrictMode
     useEffect(() => {
-        if (!hasPerformedInitialLoad) {
-            loadExplore(true);
-            setHasPerformedInitialLoad(true);
-        }
+        if (hasLoadedRef.current) return;
+        hasLoadedRef.current = true;
+        loadExplore(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hasPerformedInitialLoad]);
+    }, []);
 
     const loadExplore = async (reset = false) => {
         if (exploreLoading) return;
@@ -101,6 +102,10 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
             const data = await fetchExplorePosts(PAGE_SIZE, skip);
 
             if (reset) {
+                // Set guard to prevent immediate onEndReached
+                justLoadedRef.current = true;
+                setTimeout(() => { justLoadedRef.current = false; }, 500);
+
                 // Deduplicate incoming page (sometimes backend returns dupes)
                 const deduped = data.filter((v: any, i: number) => {
                     const id = String(v._id || v.id || i);
@@ -129,6 +134,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
             setExploreLoading(false);
         }
     };
+
 
     const performSearch = async (text: string, tab: TabType, reset = false) => {
         if (!text.trim()) return;
@@ -212,6 +218,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
     };
 
     const loadMore = () => {
+        if (justLoadedRef.current) return; // Block immediate trigger after initial load
         if (!query.trim()) {
             loadExplore(false);
         } else {
@@ -492,7 +499,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onPostPress, onUserPress, o
                     keyExtractor={(item, idx) => (item._id || item.id || String(idx))}
                     renderItem={renderItem}
                     onEndReached={loadMore}
-                    onEndReachedThreshold={0.5}
+                    onEndReachedThreshold={0.8}
                     ListFooterComponent={renderFooter}
                     contentContainerStyle={isGrid ? styles.gridContent : styles.listContent}
                     viewabilityConfig={viewabilityConfig}
