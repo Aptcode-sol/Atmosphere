@@ -44,13 +44,14 @@ router.post('/register', async (req, res, next) => {
 
         await user.save();
 
-        // Generate and Send OTP
-        const otp = otpService.createOtp(user.email);
+        // Generate and Send OTP (normalize email)
+        const normalizedEmail = String(user.email).toLowerCase().trim();
+        const otp = await otpService.createOtp(normalizedEmail);
         const emailSubject = 'Verify your email - Atmosphere';
         const emailBody = getOtpEmailTemplate(otp, user.username);
 
         // We don't await this to keep response fast, or we can if we want to ensure sending
-        emailService.sendEmail(user.email, emailSubject, emailBody).catch(err => console.error("Failed to send OTP email:", err));
+        emailService.sendEmail(normalizedEmail, emailSubject, emailBody).catch(err => console.error("Failed to send OTP email:", err));
 
 
         // Generate JWT token
@@ -179,8 +180,8 @@ router.post('/verify-email', async (req, res, next) => {
             return res.status(400).json({ error: 'Email is required if not logged in.' });
         }
 
-        // Verify OTP from in-memory store
-        const verification = otpService.verifyOtp(userEmail, code); // Updated to use otpStoreService
+        // Verify OTP from in-memory store (normalize email)
+        const verification = await otpService.verifyOtp(String(userEmail).toLowerCase().trim(), code); // Updated to use otpStoreService
 
         if (!verification.valid) {
             return res.status(400).json({ success: false, error: verification.message });
@@ -222,7 +223,9 @@ router.post('/resend-otp', async (req, res, next) => {
             return res.status(400).json({ error: 'Email is required' });
         }
 
-        const otp = otpService.createOtp(userEmail);
+        const normalized = String(userEmail).toLowerCase().trim();
+
+        const otp = await otpService.createOtp(normalized);
         const emailSubject = 'Resend: Verify your email - Atmosphere';
         // Need to fetch username if we want to personalize, but for resend flow user might just be email.
         // Let's try to pass what we have. If we found a user object earlier (lines 212-214) use it.
@@ -234,7 +237,7 @@ router.post('/resend-otp', async (req, res, next) => {
         // We can just query basic info or pass empty name.
         const emailBody = getOtpEmailTemplate(otp);
 
-        emailService.sendEmail(userEmail, emailSubject, emailBody).catch(console.error);
+        emailService.sendEmail(normalized, emailSubject, emailBody).catch(console.error);
 
         res.json({ message: 'OTP resent successfully' });
     } catch (err) {
@@ -255,7 +258,7 @@ router.post('/forgot-password', async (req, res, next) => {
             return res.status(404).json({ error: 'No account found with this email address.' });
         }
 
-        const otp = otpService.createOtp(user.email);
+        const otp = await otpService.createOtp(user.email);
         const emailSubject = 'Reset your password - Atmosphere';
         const emailBody = getPasswordResetTemplate(otp, user.username);
 
@@ -275,8 +278,8 @@ router.post('/verify-otp', async (req, res, next) => {
             return res.status(400).json({ error: 'Email and code are required' });
         }
 
-        // Verify without deleting
-        const verification = otpService.verifyOtp(email, code, false);
+        // Verify without deleting (normalize email)
+        const verification = await otpService.verifyOtp(String(email).toLowerCase().trim(), code, false);
 
         if (!verification.valid) {
             return res.status(400).json({ error: verification.message });
@@ -296,8 +299,8 @@ router.post('/reset-password', async (req, res, next) => {
             return res.status(400).json({ error: 'Email, code, and new password are required' });
         }
 
-        // Verify and delete
-        const verification = otpService.verifyOtp(email, code, true);
+        // Verify and delete (normalize email)
+        const verification = await otpService.verifyOtp(String(email).toLowerCase().trim(), code, true);
         if (!verification.valid) {
             return res.status(400).json({ error: verification.message });
         }

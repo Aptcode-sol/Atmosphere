@@ -1,33 +1,29 @@
-const nodemailer = require('nodemailer');
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
-    port: process.env.EMAIL_PORT || 465,
-    secure: true, // true for 465, false for 587
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
+const sesClient = new SESClient({
+    region: process.env.AWS_REGION,
 });
 
 const sendEmail = async (to, subject, html) => {
-    try {
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-            to,
-            subject,
-            html,
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        // console.log('Email sent: ' + info.messageId);
-        return info;
-    } catch (error) {
-        console.error('Error sending email:', error);
-        throw error;
+    if (process.env.OTP_MODE === 'dev') {
+        console.log('DEV MODE EMAIL:', { to, subject, html });
+        return;
     }
+
+    const params = {
+        Source: process.env.EMAIL_FROM,
+        Destination: {
+            ToAddresses: Array.isArray(to) ? to : [to],
+        },
+        Message: {
+            Subject: { Data: subject, Charset: 'UTF-8' },
+            Body: {
+                Html: { Data: html, Charset: 'UTF-8' },
+            },
+        },
+    };
+
+    return sesClient.send(new SendEmailCommand(params));
 };
 
-module.exports = {
-    sendEmail,
-};
+module.exports = { sendEmail };
